@@ -1,0 +1,724 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+@types/
+  nativewind.d.ts
+app/
+  flashcards/
+    [category].tsx
+  quiz/
+    [category].tsx
+  _layout.tsx
+  +not-found.tsx
+  global.css
+  index.tsx
+  progress.tsx
+assets/
+  adaptive-icon.png
+  favicon.png
+  icon.png
+  splash-icon.png
+src/
+  data/
+    vocab.ts
+.gitignore
+app.d.ts
+app.json
+babel.config.js
+index.ts
+metro.config.js
+nativewind-env.d.ts
+package.json
+tailwind.config.js
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="@types/nativewind.d.ts">
+/// <reference types="nativewind/types" />
+</file>
+
+<file path="app/flashcards/[category].tsx">
+import React, { useState, useRef } from 'react';
+import { View, Text, Dimensions, Animated, TouchableOpacity } from 'react-native';
+import * as Speech from 'expo-speech';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { vocab, getWordsByCategory, shuffle } from '../../src/data/vocab';
+import { useVocabStore } from '../../src/data/vocab';
+
+const { width } = Dimensions.get('window');
+
+const Flashcards = () => {
+  const { category } = useLocalSearchParams<{ category: string }>();
+  const router = useRouter();
+  const { toggleLearned, isLearned } = useVocabStore();
+  const [words] = useState(shuffle(getWordsByCategory(category)));
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const word = words[currentIndex];
+
+  const flipCard = () => {
+    const toValue = flipped ? 0 : 180;
+    Animated.spring(rotateAnim, {
+      toValue,
+      friction: 8,
+      tension: 10,
+      useNativeDriver: true,
+    }).start(() => {
+      setFlipped(!flipped);
+      if (!flipped) Speech.speak(word.nepali, { language: 'ne-NP' });
+    });
+  };
+
+  const nextCard = () => {
+    if (currentIndex < words.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setFlipped(false);
+      rotateAnim.setValue(0);
+      translateX.setValue(0);
+    } else {
+      router.back();
+    }
+  };
+
+  const swipeRight = () => {
+    toggleLearned(word.id);
+    nextCard();
+  };
+
+  const swipeLeft = () => {
+    nextCard();
+  };
+
+  if (!word) return <Text className="text-center p-8 text-lg">No words found!</Text>;
+
+  const frontContent = !flipped
+    ? word.english
+    : `${word.nepali}\n(${word.roman})`;
+  const backContent = !flipped
+    ? `${word.nepali}\n(${word.roman})`
+    : word.english;
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 180],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  return (
+    <View className="flex-1 justify-center items-center p-6">
+      <Text className="text-2xl font-bold text-center mb-6 capitalize">{category}</Text>
+      <Text className="text-lg text-gray-600 mb-4">{currentIndex + 1} / {words.length}</Text>
+
+      <Animated.View
+        style={{ transform: [{ perspective: 1000 }, { rotateY: rotate }] }}
+        className="w-full h-72 justify-center items-center bg-white rounded-2xl shadow-xl p-6 mb-8"
+      >
+        {!flipped ? (
+          <>
+            <Text className="text-3xl font-bold text-gray-800 text-center">{word.english}</Text>
+            <Text className="text-xl text-gray-500 mt-4 text-center">{word.nepali} ({word.roman})</Text>
+          </>
+        ) : (
+          <>
+            <Text className="text-3xl font-bold text-gray-800 text-center">{word.nepali}</Text>
+            <Text className="text-xl text-gray-500 mt-4 text-center">({word.roman})</Text>
+          </>
+        )}
+      </Animated.View>
+
+      <TouchableOpacity onPress={flipCard} className="bg-blue-500 px-8 py-3 rounded-full mb-6">
+        <Text className="text-white font-bold text-lg">{flipped ? 'Show English' : 'Show Nepali'}</Text>
+      </TouchableOpacity>
+
+      <View className="flex-row gap-6">
+        <TouchableOpacity onPress={swipeLeft} className="bg-red-500 px-8 py-3 rounded-full">
+          <Text className="text-white font-bold">Skip</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={swipeRight} className="bg-green-500 px-8 py-3 rounded-full">
+          <Text className="text-white font-bold">Learn</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+export default Flashcards;
+</file>
+
+<file path="app/quiz/[category].tsx">
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import * as Speech from 'expo-speech';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { vocab, getWordsByCategory, shuffle } from '../../src/data/vocab';
+import { useVocabStore } from '../../src/data/vocab';
+
+const Quiz = () => {
+  const { category } = useLocalSearchParams<{ category: string }>();
+  const router = useRouter();
+  const { learnWord, isLearned } = useVocabStore();
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [score, setScore] = useState(0);
+
+  React.useEffect(() => {
+    const words = shuffle(getWordsByCategory(category)).slice(0, 10);
+    const qData = words.map(word => {
+      const allNepali = vocab.map(w => w.nepali).filter(n => n !== word.nepali);
+      const wrong = shuffle(allNepali).slice(0, 3);
+      const options = shuffle([word.nepali, ...wrong]);
+      return { ...word, options };
+    });
+    setQuestions(qData);
+  }, [category]);
+
+  const q = questions[currentQ];
+
+  const selectAnswer = (selected: string) => {
+    if (selected === q?.nepali) {
+      const newScore = score + 1;
+      setScore(newScore);
+      if (!isLearned(q.id)) learnWord(q.id);
+    }
+    if (currentQ < questions.length - 1) {
+      setCurrentQ(currentQ + 1);
+    } else {
+      Alert.alert('Quiz Complete!', `Score: ${selected === q?.nepali ? score + 1 : score}/${questions.length}`, [
+        { text: 'Home', onPress: () => router.back() },
+      ]);
+    }
+  };
+
+  if (!q) return <Text className="text-center p-8 text-lg">Loading...</Text>;
+
+  return (
+    <View className="flex-1 p-6 justify-center">
+      <Text className="text-2xl font-bold text-center mb-2 capitalize">{category} Quiz</Text>
+      <Text className="text-lg text-gray-600 text-center mb-6">{currentQ + 1} / {questions.length}</Text>
+      <TouchableOpacity onPress={() => Speech.speak(q.english, { language: 'en-US' })} className="mb-8">
+        <Text className="text-3xl font-bold text-center text-gray-800">{q.english} 🔊</Text>
+      </TouchableOpacity>
+      <View className="gap-4">
+        {q.options.map((opt: string, i: number) => (
+          <TouchableOpacity key={i} onPress={() => selectAnswer(opt)} className="p-5 bg-white border rounded-xl shadow-md">
+            <Text className="text-xl text-center font-semibold">{opt}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Text className="text-center mt-8 text-lg">Score: {score}/{currentQ}</Text>
+    </View>
+  );
+};
+
+export default Quiz;
+</file>
+
+<file path="app/_layout.tsx">
+import { Stack } from 'expo-router';
+
+import './global.css';
+
+export default function RootLayout() {
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ title: 'Nepali Learner' }} />
+      <Stack.Screen name="flashcards/[category]" options={{ title: 'Flashcards' }} />
+      <Stack.Screen name="quiz/[category]" options={{ title: 'Quiz' }} />
+      <Stack.Screen name="progress" options={{ title: 'Progress' }} />
+    </Stack>
+  );
+}
+</file>
+
+<file path="app/+not-found.tsx">
+import { useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity } from 'react-native';
+
+export default function NotFound() {
+  const router = useRouter();
+
+  return (
+    <View className="flex-1 justify-center items-center p-8">
+      <Text className="text-2xl font-bold mb-4">Not Found</Text>
+      <Text className="text-lg text-gray-600 mb-8 text-center">Could not find requested screen</Text>
+      <TouchableOpacity onPress={() => router.push('/')} className="bg-blue-500 p-4 rounded-lg">
+        <Text className="text-white font-bold">Go Home</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+</file>
+
+<file path="app/global.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+</file>
+
+<file path="app/index.tsx">
+import React from 'react';
+import { View, Text, FlatList, TouchableOpacity, ScrollView } from 'react-native';
+import { Link } from 'expo-router';
+import { categories, getWordsByCategory } from '../src/data/vocab';
+import { useVocabStore } from '../src/data/vocab';
+
+const Home = () => {
+  const { isLearned } = useVocabStore();
+
+  const renderCategory = ({ item }: { item: string }) => {
+    const words = getWordsByCategory(item);
+    const learnedCount = words.filter(w => isLearned(w.id)).length;
+    const percent = ((learnedCount / words.length) * 100).toFixed(0);
+
+    return (
+      <View className="mb-6 p-4 bg-blue-100 rounded-lg">
+        <Text className="text-xl font-bold capitalize mb-2">{item}</Text>
+        <Text className="text-lg mb-2">Learned: {percent}% ({learnedCount}/{words.length})</Text>
+        <View className="flex-row gap-2">
+          <Link href={`/flashcards/${item}`} asChild>
+            <TouchableOpacity className="flex-1 bg-green-500 p-3 rounded">
+              <Text className="text-white font-bold text-center">Flashcards</Text>
+            </TouchableOpacity>
+          </Link>
+          <Link href={`/quiz/${item}`} asChild>
+            <TouchableOpacity className="flex-1 bg-purple-500 p-3 rounded">
+              <Text className="text-white font-bold text-center">Quiz</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <ScrollView className="flex-1 p-6 bg-gradient-to-b from-blue-50 to-white">
+      <Text className="text-3xl font-bold text-center mb-8 text-gray-800">Nepali Learner</Text>
+      <FlatList
+        data={categories}
+        renderItem={renderCategory}
+        keyExtractor={(item) => item}
+        scrollEnabled={false}
+      />
+      <Link href="/progress" asChild>
+        <TouchableOpacity className="mt-4 bg-indigo-500 p-4 rounded-lg">
+          <Text className="text-white font-bold text-center text-lg">Progress</Text>
+        </TouchableOpacity>
+      </Link>
+    </ScrollView>
+  );
+};
+
+export default Home;
+</file>
+
+<file path="app/progress.tsx">
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Link } from 'expo-router';
+import { categories, vocab } from '../src/data/vocab';
+import { useVocabStore } from '../src/data/vocab';
+
+const Progress = () => {
+  const { isLearned } = useVocabStore();
+
+  const stats = categories.map(cat => {
+    const words = vocab.filter(w => w.category === cat);
+    const learned = words.filter(w => isLearned(w.id)).length;
+    return { cat, learned, total: words.length, percent: (learned / words.length * 100).toFixed(0) };
+  });
+
+  const totalLearned = stats.reduce((sum, s) => sum + s.learned, 0);
+  const totalWords = stats.reduce((sum, s) => sum + s.total, 0);
+
+  return (
+    <ScrollView className="flex-1 p-6">
+      <Text className="text-3xl font-bold text-center mb-8 text-gray-800">Progress Overview</Text>
+      <View className="bg-white p-6 rounded-2xl shadow-lg mb-8">
+        <Text className="text-2xl font-bold text-center mb-2">Overall: {totalLearned}/{totalWords}</Text>
+        <Text className="text-xl text-center text-green-600">({(totalLearned / totalWords * 100).toFixed(0)}%)</Text>
+      </View>
+      {stats.map(s => (
+        <View key={s.cat} className="bg-white p-6 mb-4 rounded-xl shadow-md">
+          <Text className="text-xl font-bold capitalize mb-2">{s.cat}</Text>
+          <Text className="text-lg mb-2">{s.learned}/{s.total} learned ({s.percent}%)</Text>
+          <Link href={`/flashcards/${s.cat}`} asChild>
+            <TouchableOpacity className="bg-blue-500 p-3 rounded-lg">
+              <Text className="text-white font-bold text-center">Review {s.cat}</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+      ))}
+    </ScrollView>
+  );
+};
+
+export default Progress;
+</file>
+
+<file path="src/data/vocab.ts">
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { PersistStorage } from 'zustand/middleware';
+
+const asyncStorage: PersistStorage<VocabState> = {
+  getItem: async (name) => {
+    const val = await AsyncStorage.getItem(name);
+    return val ? JSON.parse(val) : null;
+  },
+  setItem: async (name, value) => {
+    await AsyncStorage.setItem(name, JSON.stringify(value));
+  },
+  removeItem: async (name) => {
+    await AsyncStorage.removeItem(name);
+  },
+};
+
+export type Word = {
+  id: number;
+  english: string;
+  nepali: string;
+  roman: string;
+  category: string;
+};
+
+type VocabState = {
+  learned: number[];
+  learnWord: (id: number) => void;
+  unlearnWord: (id: number) => void;
+  isLearned: (id: number) => boolean;
+  toggleLearned: (id: number) => void;
+};
+
+export const useVocabStore = create<VocabState>()(
+  persist(
+    (set, get) => ({
+      learned: [],
+      learnWord: (id) => set({ learned: [...get().learned, id] }),
+      unlearnWord: (id) => set({ learned: get().learned.filter(l => l !== id) }),
+      isLearned: (id) => get().learned.includes(id),
+      toggleLearned: (id) => {
+        const learned = get().learned;
+        if (learned.includes(id)) {
+          set({ learned: learned.filter(l => l !== id) });
+        } else {
+          set({ learned: [...learned, id] });
+        }
+      },
+    }),
+    {
+      name: 'nepali-vocab',
+      storage: asyncStorage,
+    }
+  )
+);
+
+export const categories = [
+  'greetings', 'numbers', 'colors', 'family', 'food',
+  'directions', 'days', 'time', 'adjectives', 'places',
+] as const;
+
+export type Category = (typeof categories)[number];
+
+export const vocab: Word[] = [
+  { id: 1, english: 'Hello', nepali: 'नमस्ते', roman: 'Namaste', category: 'greetings' },
+  { id: 2, english: 'Goodbye', nepali: 'नमस्कार', roman: 'Namaskar', category: 'greetings' },
+  { id: 3, english: 'Thank you', nepali: 'धन्यवाद', roman: 'Dhanyabad', category: 'greetings' },
+  { id: 4, english: 'Please', nepali: 'कृपया', roman: 'Kripaya', category: 'greetings' },
+  { id: 5, english: 'Yes', nepali: 'हो', roman: 'Ho', category: 'greetings' },
+  { id: 6, english: 'No', nepali: 'होइन', roman: 'Hoina', category: 'greetings' },
+  { id: 7, english: 'Sorry', nepali: 'माफ गर्नुहोस्', roman: 'Maaf garnuhos', category: 'greetings' },
+  { id: 8, english: 'Good morning', nepali: 'शुभ प्रभात', roman: 'Shubha prabhat', category: 'greetings' },
+  { id: 9, english: 'How are you?', nepali: 'तपाईं कस्तो हुनुहुन्छ?', roman: 'Tapai kasto hunuhunchha?', category: 'greetings' },
+  { id: 10, english: 'Fine', nepali: 'ठीक छ', roman: 'Thik chha', category: 'greetings' },
+  { id: 11, english: 'One', nepali: 'एक', roman: 'Ek', category: 'numbers' },
+  { id: 12, english: 'Two', nepali: 'दुई', roman: 'Dui', category: 'numbers' },
+  { id: 13, english: 'Three', nepali: 'तीन', roman: 'Tin', category: 'numbers' },
+  { id: 14, english: 'Four', nepali: 'चार', roman: 'Char', category: 'numbers' },
+  { id: 15, english: 'Five', nepali: 'पाँच', roman: 'Panch', category: 'numbers' },
+  { id: 16, english: 'Six', nepali: 'छ', roman: 'Chha', category: 'numbers' },
+  { id: 17, english: 'Seven', nepali: 'सात', roman: 'Saat', category: 'numbers' },
+  { id: 18, english: 'Eight', nepali: 'आठ', roman: 'Aath', category: 'numbers' },
+  { id: 19, english: 'Nine', nepali: 'नौ', roman: 'Nau', category: 'numbers' },
+  { id: 20, english: 'Ten', nepali: 'दस', roman: 'Das', category: 'numbers' },
+  { id: 21, english: 'Red', nepali: 'रातो', roman: 'Rato', category: 'colors' },
+  { id: 22, english: 'Blue', nepali: 'निलो', roman: 'Nilo', category: 'colors' },
+  { id: 23, english: 'Green', nepali: 'हरियो', roman: 'Hariyo', category: 'colors' },
+  { id: 24, english: 'Yellow', nepali: 'पहेंलो', roman: 'Pahenlo', category: 'colors' },
+  { id: 25, english: 'Black', nepali: 'कालो', roman: 'Kalo', category: 'colors' },
+  { id: 26, english: 'Mother', nepali: 'आमा', roman: 'Aama', category: 'family' },
+  { id: 27, english: 'Father', nepali: 'बुबा', roman: 'Buba', category: 'family' },
+  { id: 28, english: 'Brother', nepali: 'दाजु/भाइ', roman: 'Daju/Bhai', category: 'family' },
+  { id: 29, english: 'Sister', nepali: 'दिदी/बहिनी', roman: 'Didi/Bahini', category: 'family' },
+  { id: 30, english: 'Child', nepali: 'बालबालिका', roman: 'Balbalika', category: 'family' },
+  { id: 31, english: 'Water', nepali: 'पानी', roman: 'Pani', category: 'food' },
+  { id: 32, english: 'Rice', nepali: 'भात', roman: 'Bhaat', category: 'food' },
+  { id: 33, english: 'Bread', nepali: 'रोटी', roman: 'Roti', category: 'food' },
+  { id: 34, english: 'Vegetable', nepali: 'तरकारी', roman: 'Tarkari', category: 'food' },
+  { id: 35, english: 'Fruit', nepali: 'फलफूल', roman: 'Phalphal', category: 'food' },
+  { id: 36, english: 'Left', nepali: 'बायाँ', roman: 'Bayaa', category: 'directions' },
+  { id: 37, english: 'Right', nepali: 'दायाँ', roman: 'Daya', category: 'directions' },
+  { id: 38, english: 'Straight', nepali: 'सिधा', roman: 'Sidha', category: 'directions' },
+  { id: 39, english: 'Here', nepali: 'यहाँ', roman: 'Yahaa', category: 'directions' },
+  { id: 40, english: 'There', nepali: 'त्यहाँ', roman: 'Tyahaa', category: 'directions' },
+  { id: 41, english: 'Monday', nepali: 'सोमबार', roman: 'Sombar', category: 'days' },
+  { id: 42, english: 'Tuesday', nepali: 'मङ्गलबार', roman: 'Mangalbar', category: 'days' },
+  { id: 43, english: 'Wednesday', nepali: 'बुधबार', roman: 'Budhbar', category: 'days' },
+  { id: 44, english: 'Thursday', nepali: 'बिहीबार', roman: 'Bihibar', category: 'days' },
+  { id: 45, english: 'Friday', nepali: 'शुक्रबार', roman: 'Shukrabar', category: 'days' },
+  { id: 46, english: 'Today', nepali: 'आज', roman: 'Aaja', category: 'time' },
+  { id: 47, english: 'Tomorrow', nepali: 'भोलि', roman: 'Bholi', category: 'time' },
+  { id: 48, english: 'Big', nepali: 'ठूलो', roman: 'Thulo', category: 'adjectives' },
+  { id: 49, english: 'Small', nepali: 'सानो', roman: 'Sano', category: 'adjectives' },
+  { id: 50, english: 'Happy', nepali: 'खुशी', roman: 'Khushi', category: 'adjectives' },
+  { id: 51, english: 'House', nepali: 'घर', roman: 'Ghar', category: 'places' },
+  { id: 52, english: 'School', nepali: 'स्कूल', roman: 'School', category: 'places' },
+  { id: 53, english: 'Market', nepali: 'बजार', roman: 'Bajar', category: 'places' },
+  { id: 54, english: 'Mountain', nepali: 'हिमाल', roman: 'Himal', category: 'places' },
+];
+
+export function getWordsByCategory(cat: string): Word[] {
+  return vocab.filter(w => w.category === cat);
+}
+
+export function shuffle<T>(array: T[]): T[] {
+  return [...array].sort(() => Math.random() - 0.5);
+}
+</file>
+
+<file path=".gitignore">
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+</file>
+
+<file path="app.d.ts">
+/// <reference types="nativewind/types" />
+</file>
+
+<file path="app.json">
+{
+  "expo": {
+    "name": "NepaliLearner",
+    "experiments": {
+"reactCanary": true
+},
+    "slug": "NepaliLearner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
+</file>
+
+<file path="babel.config.js">
+module.exports = function(api) {
+  api.cache(true);
+  return {
+    presets: ['babel-preset-expo'],
+  };
+};
+</file>
+
+<file path="index.ts">
+import 'react-native-gesture-handler';
+import 'expo-router/entry';
+</file>
+
+<file path="metro.config.js">
+const { getDefaultConfig } = require("expo/metro-config");
+const { withNativeWind } = require("nativewind/metro");
+
+const config = getDefaultConfig(__dirname);
+
+module.exports = withNativeWind(config, { input: "./app/global.css" });
+</file>
+
+<file path="nativewind-env.d.ts">
+/// <reference types="nativewind/types" />
+
+// NOTE: This file should not be edited and should be committed with your source code. It is generated by NativeWind.
+</file>
+
+<file path="package.json">
+{
+  "name": "nepalilearner",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~54.0.0",
+    "expo-av": "~16.0.8",
+    "expo-constants": "~17.0.8",
+    "expo-linking": "~7.0.5",
+    "expo-router": "~4.0.0",
+    "expo-speech": "~14.0.0",
+    "expo-status-bar": "~3.0.9",
+    "nativewind": "^4.2.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-reanimated": "~3.17.0",
+    "react-native-safe-area-context": "~5.4.0",
+    "react-native-screens": "~4.10.0",
+    "react-native-web": "^0.21.0",
+    "tailwindcss": "^3.4.0",
+    "zustand": "^5.0.13"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
+</file>
+
+<file path="tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+  ],
+  presets: [require('nativewind/preset')],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+</file>
+
+<file path="tsconfig.json">
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "nativewind.d.ts",
+    "nativewind-env.d.ts"
+  ]
+}
+</file>
+
+</files>
