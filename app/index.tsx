@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Alert } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
+import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 
 const Home = () => {
   const router = useRouter();
@@ -12,6 +15,16 @@ const Home = () => {
   const { isLearned } = useVocabStore();
   const uid = user?.id || GUEST_ID;
   const [menuVisible, setMenuVisible] = useState(false);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+
+  const viewDebugData = async () => {
+    try {
+      const data = await AsyncStorage.getItem('nepali-vocab');
+      Alert.alert('Debug Data', data || 'No data found');
+    } catch (e) {
+      Alert.alert('Error', 'Failed to read storage');
+    }
+  };
 
   const totalLearned = categories.reduce((sum, cat) => {
     const words = getWordsByCategory(cat);
@@ -43,7 +56,7 @@ const Home = () => {
             </View>
             <View className="flex-row">
               <TouchableOpacity style={{ backgroundColor: '#F3F4F6' }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
-                <Text className="text-lg">🔔</Text>
+                <Ionicons name="notifications-outline" size={20} color="#4A1942" />
               </TouchableOpacity>
               <TouchableOpacity style={{ backgroundColor: '#F3F4F6' }} className="w-10 h-10 rounded-full items-center justify-center" onPress={() => setMenuVisible(true)}>
                 <Text className="text-lg">☰</Text>
@@ -67,6 +80,9 @@ const Home = () => {
               </TouchableOpacity>
               <TouchableOpacity className="px-4 py-3" onPress={() => { setMenuVisible(false); clearUser(); }}>
                 <Text className="text-[#DC2626] text-base font-semibold">🚪 Sign Out</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); viewDebugData(); }}>
+                <Text className="text-[#6B7280] text-base font-semibold">🐛 Debug Data</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -126,43 +142,49 @@ const Home = () => {
           <Text className="text-[#4A1942] text-base font-semibold mb-3">DAILY CHALLENGES</Text>
           <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#E5D5D0' }} className="overflow-hidden">
             {/* Morning Vocab */}
-            <TouchableOpacity className="p-4 flex-row items-center border-b" style={{ borderColor: '#E5D5D0' }}>
-              <View style={{ backgroundColor: '#FEE2E2' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
-                <Text className="text-xl">文A</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-[#4A1942] text-sm font-semibold mb-1">Morning Vocab</Text>
-                <Text className="text-[#6B7280] text-xs">Review 10 new mountain-related terms</Text>
-              </View>
-              <Text className="text-[#065F46] text-sm font-bold mr-2">+50 XP</Text>
-              <Text className="text-[#800816]">›</Text>
-            </TouchableOpacity>
+            <Link href="/morning-vocab" asChild>
+              <TouchableOpacity className="p-4 flex-row items-center border-b" style={{ borderColor: '#E5D5D0' }}>
+                <View style={{ backgroundColor: '#FEE2E2' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-xl">📖</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#4A1942] text-sm font-semibold mb-1">Morning Vocab</Text>
+                  <Text className="text-[#6B7280] text-xs">Review 5 new random terms</Text>
+                </View>
+                <Text className="text-[#065F46] text-sm font-bold mr-2">+50 XP</Text>
+                <Text className="text-[#800816]">›</Text>
+              </TouchableOpacity>
+            </Link>
 
             {/* Echo Practice */}
-            <TouchableOpacity className="p-4 flex-row items-center border-b" style={{ borderColor: '#E5D5D0' }}>
-              <View style={{ backgroundColor: '#FEF3C7' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
-                <Text className="text-xl"></Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-[#4A1942] text-sm font-semibold mb-1">Echo Practice</Text>
-                <Text className="text-[#6B7280] text-xs">Pronounce 5 phrases with perfect pitch</Text>
-              </View>
-              <Text className="text-[#065F46] text-sm font-bold mr-2">+30 XP</Text>
-              <Text className="text-[#800816]">›</Text>
-            </TouchableOpacity>
+            <Link href="/echo-practice" asChild>
+              <TouchableOpacity className="p-4 flex-row items-center border-b" style={{ borderColor: '#E5D5D0' }}>
+                <View style={{ backgroundColor: '#FEF3C7' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-xl">🗣️</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#4A1942] text-sm font-semibold mb-1">Echo Practice</Text>
+                  <Text className="text-[#6B7280] text-xs">Listen and repeat 5 phrases</Text>
+                </View>
+                <Text className="text-[#065F46] text-sm font-bold mr-2">+30 XP</Text>
+                <Text className="text-[#800816]">›</Text>
+              </TouchableOpacity>
+            </Link>
 
             {/* Journal Prompt */}
-            <TouchableOpacity className="p-4 flex-row items-center">
-              <View style={{ backgroundColor: '#D1FAE5' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
-                <Text className="text-xl">📝</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-[#9CA3AF] text-sm font-semibold mb-1">Journal Prompt</Text>
-                <Text className="text-[#9CA3AF] text-xs">Write 3 sentences about your day</Text>
-              </View>
-              <Text className="text-[#6B7280] mr-2">✓</Text>
-              <Text className="text-[#6B7280]">›</Text>
-            </TouchableOpacity>
+            <Link href="/journal" asChild>
+              <TouchableOpacity className="p-4 flex-row items-center">
+                <View style={{ backgroundColor: '#D1FAE5' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-xl">📝</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#4A1942] text-sm font-semibold mb-1">Journal Prompt</Text>
+                  <Text className="text-[#6B7280] text-xs">Write a sentence in Nepali</Text>
+                </View>
+                <Text className="text-[#065F46] text-sm font-bold mr-2">+20 XP</Text>
+                <Text className="text-[#800816]">›</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
         </View>
       </ScrollView>
@@ -170,26 +192,28 @@ const Home = () => {
       {/* Bottom Navigation */}
       <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center px-4 pb-6 pt-3">
         <View className="flex-1 items-center">
-          <Text className="text-[#800816] text-xl">🏠</Text>
+          <Ionicons name="home" size={24} color="#800816" />
           <Text className="text-[#800816] text-xs mt-1 font-semibold">HOME</Text>
         </View>
         <View className="flex-1 items-center">
           <Link href="/learn" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">📖</Text>
+              <Ionicons name="book-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">LEARN</Text>
             </TouchableOpacity>
           </Link>
         </View>
         <View className="flex-1 items-center -mt-4">
-          <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
-            <Text className="text-white text-2xl font-bold">+</Text>
-          </View>
+          <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
+            <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
+              <Ionicons name="add" size={28} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
         </View>
         <View className="flex-1 items-center">
           <Link href="/ai-tutor" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl"></Text>
+              <Ionicons name="sparkles-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">AI TUTOR</Text>
             </TouchableOpacity>
           </Link>
@@ -197,12 +221,14 @@ const Home = () => {
         <View className="flex-1 items-center">
           <Link href="/profile" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">👤</Text>
+              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">PROFILE</Text>
             </TouchableOpacity>
           </Link>
         </View>
       </View>
+
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
   );
 };

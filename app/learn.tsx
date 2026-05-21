@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
 import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 const themes = ['All Themes', 'Mystical Legends', 'Mountain', 'Festivals', 'Food', 'Daily Life'];
 
@@ -14,7 +15,7 @@ const Learn = () => {
         {/* Search Bar */}
         <View className="px-5 pt-12 pb-4">
           <View style={{ backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E5D5D0' }} className="flex-row items-center px-4 py-3">
-            <Text className="text-[#9CA3AF] text-base mr-2">🔍</Text>
+            <Ionicons name="search" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
             <TextInput
               className="flex-1 text-[#4A1942] text-base"
               placeholder="Search legends, festivals, food..."
@@ -23,7 +24,7 @@ const Learn = () => {
               onChangeText={setSearchQuery}
             />
             <TouchableOpacity className="ml-2">
-              <Text className="text-[#800816] text-base">⚙️</Text>
+              <Ionicons name="settings-outline" size={20} color="#800816" />
             </TouchableOpacity>
           </View>
         </View>
@@ -95,9 +96,11 @@ const Learn = () => {
                     <Text className="text-[#991B1B] text-xs font-semibold">B2</Text>
                   </View>
                 </View>
-                <TouchableOpacity style={{ backgroundColor: '#800816' }} className="px-4 py-2 rounded-xl">
-                  <Text className="text-white text-sm font-semibold">Read Story</Text>
-                </TouchableOpacity>
+                <Link href="/story" asChild>
+                  <TouchableOpacity style={{ backgroundColor: '#800816' }} className="px-4 py-2 rounded-xl">
+                    <Text className="text-white text-sm font-semibold">Read Story</Text>
+                  </TouchableOpacity>
+                </Link>
               </View>
             </View>
           </View>
@@ -167,19 +170,19 @@ const Learn = () => {
         <View className="flex-1 items-center">
           <Link href="/" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">🏠</Text>
+              <Ionicons name="home-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">Home</Text>
             </TouchableOpacity>
           </Link>
         </View>
         <View className="flex-1 items-center">
-          <Text className="text-[#800816] text-xl">🔍</Text>
+          <Ionicons name="search" size={24} color="#800816" />
           <Text className="text-[#800816] text-xs mt-1 font-semibold">Explore</Text>
         </View>
         <View className="flex-1 items-center">
           <Link href="/ai-tutor" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">🤖</Text>
+              <Ionicons name="sparkles-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">AI Tutor</Text>
             </TouchableOpacity>
           </Link>
@@ -187,7 +190,7 @@ const Learn = () => {
         <View className="flex-1 items-center">
           <Link href="/profile" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">👤</Text>
+              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">Profile</Text>
             </TouchableOpacity>
           </Link>

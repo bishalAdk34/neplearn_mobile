@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 const AITutor = () => {
   const [isListening, setIsListening] = useState(true);
@@ -150,7 +151,7 @@ const AITutor = () => {
         <View className="flex-1 items-center">
           <Link href="/" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">🏠</Text>
+              <Ionicons name="home-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">Home</Text>
             </TouchableOpacity>
           </Link>
@@ -158,19 +159,19 @@ const AITutor = () => {
         <View className="flex-1 items-center">
           <Link href="/learn" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">🔍</Text>
+              <Ionicons name="search-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">Explore</Text>
             </TouchableOpacity>
           </Link>
         </View>
         <View className="flex-1 items-center">
-          <Text className="text-[#800816] text-xl">🤖</Text>
+          <Ionicons name="sparkles" size={24} color="#800816" />
           <Text className="text-[#800816] text-xs mt-1 font-semibold">AI Tutor</Text>
         </View>
         <View className="flex-1 items-center">
           <Link href="/profile" asChild>
             <TouchableOpacity className="items-center">
-              <Text className="text-[#9CA3AF] text-xl">👤</Text>
+              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
               <Text className="text-[#9CA3AF] text-xs mt-1">Profile</Text>
             </TouchableOpacity>
           </Link>

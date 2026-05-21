@@ -33,6 +33,9 @@ export default function RootLayout() {
       <Stack.Screen name="quiz/[category]" options={{ headerShown: false }} />
       <Stack.Screen name="progress" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="morning-vocab" options={{ headerShown: false }} />
+      <Stack.Screen name="echo-practice" options={{ headerShown: false }} />
+      <Stack.Screen name="journal" options={{ headerShown: false }} />
     </Stack>
   );
 }

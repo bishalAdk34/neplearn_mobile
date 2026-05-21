@@ -62,3 +62,44 @@ NativeWind (Tailwind CSS for RN) — `className` prop, `global.css` imported in 
 - Tailwind: custom `primary` color palette (#6366F1), `surface`, `text-primary`, `text-secondary`
 - `.gitignore`: `.expo/`, `dist/`, `web-build/`, `expo-env.d.ts`, `/ios`, `/android`
 - Google OAuth config lives only in `src/config.ts` — no env files used
+
+## Known Gaps & Missing Features
+
+### Broken/Missing Routes
+- `/story` exists as a file but is **NOT registered** in `_layout.tsx` Stack — will 404 when tapped from `/learn`
+
+### Non-Functional UI Elements (no handlers)
+- **Home**: Notifications bell icon does nothing
+- **Learn**: Search bar has no search logic; theme filter chips don't filter content; "Start Exploring", "Practice Phrases", "Start Simulation" buttons have no `onPress`
+- **Profile**: Hardcoded user "Arjun" instead of `useAuthStore`; all stats (Level 14, XP, streak) are static; menu button, "View Heatmap", "View All Badges", "Continue Journey" do nothing
+- **Story**: Audio player play button has no handler; "Next Chapter" and "Back to Folklore Map" do nothing
+- **Settings**: All items (TTS Speed, Notifications, Daily Reminder, Clear Learned Words, Account) are non-functional
+- **Journal**: "Save Entry" only shows an Alert — nothing is persisted
+
+### Incomplete Features
+- **AI Tutor** (`app/ai-tutor.tsx`): Static mock UI only — no actual AI/LLM integration
+- **Echo Practice** (`app/echo-practice.tsx`): Plays audio but has no speech recognition to compare user's pronunciation
+- **Streak system**: Fake — computed as `Math.min(totalLearned, 15)` instead of tracking actual consecutive days
+- **XP system**: Computed on-the-fly (`totalLearned * 100`) with no persistence or history
+- **Achievements**: Profile shows static array of 3 hardcoded achievements
+- **Notifications**: No `expo-notifications` dependency; bell icon and daily reminder settings do nothing
+
+### Code Defects
+- `resetOnboarding` declared 12 times in `VocabState` type (`src/data/vocab.ts`) — dead code
+- `learnWord` allows duplicate entries in `lesson.tsx` and `morning-vocab.tsx` (quiz guards against it)
+- Quiz speaks **English** instead of Nepali (`speak(q.english, 'en-US')` in `app/quiz/[category].tsx:91`)
+- `GOOGLE_ANDROID_CLIENT_ID` is still placeholder `YOUR_ANDROID_CLIENT_ID`
+- Duplicate category metadata across `app/index.tsx` and `app/progress.tsx`
+
+### Missing Dependencies
+| Needed For | Package |
+|---|---|
+| Speech recognition (Echo Practice) | `@react-native-voice/voice` or similar |
+| AI/LLM integration (AI Tutor) | API client (OpenAI, Gemini, etc.) |
+| Push notifications | `expo-notifications` |
+| Heatmap visualization | Charting library or custom SVG |
+
+### Quality
+- No lint, typecheck, or test scripts in `package.json`
+- No TypeScript strict mode
+- Multiple `any` types (e.g., quiz `useState<any[]>([])`)
