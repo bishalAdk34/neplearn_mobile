@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Alert } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import BottomNav from '../src/components/BottomNav';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
@@ -190,41 +191,14 @@ const Home = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center px-4 pb-6 pt-3">
-        <View className="flex-1 items-center">
-          <Ionicons name="home" size={24} color="#800816" />
-          <Text className="text-[#800816] text-xs mt-1 font-semibold">HOME</Text>
-        </View>
-        <View className="flex-1 items-center">
-          <Link href="/learn" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="book-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">LEARN</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-        <View className="flex-1 items-center -mt-4">
+      <View>
+        <BottomNav activeTab="home" />
+        <View style={{ position: 'absolute', top: -28, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
           <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
             <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
               <Ionicons name="add" size={28} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
-        </View>
-        <View className="flex-1 items-center">
-          <Link href="/ai-tutor" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="sparkles-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">AI TUTOR</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-        <View className="flex-1 items-center">
-          <Link href="/profile" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">PROFILE</Text>
-            </TouchableOpacity>
-          </Link>
         </View>
       </View>
 

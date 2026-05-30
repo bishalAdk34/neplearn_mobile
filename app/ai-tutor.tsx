@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../src/components/BottomNav';
 
 const AITutor = () => {
   const [isListening, setIsListening] = useState(true);
@@ -147,36 +148,7 @@ const AITutor = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center px-4 pb-6 pt-3">
-        <View className="flex-1 items-center">
-          <Link href="/" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="home-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">Home</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-        <View className="flex-1 items-center">
-          <Link href="/learn" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="search-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">Explore</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-        <View className="flex-1 items-center">
-          <Ionicons name="sparkles" size={24} color="#800816" />
-          <Text className="text-[#800816] text-xs mt-1 font-semibold">AI Tutor</Text>
-        </View>
-        <View className="flex-1 items-center">
-          <Link href="/profile" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">Profile</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </View>
+      <BottomNav activeTab="ai-tutor" />
     </View>
   );
 };

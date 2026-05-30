@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../src/components/BottomNav';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore } from '../src/data/vocab';
 import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
@@ -106,24 +107,7 @@ const Profile = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center px-4 pb-6 pt-3">
-        <View className="flex-1 items-center">
-          <Ionicons name="school-outline" size={24} color="#9CA3AF" />
-          <Text className="text-[#9CA3AF] text-xs mt-1">Learn</Text>
-        </View>
-        <View className="flex-1 items-center">
-          <Ionicons name="book-outline" size={24} color="#9CA3AF" />
-          <Text className="text-[#9CA3AF] text-xs mt-1">Review</Text>
-        </View>
-        <View className="flex-1 items-center">
-          <Ionicons name="stats-chart-outline" size={24} color="#9CA3AF" />
-          <Text className="text-[#9CA3AF] text-xs mt-1">Progress</Text>
-        </View>
-        <View className="flex-1 items-center">
-          <Ionicons name="person" size={24} color="#800816" />
-          <Text className="text-[#800816] text-xs mt-1 font-semibold">Profile</Text>
-        </View>
-      </View>
+      <BottomNav activeTab="profile" />
     </View>
   );
 };

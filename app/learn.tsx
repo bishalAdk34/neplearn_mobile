@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../src/components/BottomNav';
 
 const themes = ['All Themes', 'Mystical Legends', 'Mountain', 'Festivals', 'Food', 'Daily Life'];
 
 const Learn = () => {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTheme, setActiveTheme] = useState('All Themes');
 
@@ -45,7 +47,7 @@ const Learn = () => {
                 <Text className="text-white text-xl font-bold mb-2">Discover the Heart of the Himalayas</Text>
                 <Text className="text-white/80 text-sm">Stories, culture, and the living breath of Nepal.</Text>
               </View>
-              <TouchableOpacity style={{ backgroundColor: '#FFFFFF' }} className="py-3 rounded-xl items-center mt-4">
+              <TouchableOpacity style={{ backgroundColor: '#FFFFFF' }} className="py-3 rounded-xl items-center mt-4" onPress={() => router.push('/practice-phrases')}>
                 <Text className="text-[#800816] font-bold text-base">Start Exploring</Text>
               </TouchableOpacity>
             </View>
@@ -125,7 +127,7 @@ const Learn = () => {
               </View>
               <Text className="text-[#6B7280] text-xs ml-6">Happy Vijaya Dashami!</Text>
             </View>
-            <TouchableOpacity style={{ backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#800816' }} className="py-3 rounded-xl items-center">
+            <TouchableOpacity style={{ backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#800816' }} className="py-3 rounded-xl items-center" onPress={() => router.push('/practice-phrases')}>
               <Text className="text-[#800816] font-bold text-base">Practice Phrases</Text>
             </TouchableOpacity>
           </View>
@@ -147,8 +149,8 @@ const Learn = () => {
             <View className="p-4">
               <Text className="text-[#4A1942] text-lg font-bold mb-1">Ordering Momo</Text>
               <Text className="text-[#6B7280] text-sm italic mb-4">"Ek plate buff momo paau na?"</Text>
-              <TouchableOpacity style={{ backgroundColor: '#800816' }} className="py-3 rounded-xl items-center flex-row justify-center">
-                <Text className="text-white text-base font-semibold mr-2"></Text>
+              <TouchableOpacity style={{ backgroundColor: '#800816' }} className="py-3 rounded-xl items-center flex-row justify-center" onPress={() => router.push('/echo-practice')}>
+                <Text className="text-white text-base font-semibold mr-2">🔊</Text>
                 <Text className="text-white text-base font-semibold">Start Simulation</Text>
               </TouchableOpacity>
             </View>
@@ -166,36 +168,7 @@ const Learn = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center px-4 pb-6 pt-3">
-        <View className="flex-1 items-center">
-          <Link href="/" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="home-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">Home</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-        <View className="flex-1 items-center">
-          <Ionicons name="search" size={24} color="#800816" />
-          <Text className="text-[#800816] text-xs mt-1 font-semibold">Explore</Text>
-        </View>
-        <View className="flex-1 items-center">
-          <Link href="/ai-tutor" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="sparkles-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">AI Tutor</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-        <View className="flex-1 items-center">
-          <Link href="/profile" asChild>
-            <TouchableOpacity className="items-center">
-              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">Profile</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </View>
+      <BottomNav activeTab="learn" />
     </View>
   );
 };

@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 import { useVocabStore, type LearningGoal, type LearningLevel } from '../src/data/vocab';
 
 const GOALS: { id: LearningGoal; label: string; icon: string }[] = [
-  { id: 'travel', label: 'Travel', icon: '' },
+  { id: 'travel', label: 'Travel', icon: '✈️' },
   { id: 'culture', label: 'Culture', icon: '🏛️' },
-  { id: 'business', label: 'Business', icon: '' },
+  { id: 'business', label: 'Business', icon: '💼' },
   { id: 'family', label: 'Family', icon: '👨‍👩‍👧‍' },
 ];
 

@@ -19,6 +19,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.neplearn.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -31,7 +32,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "86e6ac25-acce-4ebb-a3b1-568dd84ea3b5"
+      }
+    }
   }
 }

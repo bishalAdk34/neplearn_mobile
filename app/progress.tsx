@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import BottomNav from '../src/components/BottomNav';
 import { categories, vocab, GUEST_ID } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
@@ -49,7 +50,8 @@ const Progress = () => {
   const overallPercent = totalWords > 0 ? Math.round((totalLearned / totalWords) * 100) : 0;
 
   return (
-    <ScrollView className="flex-1" style={{ backgroundColor: '#FBF9F4' }} contentContainerStyle={{ paddingBottom: 32 }}>
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={{ backgroundColor: '#800816', borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }} className="px-6 pt-14 pb-8">
         <View className="flex-row items-center mb-4">
@@ -130,7 +132,9 @@ const Progress = () => {
           );
         })}
       </View>
-    </ScrollView>
+      </ScrollView>
+      <BottomNav />
+    </View>
   );
 };
 

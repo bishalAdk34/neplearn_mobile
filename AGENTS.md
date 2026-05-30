@@ -90,6 +90,7 @@ NativeWind (Tailwind CSS for RN) — `className` prop, `global.css` imported in 
 - Quiz speaks **English** instead of Nepali (`speak(q.english, 'en-US')` in `app/quiz/[category].tsx:91`)
 - `GOOGLE_ANDROID_CLIENT_ID` is still placeholder `YOUR_ANDROID_CLIENT_ID`
 - Duplicate category metadata across `app/index.tsx` and `app/progress.tsx`
+- **Namaste ↔ Goodbye confusion**: `vocab.ts:107-108` maps Hello=नमस्ते and Goodbye=नमस्कार, but in real Nepali both words are used for hello AND goodbye. The quiz distractor generation treats them as distinct, so selecting नमस्ते for "Goodbye" (or नमस्कार for "Hello") is marked wrong despite being culturally acceptable. Fix: replace Goodbye with a uniquely farewell phrase like "फेरि भेटौंला" (pheri bhetauula).
 
 ### Missing Dependencies
 | Needed For | Package |

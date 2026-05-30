@@ -36,21 +36,6 @@ type VocabState = {
   setLearningGoal: (goal: LearningGoal) => void;
   setLearningLevel: (level: LearningLevel) => void;
   completeOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
-  resetOnboarding: () => void;
   learnWord: (userId: string, id: number) => void;
   unlearnWord: (userId: string, id: number) => void;
   isLearned: (userId: string, id: number) => boolean;
@@ -105,7 +90,7 @@ export type Category = (typeof categories)[number];
 
 export const vocab: Word[] = [
   { id: 1, english: 'Hello', nepali: 'नमस्ते', roman: 'Namaste', category: 'greetings', image: 'https://boldhimalaya.com/wp-content/uploads/2026/02/budd-namesta-scaled-e1771388267815.jpg' },
-  { id: 2, english: 'Goodbye', nepali: 'नमस्कार', roman: 'Namaskar', category: 'greetings', image: '👋' },
+  { id: 2, english: 'Goodbye', nepali: 'फेरि भेटौंला', roman: 'Pheri bhetauula', category: 'greetings', image: '👋' },
   { id: 3, english: 'Thank you', nepali: 'धन्यवाद', roman: 'Dhanyabad', category: 'greetings', image: '🙏' },
   { id: 4, english: 'Please', nepali: 'कृपया', roman: 'Kripaya', category: 'greetings', image: '🙏' },
   { id: 5, english: 'Yes', nepali: 'हो', roman: 'Ho', category: 'greetings', image: '✅' },

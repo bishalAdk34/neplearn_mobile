@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import BottomNav from '../src/components/BottomNav';
 
 const Settings = () => {
   const router = useRouter();
@@ -41,6 +42,7 @@ const Settings = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 };

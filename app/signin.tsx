@@ -1,50 +1,72 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes,
+  isSuccessResponse,
+} from '@react-native-google-signin/google-signin';
 import { GOOGLE_CLIENT_ID } from '../src/config';
 import { useAuthStore } from '../src/stores/auth';
 
-WebBrowser.maybeCompleteAuthSession();
+// Configure Google Sign-In with the Web Client ID
+// (Required for getting ID tokens and profile info natively on Android/iOS)
+GoogleSignin.configure({
+  webClientId: GOOGLE_CLIENT_ID,
+  scopes: ['openid', 'profile', 'email'],
+});
 
 export default function SignIn() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    scopes: ['openid', 'profile', 'email'],
-  });
+  const handleSignIn = async () => {
+    setError(null);
+    setIsLoading(true);
 
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.accessToken) {
-        fetchUserInfo(authentication.accessToken);
-      }
-    }
-  }, [response]);
-
-  const fetchUserInfo = async (token: string) => {
     try {
-      const res = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      useAuthStore.getState().setUser({
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        photo: data.picture,
-      });
-      router.replace('/');
-    } catch {
-      Alert.alert('Error', 'Failed to get user info. Try again.');
-    }
-  };
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
 
-  const handleSignIn = () => {
-    promptAsync();
+      const response = await GoogleSignin.signIn();
+      
+      if (isSuccessResponse(response)) {
+        const { user } = response.data;
+        
+        // Native SDK provides user details directly, no need for extra fetch!
+        useAuthStore.getState().setUser({
+          id: user.id,
+          name: user.name || 'User',
+          email: user.email,
+          photo: user.photo || undefined,
+        });
+        
+        router.replace('/');
+      } else {
+        // Sign-in cancelled by user
+        setError('Sign-in was cancelled. Tap the button to try again.');
+      }
+    } catch (err: any) {
+      if (isErrorWithCode(err)) {
+        switch (err.code) {
+          case statusCodes.IN_PROGRESS:
+            setError('Sign in is already in progress.');
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            setError('Google Play Services are not available on this device. Please install or update them.');
+            break;
+          default:
+            setError(`Sign in failed: ${err.message}`);
+        }
+      } else {
+        setError(`An unknown error occurred: ${err?.message || 'Unknown error'}`);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const goHome = () => router.replace('/');
@@ -72,14 +94,26 @@ export default function SignIn() {
         </Text>
       </View>
 
+      {error && (
+        <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' }} className="px-4 py-3 mb-6 w-full">
+          <Text className="text-[#DC2626] text-sm text-center">{error}</Text>
+        </View>
+      )}
+
       <TouchableOpacity
         onPress={handleSignIn}
-        disabled={!request}
-        className="flex-row bg-white border border-[#E2E8F0] py-4 px-8 rounded-2xl items-center"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 }}
+        disabled={isLoading}
+        className="flex-row bg-white border border-[#E2E8F0] py-4 px-8 rounded-2xl items-center justify-center w-full"
+        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2, opacity: isLoading ? 0.6 : 1 }}
       >
-        <Text className="text-xl font-bold text-[#4285F4] mr-3">G</Text>
-        <Text className="text-lg font-semibold text-[#0F172A]">Sign in with Google</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#4285F4" style={{ marginRight: 8 }} />
+        ) : (
+          <Text className="text-xl font-bold text-[#4285F4] mr-3">G</Text>
+        )}
+        <Text className="text-lg font-semibold text-[#0F172A]">
+          {isLoading ? 'Signing in...' : 'Sign in with Google'}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={goHome} className="mt-6">
