@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import SplashScreen from '../src/components/SplashScreen';
 import { useVocabStore } from '../src/data/vocab';
+import { useAuthStore } from '../src/stores/auth';
 import './global.css';
 
 export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
   const onboardingDone = useVocabStore(s => s.onboardingDone);
+  const initializeAuth = useAuthStore(s => s.initialize);
+
+  useEffect(() => {
+    if (splashDone) {
+      initializeAuth();
+    }
+  }, [splashDone, initializeAuth]);
 
   if (!splashDone) {
     return <SplashScreen onFinish={() => setSplashDone(true)} />;
@@ -14,7 +22,7 @@ export default function RootLayout() {
 
   if (!onboardingDone) {
     return (
-      <Stack>
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="signin" options={{ headerShown: false }} />
       </Stack>
@@ -22,7 +30,7 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="signin" options={{ headerShown: false }} />
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="learn" options={{ headerShown: false }} />
@@ -37,6 +45,7 @@ export default function RootLayout() {
       <Stack.Screen name="echo-practice" options={{ headerShown: false }} />
       <Stack.Screen name="journal" options={{ headerShown: false }} />
       <Stack.Screen name="practice-phrases" options={{ headerShown: false }} />
+      <Stack.Screen name="story" options={{ headerShown: false }} />
     </Stack>
   );
 }

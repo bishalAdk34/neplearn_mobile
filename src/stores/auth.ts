@@ -1,20 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PersistStorage } from 'zustand/middleware';
-
-const asyncStorage: PersistStorage<AuthState> = {
-  getItem: async (name) => {
-    const val = await AsyncStorage.getItem(name);
-    return val ? JSON.parse(val) : null;
-  },
-  setItem: async (name, value) => {
-    await AsyncStorage.setItem(name, JSON.stringify(value));
-  },
-  removeItem: async (name) => {
-    await AsyncStorage.removeItem(name);
-  },
-};
+import { supabase } from '../services/supabase';
+import type { Session } from '@supabase/supabase-js';
 
 export type User = {
   id: string;
@@ -25,20 +11,62 @@ export type User = {
 
 type AuthState = {
   user: User | null;
+  session: Session | null;
+  isLoading: boolean;
   setUser: (user: User) => void;
-  clearUser: () => void;
+  setSession: (session: Session | null) => void;
+  clearUser: () => Promise<void>;
+  initialize: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      setUser: (user) => set({ user }),
-      clearUser: () => set({ user: null }),
-    }),
-    {
-      name: 'nepali-auth',
-      storage: asyncStorage,
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  session: null,
+  isLoading: true,
+
+  setUser: (user) => set({ user }),
+
+  setSession: (session) => set({ session }),
+
+  clearUser: async () => {
+    await supabase.auth.signOut();
+    set({ user: null, session: null });
+  },
+
+  initialize: async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        set({
+          session,
+          user: {
+            id: session.user.id,
+            name: session.user.user_metadata?.name || 'User',
+            email: session.user.email || '',
+            photo: session.user.user_metadata?.picture || undefined,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn('Supabase session restore failed:', e);
+    } finally {
+      set({ isLoading: false });
     }
-  )
-);
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        set({
+          session,
+          user: {
+            id: session.user.id,
+            name: session.user.user_metadata?.name || 'User',
+            email: session.user.email || '',
+            photo: session.user.user_metadata?.picture || undefined,
+          },
+        });
+      } else {
+        set({ session: null, user: null });
+      }
+    });
+  },
+}));

@@ -88,7 +88,7 @@ const Quiz = () => {
   };
 
   const speakWord = () => {
-    if (q) speak(q.english, 'en-US');
+    if (q) speak(q.english, 'ne-NP');
   };
 
   if (!q) return (

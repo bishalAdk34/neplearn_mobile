@@ -193,7 +193,7 @@ const Home = () => {
       {/* Bottom Navigation */}
       <View>
         <BottomNav activeTab="home" />
-        <View style={{ position: 'absolute', top: -28, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
+        <View style={{ position: 'absolute', top: -24, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
           <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
             <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
               <Ionicons name="add" size={28} color="#FFFFFF" />

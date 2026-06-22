@@ -5,9 +5,7 @@
     "slug": "NepLearn",
     "version": "1.0.0",
     "orientation": "portrait",
-    "experiments": {
-      "reactCanary": true
-    },
+
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -19,6 +17,7 @@
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "package": "com.neplearn.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

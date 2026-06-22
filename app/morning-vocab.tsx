@@ -8,7 +8,7 @@ import { speak } from '../src/services/tts';
 const MorningVocab = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
-  const { learnWord } = useVocabStore();
+  const { learnWord, isLearned } = useVocabStore();
   const uid = user?.id || GUEST_ID;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -35,7 +35,7 @@ const MorningVocab = () => {
     setIsCorrect(correct);
     setIsAnswerChecked(true);
     if (correct) {
-      learnWord(uid, currentWord.id);
+      if (!isLearned(uid, currentWord.id)) learnWord(uid, currentWord.id);
       setScore(prev => prev + 1);
       speak(currentWord.nepali, 'ne-NP');
     }

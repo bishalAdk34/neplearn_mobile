@@ -1,0 +1,33 @@
+{
+  "project_info": {
+    "project_number": "176881736395",
+    "project_id": "neplearn-app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:176881736395:android:1a2b3c4d5e6f7g8h",
+        "android_client_info": {
+          "package_name": "com.neplearn.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "176881736395-29mk0b06ut3v239i07ijuqghg5mj9998.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "dummy_api_key_for_build"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

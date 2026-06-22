@@ -8,19 +8,24 @@ import {
   isSuccessResponse,
 } from '@react-native-google-signin/google-signin';
 import { GOOGLE_CLIENT_ID } from '../src/config';
+import { supabase } from '../src/services/supabase';
 import { useAuthStore } from '../src/stores/auth';
-
-// Configure Google Sign-In with the Web Client ID
-// (Required for getting ID tokens and profile info natively on Android/iOS)
-GoogleSignin.configure({
-  webClientId: GOOGLE_CLIENT_ID,
-  scopes: ['openid', 'profile', 'email'],
-});
 
 export default function SignIn() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    try {
+      GoogleSignin.configure({
+        webClientId: GOOGLE_CLIENT_ID,
+        scopes: ['openid', 'profile', 'email'],
+      });
+    } catch (e) {
+      console.warn('GoogleSignin configure failed.', e);
+    }
+  }, []);
 
   const handleSignIn = async () => {
     setError(null);
@@ -32,21 +37,38 @@ export default function SignIn() {
       }
 
       const response = await GoogleSignin.signIn();
-      
+
       if (isSuccessResponse(response)) {
-        const { user } = response.data;
-        
-        // Native SDK provides user details directly, no need for extra fetch!
-        useAuthStore.getState().setUser({
-          id: user.id,
-          name: user.name || 'User',
-          email: user.email,
-          photo: user.photo || undefined,
+        const { idToken, user } = response.data;
+
+        if (!idToken) {
+          setError('No ID token returned from Google. Please try again.');
+          setIsLoading(false);
+          return;
+        }
+
+        const { data, error: sbError } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
         });
-        
+
+        if (sbError) {
+          setError(`Authentication failed: ${sbError.message}`);
+          setIsLoading(false);
+          return;
+        }
+
+        if (data?.user) {
+          useAuthStore.getState().setUser({
+            id: data.user.id,
+            name: user.name || 'User',
+            email: user.email,
+            photo: user.photo || undefined,
+          });
+        }
+
         router.replace('/');
       } else {
-        // Sign-in cancelled by user
         setError('Sign-in was cancelled. Tap the button to try again.');
       }
     } catch (err: any) {
@@ -56,7 +78,7 @@ export default function SignIn() {
             setError('Sign in is already in progress.');
             break;
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            setError('Google Play Services are not available on this device. Please install or update them.');
+            setError('Google Play Services are not available on this device.');
             break;
           default:
             setError(`Sign in failed: ${err.message}`);

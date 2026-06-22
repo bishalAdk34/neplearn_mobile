@@ -42,7 +42,7 @@ const Lesson = () => {
     setIsCorrect(correct);
     setIsAnswerChecked(true);
     if (correct) {
-      learnWord(uid, currentWord.id);
+      if (!isLearned(uid, currentWord.id)) learnWord(uid, currentWord.id);
       setCorrectCount(prev => prev + 1);
       speak(currentWord.nepali, 'ne-NP');
     }

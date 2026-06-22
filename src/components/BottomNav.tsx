@@ -14,7 +14,7 @@ const TABS: { name: TabName; label: string; icon: IoniconName; activeIcon: Ionic
 
 export default function BottomNav({ activeTab }: { activeTab?: TabName }) {
   return (
-    <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center px-4 pb-6 pt-3">
+    <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center justify-center px-4 py-4">
       {TABS.map(tab => {
         const isActive = tab.name === activeTab;
 
