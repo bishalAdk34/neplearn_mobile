@@ -3,18 +3,31 @@ import { Stack } from 'expo-router';
 import SplashScreen from '../src/components/SplashScreen';
 import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
+import { initNotifications } from '../src/services/notifications';
 import './global.css';
 
 export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
   const onboardingDone = useVocabStore(s => s.onboardingDone);
+  const user = useAuthStore(s => s.user);
   const initializeAuth = useAuthStore(s => s.initialize);
+  const syncFromCloud = useVocabStore(s => s.syncFromCloud);
 
   useEffect(() => {
     if (splashDone) {
       initializeAuth();
     }
   }, [splashDone, initializeAuth]);
+
+  useEffect(() => {
+    initNotifications();
+  }, []);
+
+  useEffect(() => {
+    if (user && !user.id.startsWith('__guest__')) {
+      syncFromCloud(user.id);
+    }
+  }, [user, syncFromCloud]);
 
   if (!splashDone) {
     return <SplashScreen onFinish={() => setSplashDone(true)} />;
@@ -46,6 +59,8 @@ export default function RootLayout() {
       <Stack.Screen name="journal" options={{ headerShown: false }} />
       <Stack.Screen name="practice-phrases" options={{ headerShown: false }} />
       <Stack.Screen name="story" options={{ headerShown: false }} />
+      <Stack.Screen name="about" options={{ headerShown: false }} />
+      <Stack.Screen name="achievements" options={{ headerShown: false }} />
     </Stack>
   );
 }

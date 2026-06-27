@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,8 @@ import BottomNav from '../src/components/BottomNav';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore } from '../src/data/vocab';
 import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
+import { getTotalXp, getStreak } from '../src/services/db';
+import { getAchievementStatuses, type AchievementStatus } from '../src/data/achievements';
 
 const Profile = () => {
   const router = useRouter();
@@ -13,13 +15,25 @@ const Profile = () => {
   const { isLearned } = useVocabStore();
   const uid = user?.id || GUEST_ID;
   const isGuest = !user;
+  const [cloudXp, setCloudXp] = useState<number | null>(null);
+  const [cloudStreak, setCloudStreak] = useState<{ current_streak: number; longest_streak: number } | null>(null);
+  const [achievements, setAchievements] = useState<AchievementStatus[]>([]);
 
   const totalLearned = categories.reduce((sum, cat) => {
     const words = getWordsByCategory(cat);
     return sum + words.filter(w => isLearned(uid, w.id)).length;
   }, 0);
-  const xp = totalLearned * 100;
-  const streak = Math.min(totalLearned, 15);
+
+  useEffect(() => {
+    if (!isGuest) {
+      getTotalXp(uid).then(setCloudXp);
+      getStreak(uid).then(setCloudStreak);
+    }
+    getAchievementStatuses(uid).then(setAchievements);
+  }, [isGuest, uid]);
+
+  const xp = cloudXp ?? totalLearned * 100;
+  const streak = cloudStreak?.current_streak ?? Math.min(totalLearned, 15);
 
   const userName = user?.name || 'Guest';
   const firstName = userName.split(' ')[0];
@@ -28,7 +42,7 @@ const Profile = () => {
     { label: 'Notifications', icon: 'notifications-outline', route: '/settings' },
     { label: 'App Settings', icon: 'settings-outline', route: '/settings' },
     { label: 'Help Center', icon: 'help-circle-outline', route: null },
-    { label: 'About Himalayan Academy', icon: 'information-circle-outline', route: null },
+    { label: 'About NepLearn', icon: 'information-circle-outline', route: '/about' },
   ];
 
   return (
@@ -78,6 +92,35 @@ const Profile = () => {
           </View>
         </View>
 
+        {/* Achievements */}
+        <View className="px-5 mb-8">
+          <Text className="text-[#4A1942] text-sm font-semibold mb-3 tracking-wider">ACHIEVEMENTS</Text>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 }} className="overflow-hidden">
+            {achievements.slice(0, 3).map((ach, i) => (
+              <View
+                key={ach.achievement.id}
+                className="flex-row items-center px-5 py-4"
+                style={{ borderBottomWidth: i < 2 ? 1 : 0, borderBottomColor: '#F3F4F6' }}
+              >
+                <View style={{ backgroundColor: ach.unlocked ? ach.achievement.bgColor : '#F3F4F6' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-xl">{ach.unlocked ? ach.achievement.icon : '🔒'}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className={`text-base font-bold ${ach.unlocked ? 'text-[#1F2937]' : 'text-[#9CA3AF]'}`}>{ach.achievement.title}</Text>
+                  <Text className={`text-sm ${ach.unlocked ? 'text-[#6B7280]' : 'text-[#9CA3AF]'}`}>{ach.achievement.description}</Text>
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity
+              className="py-4 items-center"
+              style={{ borderTopWidth: 1, borderTopColor: '#F3F4F6' }}
+              onPress={() => router.push('/achievements')}
+            >
+              <Text className="text-[#800816] font-semibold">View All Achievements</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Preferences */}
         <View className="px-5 mb-8">
           <Text className="text-[#4A1942] text-sm font-semibold mb-3 tracking-wider">PREFERENCES</Text>
@@ -87,7 +130,10 @@ const Profile = () => {
                 key={i}
                 className="flex-row items-center px-5 py-4"
                 style={{ borderBottomWidth: i < preferences.length - 1 ? 1 : 0, borderBottomColor: '#F3F4F6' }}
-                onPress={() => pref.route && router.push(pref.route as any)}
+                onPress={() => {
+                  if (pref.onPress) pref.onPress();
+                  else if (pref.route) router.push(pref.route as any);
+                }}
               >
                 <Ionicons name={pref.icon as any} size={22} color="#6B7280" />
                 <Text className="text-[#1F2937] text-base ml-4 flex-1">{pref.label}</Text>
@@ -102,7 +148,7 @@ const Profile = () => {
           <View style={{ backgroundColor: '#D4C4B7' }} className="w-20 h-20 rounded-lg items-center justify-center mb-3">
             <Text className="text-2xl">️</Text>
           </View>
-          <Text className="text-[#9CA3AF] text-xs">Version 2.4.0 • Built for Clarity</Text>
+          <Text className="text-[#9CA3AF] text-xs">Version 1.0.0 • NepLearn</Text>
         </View>
       </ScrollView>
 

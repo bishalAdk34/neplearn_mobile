@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Alert } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import BottomNav from '../src/components/BottomNav';
@@ -8,6 +8,7 @@ import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
 import { QuickActionsModal } from '@/src/components/QuickActionsModal';
+import { getPrefs } from '../src/services/notifications';
 
 const Home = () => {
   const router = useRouter();
@@ -17,6 +18,11 @@ const Home = () => {
   const uid = user?.id || GUEST_ID;
   const [menuVisible, setMenuVisible] = useState(false);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+  const [notificationsOn, setNotificationsOn] = useState(false);
+
+  useEffect(() => {
+    getPrefs().then(p => setNotificationsOn(p.enabled));
+  }, []);
 
   const viewDebugData = async () => {
     try {
@@ -56,8 +62,15 @@ const Home = () => {
               </View>
             </View>
             <View className="flex-row">
-              <TouchableOpacity style={{ backgroundColor: '#F3F4F6' }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
+              <TouchableOpacity
+                style={{ backgroundColor: '#F3F4F6' }}
+                className="w-10 h-10 rounded-full items-center justify-center mr-3 relative"
+                onPress={() => router.push('/settings')}
+              >
                 <Ionicons name="notifications-outline" size={20} color="#4A1942" />
+                {notificationsOn && (
+                  <View className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#DC2626' }} />
+                )}
               </TouchableOpacity>
               <TouchableOpacity style={{ backgroundColor: '#F3F4F6' }} className="w-10 h-10 rounded-full items-center justify-center" onPress={() => setMenuVisible(true)}>
                 <Text className="text-lg">☰</Text>
@@ -106,13 +119,13 @@ const Home = () => {
             </View>
             <Text className="text-white text-4xl font-bold mb-4">{streak} Days</Text>
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-white/90 text-sm">Level {level}: Apprentice</Text>
+              <Text className="text-white/90 text-sm">Level {level}: Learner</Text>
               <Text className="text-white/90 text-sm">{xp} / {xpToNext} XP</Text>
             </View>
             <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="h-2 rounded-full overflow-hidden mb-5">
               <View className="h-full rounded-full" style={{ width: `${Math.min((xp / xpToNext) * 100, 100)}%`, backgroundColor: '#F59E0B' }} />
             </View>
-            <Link href="/profile" asChild>
+            <Link href="/achievements" asChild>
               <TouchableOpacity style={{ backgroundColor: '#FFFFFF' }} className="py-3 rounded-full items-center">
                 <Text className="text-[#800816] font-bold text-base">View Achievements</Text>
               </TouchableOpacity>
