@@ -9,6 +9,7 @@ import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
 import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 import { getPrefs } from '../src/services/notifications';
+import { getTotalXp, getStreak } from '../src/services/db';
 
 const Home = () => {
   const router = useRouter();
@@ -19,10 +20,21 @@ const Home = () => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(false);
+  const [cloudXp, setCloudXp] = useState<number | null>(null);
+  const [cloudStreak, setCloudStreak] = useState<{ current_streak: number; longest_streak: number } | null>(null);
 
   useEffect(() => {
     getPrefs().then(p => setNotificationsOn(p.enabled));
   }, []);
+
+  const isGuest = !user;
+
+  useEffect(() => {
+    if (!isGuest && uid) {
+      getTotalXp(uid).then(setCloudXp);
+      getStreak(uid).then(setCloudStreak);
+    }
+  }, [isGuest, uid]);
 
   const viewDebugData = async () => {
     try {
@@ -38,10 +50,12 @@ const Home = () => {
     return sum + words.filter(w => isLearned(uid, w.id)).length;
   }, 0);
   const totalWords = categories.reduce((sum, cat) => sum + getWordsByCategory(cat).length, 0);
-  const xp = totalLearned * 100;
+  const localXp = useVocabStore.getState().getLocalXp(uid);
+  const localStreak = useVocabStore.getState().getLocalStreak(uid);
+  const xp = isGuest ? localXp : (cloudXp ?? 0);
   const xpToNext = 1500;
-  const level = Math.floor(totalLearned / 5) + 1;
-  const streak = Math.min(totalLearned, 15);
+  const level = Math.floor((xp) / 500) + 1;
+  const streak = isGuest ? localStreak.current : (cloudStreak?.current_streak ?? 0);
 
   const userName = user?.name || 'Guest';
   const firstName = userName.split(' ')[0];
@@ -65,7 +79,7 @@ const Home = () => {
               <TouchableOpacity
                 style={{ backgroundColor: '#F3F4F6' }}
                 className="w-10 h-10 rounded-full items-center justify-center mr-3 relative"
-                onPress={() => router.push('/settings')}
+                onPress={() => router.push('/notifications')}
               >
                 <Ionicons name="notifications-outline" size={20} color="#4A1942" />
                 {notificationsOn && (

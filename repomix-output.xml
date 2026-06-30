@@ -49,22 +49,49 @@ app/
     [category].tsx
   _layout.tsx
   +not-found.tsx
+  ai-tutor.tsx
+  echo-practice.tsx
   global.css
   index.tsx
+  journal.tsx
+  learn.tsx
+  lesson.tsx
+  morning-vocab.tsx
+  onboarding.tsx
+  practice-phrases.tsx
+  profile.tsx
   progress.tsx
+  settings.tsx
+  signin.tsx
+  story.tsx
 assets/
   adaptive-icon.png
   favicon.png
   icon.png
   splash-icon.png
 src/
+  components/
+    BottomNav.tsx
+    QuickActionsModal.tsx
+    SplashScreen.tsx
   data/
+    phrases.ts
     vocab.ts
+  services/
+    image.ts
+    tts.ts
+  stores/
+    auth.ts
+  config.ts
 .gitignore
+AGENTS.md
 app.d.ts
 app.json
 babel.config.js
+eas.json
+google-services.json
 index.ts
+MEMORY.md
 metro.config.js
 nativewind-env.d.ts
 package.json
@@ -75,112 +102,238 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
+<file path="google-services.json">
+{
+  "project_info": {
+    "project_number": "176881736395",
+    "project_id": "neplearn-app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:176881736395:android:1a2b3c4d5e6f7g8h",
+        "android_client_info": {
+          "package_name": "com.neplearn.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "176881736395-v2dv6718r1sedu5pgifkvid70vn07jrt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "dummy_api_key_for_build"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+</file>
+
 <file path="@types/nativewind.d.ts">
 /// <reference types="nativewind/types" />
 </file>
 
 <file path="app/flashcards/[category].tsx">
-import React, { useState, useRef } from 'react';
-import { View, Text, Dimensions, Animated, TouchableOpacity } from 'react-native';
-import * as Speech from 'expo-speech';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { vocab, getWordsByCategory, shuffle } from '../../src/data/vocab';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, Image, Animated, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { getWordsByCategory, shuffle, GUEST_ID } from '../../src/data/vocab';
+import { speak } from '../../src/services/tts';
+import { getWordImage } from '../../src/services/image';
 import { useVocabStore } from '../../src/data/vocab';
-
-const { width } = Dimensions.get('window');
+import { useAuthStore } from '../../src/stores/auth';
 
 const Flashcards = () => {
-  const { category } = useLocalSearchParams<{ category: string }>();
+  const params = useGlobalSearchParams();
+  const category = typeof params.category === 'string' ? params.category : '';
   const router = useRouter();
+  const user = useAuthStore(s => s.user);
   const { toggleLearned, isLearned } = useVocabStore();
-  const [words] = useState(shuffle(getWordsByCategory(category)));
+  const uid = user?.id || GUEST_ID;
+  const words = useMemo(() => shuffle(getWordsByCategory(category)), [category]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
+  const [revealed, setRevealed] = useState(false);
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [loadingImg, setLoadingImg] = useState(false);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const word = words[currentIndex];
 
-  const flipCard = () => {
-    const toValue = flipped ? 0 : 180;
-    Animated.spring(rotateAnim, {
-      toValue,
-      friction: 8,
-      tension: 10,
-      useNativeDriver: true,
-    }).start(() => {
-      setFlipped(!flipped);
-      if (!flipped) Speech.speak(word.nepali, { language: 'ne-NP' });
+  useEffect(() => {
+    if (word.image?.startsWith('http')) {
+      setImgUrl(word.image);
+      setLoadingImg(false);
+    } else {
+      setImgUrl(null);
+      setLoadingImg(true);
+      getWordImage(word.english).then(url => {
+        setImgUrl(url);
+        setLoadingImg(false);
+      });
+    }
+  }, [word.english, word.image]);
+
+  const speakWord = useCallback((text: string) => {
+    speak(text, 'ne-NP').catch(() =>
+      Alert.alert('Pronunciation Unavailable', 'Could not play audio. Check your internet connection.')
+    );
+  }, []);
+
+  const reveal = () => {
+    setRevealed(true);
+  };
+
+  const goNext = () => {
+    if (currentIndex >= words.length - 1) { router.back(); return; }
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -50, duration: 150, useNativeDriver: true }),
+    ]).start(() => {
+      setRevealed(false);
+      setCurrentIndex(prev => prev + 1);
+      fadeAnim.setValue(0);
+      slideAnim.setValue(50);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      ]).start();
     });
   };
 
-  const nextCard = () => {
-    if (currentIndex < words.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setFlipped(false);
-      rotateAnim.setValue(0);
-      translateX.setValue(0);
-    } else {
-      router.back();
-    }
+  const goBack = () => {
+    if (currentIndex <= 0) return;
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 50, duration: 150, useNativeDriver: true }),
+    ]).start(() => {
+      setRevealed(false);
+      setCurrentIndex(prev => prev - 1);
+      fadeAnim.setValue(0);
+      slideAnim.setValue(-50);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      ]).start();
+    });
   };
 
-  const swipeRight = () => {
-    toggleLearned(word.id);
-    nextCard();
+  const handleLearn = () => {
+    toggleLearned(uid, word.id);
+    goNext();
   };
 
-  const swipeLeft = () => {
-    nextCard();
-  };
+  if (!category) return (
+    <View className="flex-1 bg-[#F8FAFC] justify-center items-center">
+      <Text className="text-lg text-[#64748B]">Category not found</Text>
+    </View>
+  );
 
-  if (!word) return <Text className="text-center p-8 text-lg">No words found!</Text>;
+  if (!word) return (
+    <View className="flex-1 bg-[#F8FAFC] justify-center items-center">
+      <Text className="text-lg text-[#64748B]">No words found!</Text>
+    </View>
+  );
 
-  const frontContent = !flipped
-    ? word.english
-    : `${word.nepali}\n(${word.roman})`;
-  const backContent = !flipped
-    ? `${word.nepali}\n(${word.roman})`
-    : word.english;
-
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 180],
-    outputRange: ['0deg', '180deg'],
-  });
+  const progress = ((currentIndex) / words.length) * 100;
 
   return (
-    <View className="flex-1 justify-center items-center p-6">
-      <Text className="text-2xl font-bold text-center mb-6 capitalize">{category}</Text>
-      <Text className="text-lg text-gray-600 mb-4">{currentIndex + 1} / {words.length}</Text>
+    <View className="flex-1 bg-[#F8FAFC]">
+      <LinearGradient colors={['#6366F1', '#4F46E5']} className="px-6 pt-16 pb-8 rounded-b-[32px]">
+        <View className="flex-row items-center justify-between mb-4">
+          <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl">
+            <Text className="text-white text-xl">←</Text>
+          </TouchableOpacity>
+          <Text className="text-white text-lg font-semibold capitalize">{category}</Text>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="px-3 py-1.5 rounded-xl">
+            <Text className="text-white font-bold">{currentIndex + 1}/{words.length}</Text>
+          </View>
+        </View>
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} className="h-1.5 rounded-full overflow-hidden">
+          <View className="h-full bg-white rounded-full" style={{ width: progress + '%' as any }} />
+        </View>
+      </LinearGradient>
 
-      <Animated.View
-        style={{ transform: [{ perspective: 1000 }, { rotateY: rotate }] }}
-        className="w-full h-72 justify-center items-center bg-white rounded-2xl shadow-xl p-6 mb-8"
-      >
-        {!flipped ? (
-          <>
-            <Text className="text-3xl font-bold text-gray-800 text-center">{word.english}</Text>
-            <Text className="text-xl text-gray-500 mt-4 text-center">{word.nepali} ({word.roman})</Text>
-          </>
-        ) : (
-          <>
-            <Text className="text-3xl font-bold text-gray-800 text-center">{word.nepali}</Text>
-            <Text className="text-xl text-gray-500 mt-4 text-center">({word.roman})</Text>
-          </>
-        )}
-      </Animated.View>
+      <View className="flex-1 px-6 -mt-4">
+        <Animated.View
+          style={{ opacity: fadeAnim, transform: [{ translateX: slideAnim }] }}
+          className="flex-1 justify-center"
+        >
+          <TouchableOpacity
+            onPress={reveal}
+            activeOpacity={0.9}
+            style={{ backgroundColor: '#fff', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 5 }} className="p-6 justify-start"
+          >
+            {!revealed ? (
+              <View className="items-center">
+                {loadingImg ? (
+                  <ActivityIndicator size="large" color="#6366F1" style={{ height: 80 }} />
+                ) : imgUrl ? (
+                  <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-4" resizeMode="contain" />
+                ) : (
+                  <Text className="text-6xl mb-4">{word.image || '💡'}</Text>
+                )}
+                <Text className="text-3xl font-bold text-[#0F172A] text-center">{word.english}</Text>
+                <Text className="text-base text-[#94A3B8] mt-4">Tap to reveal Nepali</Text>
+              </View>
+            ) : (
+              <View className="items-center">
+                {loadingImg ? (
+                  <ActivityIndicator size="large" color="#6366F1" style={{ height: 80 }} />
+                ) : imgUrl ? (
+                  <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" />
+                ) : (
+                  <Text className="text-5xl mb-3">{word.image || '💡'}</Text>
+                )}
+                <Text className="text-4xl font-bold text-[#4F46E5] text-center mb-3">{word.nepali}</Text>
+                <Text className="text-xl text-[#64748B] text-center">({word.roman})</Text>
+                <TouchableOpacity
+                  onPress={() => speakWord(word.nepali)}
+                  className="mt-6 bg-[#EEF2FF] px-6 py-2 rounded-full flex-row items-center"
+                >
+                  <Text className="text-lg mr-2">🔊</Text>
+                  <Text className="text-primary font-semibold">Pronounce</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </TouchableOpacity>
 
-      <TouchableOpacity onPress={flipCard} className="bg-blue-500 px-8 py-3 rounded-full mb-6">
-        <Text className="text-white font-bold text-lg">{flipped ? 'Show English' : 'Show Nepali'}</Text>
-      </TouchableOpacity>
-
-      <View className="flex-row gap-6">
-        <TouchableOpacity onPress={swipeLeft} className="bg-red-500 px-8 py-3 rounded-full">
-          <Text className="text-white font-bold">Skip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={swipeRight} className="bg-green-500 px-8 py-3 rounded-full">
-          <Text className="text-white font-bold">Learn</Text>
-        </TouchableOpacity>
+          <View className="flex-row justify-center gap-3 mt-6">
+            <TouchableOpacity
+              onPress={goBack}
+              disabled={currentIndex === 0}
+              style={currentIndex === 0 ? {} : { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }} className={`p-4 rounded-2xl ${currentIndex === 0 ? 'bg-[#E2E8F0]' : 'bg-white'}`}
+            >
+              <Text className="text-2xl">⬅️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLearn}
+              className="flex-1 bg-emerald-500 py-4 rounded-2xl flex-row justify-center items-center"
+              style={{ shadowColor: '#10B981', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+            >
+              <Text className="text-white font-bold text-lg mr-2">✅</Text>
+              <Text className="text-white font-bold text-lg">Learned</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={goNext}
+              className="flex-1 bg-primary py-4 rounded-2xl flex-row justify-center items-center"
+              style={{ shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+            >
+              <Text className="text-white font-bold text-lg mr-2">➡️</Text>
+              <Text className="text-white font-bold text-lg">Next</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -190,22 +343,33 @@ export default Flashcards;
 </file>
 
 <file path="app/quiz/[category].tsx">
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import * as Speech from 'expo-speech';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { vocab, getWordsByCategory, shuffle } from '../../src/data/vocab';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { vocab, getWordsByCategory, shuffle, GUEST_ID } from '../../src/data/vocab';
+import { speak } from '../../src/services/tts';
+import { getWordImage } from '../../src/services/image';
 import { useVocabStore } from '../../src/data/vocab';
+import { useAuthStore } from '../../src/stores/auth';
 
 const Quiz = () => {
-  const { category } = useLocalSearchParams<{ category: string }>();
+  const params = useGlobalSearchParams();
+  const category = typeof params.category === 'string' ? params.category : '';
   const router = useRouter();
+  const user = useAuthStore(s => s.user);
   const { learnWord, isLearned } = useVocabStore();
+  const uid = user?.id || GUEST_ID;
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [score, setScore] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [loadingImg, setLoadingImg] = useState(false);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     const words = shuffle(getWordsByCategory(category)).slice(0, 10);
     const qData = words.map(word => {
       const allNepali = vocab.map(w => w.nepali).filter(n => n !== word.nepali);
@@ -216,62 +380,168 @@ const Quiz = () => {
     setQuestions(qData);
   }, [category]);
 
+  useEffect(() => {
+    setSelected(null);
+    scaleAnim.setValue(1);
+  }, [currentQ]);
+
   const q = questions[currentQ];
 
-  const selectAnswer = (selected: string) => {
-    if (selected === q?.nepali) {
+  useEffect(() => {
+    if (q) {
+      if (q.image?.startsWith('http')) {
+        setImgUrl(q.image);
+        setLoadingImg(false);
+      } else {
+        setImgUrl(null);
+        setLoadingImg(true);
+        getWordImage(q.english).then(url => {
+          setImgUrl(url);
+          setLoadingImg(false);
+        });
+      }
+    }
+  }, [q]);
+
+  const selectAnswer = (opt: string) => {
+    if (selected) return;
+    setSelected(opt);
+
+    const correct = opt === q?.nepali;
+    if (correct) {
       const newScore = score + 1;
       setScore(newScore);
-      if (!isLearned(q.id)) learnWord(q.id);
-    }
-    if (currentQ < questions.length - 1) {
-      setCurrentQ(currentQ + 1);
+      if (!isLearned(uid, q.id)) learnWord(uid, q.id);
+      Animated.spring(scaleAnim, { toValue: 1.05, friction: 3, useNativeDriver: true }).start();
     } else {
-      Alert.alert('Quiz Complete!', `Score: ${selected === q?.nepali ? score + 1 : score}/${questions.length}`, [
-        { text: 'Home', onPress: () => router.back() },
-      ]);
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+      ]).start();
     }
+
+    setTimeout(() => {
+      if (currentQ < questions.length - 1) {
+        setCurrentQ(currentQ + 1);
+      } else {
+        router.replace('/progress');
+      }
+    }, correct ? 600 : 1200);
   };
 
-  if (!q) return <Text className="text-center p-8 text-lg">Loading...</Text>;
+  const speakWord = () => {
+    if (q) speak(q.english, 'en-US');
+  };
+
+  if (!q) return (
+    <View className="flex-1 bg-[#F8FAFC] justify-center items-center">
+      <Text className="text-lg text-[#64748B]">Loading...</Text>
+    </View>
+  );
+
+  const progress = ((currentQ) / questions.length) * 100;
+  const isCorrect = (opt: string) => selected && opt === q.nepali;
+  const isWrong = (opt: string) => selected && opt !== q.nepali && opt === selected;
 
   return (
-    <View className="flex-1 p-6 justify-center">
-      <Text className="text-2xl font-bold text-center mb-2 capitalize">{category} Quiz</Text>
-      <Text className="text-lg text-gray-600 text-center mb-6">{currentQ + 1} / {questions.length}</Text>
-      <TouchableOpacity onPress={() => Speech.speak(q.english, { language: 'en-US' })} className="mb-8">
-        <Text className="text-3xl font-bold text-center text-gray-800">{q.english} 🔊</Text>
-      </TouchableOpacity>
-      <View className="gap-4">
-        {q.options.map((opt: string, i: number) => (
-          <TouchableOpacity key={i} onPress={() => selectAnswer(opt)} className="p-5 bg-white border rounded-xl shadow-md">
-            <Text className="text-xl text-center font-semibold">{opt}</Text>
+    <View className="flex-1 bg-[#F8FAFC]">
+      <LinearGradient colors={['#6366F1', '#4F46E5']} className="px-6 pt-16 pb-8 rounded-b-[32px]">
+        <View className="flex-row items-center justify-between mb-4">
+          <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl">
+            <Text className="text-white text-xl">←</Text>
           </TouchableOpacity>
-        ))}
-      </View>
-      <Text className="text-center mt-8 text-lg">Score: {score}/{currentQ}</Text>
+          <View className="flex-row items-center">
+            <Text className="text-yellow-300 text-lg mr-1">⭐</Text>
+            <Text className="text-white text-lg font-bold">{score}/{currentQ}</Text>
+          </View>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="px-3 py-1.5 rounded-xl">
+            <Text className="text-white font-bold">{currentQ + 1}/{questions.length}</Text>
+          </View>
+        </View>
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} className="h-1.5 rounded-full overflow-hidden">
+          <View className="h-full bg-white rounded-full" style={{ width: progress + '%' as any }} />
+        </View>
+      </LinearGradient>
+
+      <Animated.View
+        style={{ transform: [{ translateX: shakeAnim }, { scale: scaleAnim }] }}
+        className="flex-1 px-6 -mt-4"
+      >
+        <View style={{ backgroundColor: '#fff', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 5 }} className="p-8 mt-6 items-center">
+          <Text className="text-sm uppercase tracking-widest text-[#94A3B8] font-semibold mb-2">
+            What does this mean?
+          </Text>
+          {loadingImg ? (
+            <ActivityIndicator size="large" color="#6366F1" style={{ height: 80 }} />
+          ) : imgUrl ? (
+            <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" />
+          ) : (
+            <Text className="text-5xl mb-2">{q.image || '💡'}</Text>
+          )}
+          <TouchableOpacity onPress={speakWord} className="flex-row items-center mb-6">
+            <Text className="text-3xl font-bold text-[#0F172A] mr-2">{q.english}</Text>
+            <Text className="text-2xl">🔊</Text>
+          </TouchableOpacity>
+
+          <View className="w-full gap-3">
+            {q.options.map((opt: string, i: number) => {
+              let bgColor = 'bg-[#F8FAFC]';
+              let borderColor = 'border-[#E2E8F0]';
+              let textColor = 'text-[#0F172A]';
+
+              if (selected) {
+                if (opt === q.nepali) {
+                  bgColor = 'bg-emerald-50';
+                  borderColor = 'border-emerald-500';
+                  textColor = 'text-emerald-700';
+                } else if (opt === selected) {
+                  bgColor = 'bg-red-50';
+                  borderColor = 'border-red-400';
+                  textColor = 'text-red-600';
+                }
+              }
+
+              return (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => selectAnswer(opt)}
+                  disabled={!!selected}
+                  className={`${bgColor} ${borderColor} border-2 py-4 px-5 rounded-2xl flex-row items-center`}
+                >
+                  <View className={`w-8 h-8 rounded-full ${selected ? (opt === q.nepali ? 'bg-emerald-500' : opt === selected ? 'bg-red-400' : 'bg-[#E2E8F0]') : 'bg-[#E2E8F0]'} items-center justify-center mr-3`}>
+                    <Text className={`font-bold ${selected ? 'text-white' : 'text-[#64748B]'}`}>
+                      {opt === q.nepali && selected ? '✓' : opt === selected && selected ? '✗' : String.fromCharCode(65 + i)}
+                    </Text>
+                  </View>
+                  <Text className={`text-lg font-semibold flex-1 ${selected ? (opt === q.nepali ? 'text-emerald-700' : opt === selected ? 'text-red-600' : 'text-[#64748B]') : 'text-[#0F172A]'}`}>
+                    {opt}
+                  </Text>
+                  {opt === q.nepali && selected && (
+                    <Text className="text-emerald-500 text-xl">✅</Text>
+                  )}
+                  {opt === selected && selected !== q.nepali && (
+                    <Text className="text-red-400 text-xl">❌</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {!selected && (
+          <View className="items-center mt-8">
+            <Text className="text-[#94A3B8] text-sm">Choose the correct Nepali translation</Text>
+          </View>
+        )}
+      </Animated.View>
     </View>
   );
 };
 
 export default Quiz;
-</file>
-
-<file path="app/_layout.tsx">
-import { Stack } from 'expo-router';
-
-import './global.css';
-
-export default function RootLayout() {
-  return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: 'Nepali Learner' }} />
-      <Stack.Screen name="flashcards/[category]" options={{ title: 'Flashcards' }} />
-      <Stack.Screen name="quiz/[category]" options={{ title: 'Quiz' }} />
-      <Stack.Screen name="progress" options={{ title: 'Progress' }} />
-    </Stack>
-  );
-}
 </file>
 
 <file path="app/+not-found.tsx">
@@ -293,119 +563,1068 @@ export default function NotFound() {
 }
 </file>
 
+<file path="app/echo-practice.tsx">
+import React, { useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { vocab, shuffle } from '../src/data/vocab';
+import { speak } from '../src/services/tts';
+
+const EchoPractice = () => {
+  const router = useRouter();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+
+  const words = useMemo(() => shuffle(vocab).slice(0, 5), []);
+  const currentWord = words[currentIndex];
+
+  const handlePlay = async () => {
+    if (!currentWord) return;
+    setIsPlaying(true);
+    await speak(currentWord.nepali, 'ne-NP');
+    setIsPlaying(false);
+  };
+
+  const handleNext = () => {
+    if (currentIndex + 1 >= words.length) {
+      setIsComplete(true);
+    } else {
+      setCurrentIndex(prev => prev + 1);
+    }
+  };
+
+  if (isComplete) {
+    return (
+      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
+        <Text className="text-6xl mb-4">🗣️</Text>
+        <Text className="text-[#4A1942] text-2xl font-bold mb-2">Echo Practice Complete!</Text>
+        <Text className="text-[#6B7280] text-base mb-6">Great pronunciation practice!</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#800816', borderRadius: 12 }}
+          className="px-8 py-4 w-full items-center"
+          onPress={() => router.push('/')}
+        >
+          <Text className="text-white font-bold text-lg">Continue</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!currentWord) return null;
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text className="text-[#6B7280] text-xl">✕</Text>
+        </TouchableOpacity>
+        <View className="flex-1 mx-4">
+          <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
+            <View style={{ width: `${((currentIndex) / words.length) * 100}%`, backgroundColor: '#800816' }} className="h-full rounded-full" />
+          </View>
+        </View>
+        <View style={{ backgroundColor: '#FEF3C7' }} className="px-3 py-1 rounded-full">
+          <Text className="text-[#92400E] text-sm font-bold">{currentIndex + 1}/{words.length}</Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 mb-8 items-center">
+          <Text className="text-[#4A1942] text-xl font-bold mb-2">Echo Practice</Text>
+          <Text className="text-[#6B7280] text-sm text-center mb-8">Listen carefully, then repeat aloud with perfect pitch.</Text>
+
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24 }} className="p-8 w-full items-center shadow-sm">
+            <Text className="text-[#800816] text-5xl font-bold mb-2">{currentWord.nepali}</Text>
+            <Text className="text-[#6B7280] text-xl mb-6">{currentWord.roman}</Text>
+            <Text className="text-[#4A1942] text-lg italic mb-8">"{currentWord.english}"</Text>
+
+            <TouchableOpacity
+              style={{ backgroundColor: isPlaying ? '#D1D5DB' : '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 10 }}
+              className="w-20 h-20 rounded-full items-center justify-center mb-4"
+              onPress={handlePlay}
+              disabled={isPlaying}
+            >
+              <Text className="text-white text-3xl">🔊</Text>
+            </TouchableOpacity>
+            <Text className="text-[#6B7280] text-sm">Tap to listen</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      <View className="flex-row px-5 pb-8 pt-4" style={{ backgroundColor: '#FBF9F4' }}>
+        <TouchableOpacity
+          style={{ backgroundColor: '#800816' }}
+          className="flex-1 py-4 rounded-xl items-center"
+          onPress={handleNext}
+        >
+          <Text className="text-white font-bold">NEXT</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+export default EchoPractice;
+</file>
+
 <file path="app/global.css">
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 </file>
 
-<file path="app/index.tsx">
-import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, ScrollView } from 'react-native';
-import { Link } from 'expo-router';
-import { categories, getWordsByCategory } from '../src/data/vocab';
-import { useVocabStore } from '../src/data/vocab';
+<file path="app/journal.tsx">
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 
-const Home = () => {
-  const { isLearned } = useVocabStore();
+const prompts = [
+  { nepali: 'आज तपाईंको दिन कस्तो थियो?', roman: 'Aaja tapaiko din kasto thiyo?', english: 'How was your day today?' },
+  { nepali: 'तपाईंले के खानुभयो?', roman: 'Tapaile ke khanubhayo?', english: 'What did you eat?' },
+  { nepali: 'भोलि तपाईं के गर्नुहुन्छ?', roman: 'Bholi tapaai ke garnuhunchha?', english: 'What will you do tomorrow?' },
+  { nepali: 'तपाईंको मनपर्ने रंग कुन हो?', roman: 'Tapaiko manparne rang kun ho?', english: 'What is your favorite color?' },
+];
 
-  const renderCategory = ({ item }: { item: string }) => {
-    const words = getWordsByCategory(item);
-    const learnedCount = words.filter(w => isLearned(w.id)).length;
-    const percent = ((learnedCount / words.length) * 100).toFixed(0);
+const Journal = () => {
+  const router = useRouter();
+  const [text, setText] = useState('');
+  const prompt = prompts[Math.floor(Math.random() * prompts.length)];
 
-    return (
-      <View className="mb-6 p-4 bg-blue-100 rounded-lg">
-        <Text className="text-xl font-bold capitalize mb-2">{item}</Text>
-        <Text className="text-lg mb-2">Learned: {percent}% ({learnedCount}/{words.length})</Text>
-        <View className="flex-row gap-2">
-          <Link href={`/flashcards/${item}`} asChild>
-            <TouchableOpacity className="flex-1 bg-green-500 p-3 rounded">
-              <Text className="text-white font-bold text-center">Flashcards</Text>
-            </TouchableOpacity>
-          </Link>
-          <Link href={`/quiz/${item}`} asChild>
-            <TouchableOpacity className="flex-1 bg-purple-500 p-3 rounded">
-              <Text className="text-white font-bold text-center">Quiz</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </View>
-    );
+  const handleSubmit = () => {
+    if (text.trim().length === 0) {
+      Alert.alert('Empty', 'Please write something before submitting.');
+      return;
+    }
+    Alert.alert('Saved', 'Your journal entry has been saved! 📝');
+    router.push('/');
   };
 
   return (
-    <ScrollView className="flex-1 p-6 bg-gradient-to-b from-blue-50 to-white">
-      <Text className="text-3xl font-bold text-center mb-8 text-gray-800">Nepali Learner</Text>
-      <FlatList
-        data={categories}
-        renderItem={renderCategory}
-        keyExtractor={(item) => item}
-        scrollEnabled={false}
-      />
-      <Link href="/progress" asChild>
-        <TouchableOpacity className="mt-4 bg-indigo-500 p-4 rounded-lg">
-          <Text className="text-white font-bold text-center text-lg">Progress</Text>
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text className="text-[#6B7280] text-xl">✕</Text>
         </TouchableOpacity>
-      </Link>
-    </ScrollView>
+        <Text className="text-[#4A1942] text-xl font-bold">Daily Journal</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <View className="px-5 flex-1">
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16 }} className="p-5 mb-4">
+          <Text className="text-[#800816] text-sm font-bold mb-1">TODAY'S PROMPT</Text>
+          <Text className="text-[#4A1942] text-xl font-bold mb-1">{prompt.nepali}</Text>
+          <Text className="text-[#6B7280] text-sm mb-1">{prompt.roman}</Text>
+          <Text className="text-[#9CA3AF] text-sm italic">{prompt.english}</Text>
+        </View>
+
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, flex: 1 }} className="p-4">
+          <TextInput
+            className="text-[#4A1942] text-base flex-1"
+            placeholder="Write your answer in Nepali here..."
+            placeholderTextColor="#9CA3AF"
+            value={text}
+            onChangeText={setText}
+            multiline
+            textAlignVertical="top"
+          />
+        </View>
+      </View>
+
+      <View className="px-5 pb-8 pt-4" style={{ backgroundColor: '#FBF9F4' }}>
+        <TouchableOpacity
+          style={{ backgroundColor: text.trim().length > 0 ? '#800816' : '#D1D5DB' }}
+          className="py-4 rounded-xl items-center"
+          onPress={handleSubmit}
+          disabled={text.trim().length === 0}
+        >
+          <Text className="text-white font-bold text-lg">SAVE ENTRY</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
-export default Home;
+export default Journal;
 </file>
 
-<file path="app/progress.tsx">
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { Link } from 'expo-router';
-import { categories, vocab } from '../src/data/vocab';
-import { useVocabStore } from '../src/data/vocab';
+<file path="app/lesson.tsx">
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { useAuthStore } from '../src/stores/auth';
+import { speak } from '../src/services/tts';
 
-const Progress = () => {
-  const { isLearned } = useVocabStore();
+const Lesson = () => {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const category = params.category as string | undefined;
+  const user = useAuthStore(s => s.user);
+  const { learnWord, isLearned } = useVocabStore();
+  const uid = user?.id || GUEST_ID;
 
-  const stats = categories.map(cat => {
-    const words = vocab.filter(w => w.category === cat);
-    const learned = words.filter(w => isLearned(w.id)).length;
-    return { cat, learned, total: words.length, percent: (learned / words.length * 100).toFixed(0) };
-  });
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isAnswerChecked, setIsAnswerChecked] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [isLessonComplete, setIsLessonComplete] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
 
-  const totalLearned = stats.reduce((sum, s) => sum + s.learned, 0);
-  const totalWords = stats.reduce((sum, s) => sum + s.total, 0);
+  const sessionWords = useMemo(() => {
+    const words = category ? getWordsByCategory(category) : vocab;
+    return shuffle(words).slice(0, 5);
+  }, [category]);
+
+  const currentWord = sessionWords[currentIndex];
+
+  const options = useMemo(() => {
+    if (!currentWord) return [];
+    const others = vocab.filter(w => w.id !== currentWord.id);
+    const distractors = shuffle(others).slice(0, 3);
+    return shuffle([currentWord, ...distractors]);
+  }, [currentWord]);
+
+  const progress = ((currentIndex) / sessionWords.length) * 100;
+
+  const handleCheck = () => {
+    if (selectedOption === null) return;
+    const correct = selectedOption === currentWord.id;
+    setIsCorrect(correct);
+    setIsAnswerChecked(true);
+    if (correct) {
+      learnWord(uid, currentWord.id);
+      setCorrectCount(prev => prev + 1);
+      speak(currentWord.nepali, 'ne-NP');
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex + 1 >= sessionWords.length) {
+      setIsLessonComplete(true);
+    } else {
+      setCurrentIndex(prev => prev + 1);
+      setSelectedOption(null);
+      setIsAnswerChecked(false);
+      setIsCorrect(false);
+    }
+  };
+
+  const handleSkip = () => {
+    handleNext();
+  };
+
+  if (isLessonComplete) {
+    return (
+      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
+        <Text className="text-6xl mb-4">🎉</Text>
+        <Text className="text-[#4A1942] text-2xl font-bold mb-2">Lesson Complete!</Text>
+        <Text className="text-[#6B7280] text-base mb-6">You got {correctCount}/{sessionWords.length} correct</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#800816', borderRadius: 12 }}
+          className="px-8 py-4 w-full items-center"
+          onPress={() => router.push('/')}
+        >
+          <Text className="text-white font-bold text-lg">Continue</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!currentWord) return null;
 
   return (
-    <ScrollView className="flex-1 p-6">
-      <Text className="text-3xl font-bold text-center mb-8 text-gray-800">Progress Overview</Text>
-      <View className="bg-white p-6 rounded-2xl shadow-lg mb-8">
-        <Text className="text-2xl font-bold text-center mb-2">Overall: {totalLearned}/{totalWords}</Text>
-        <Text className="text-xl text-center text-green-600">({(totalLearned / totalWords * 100).toFixed(0)}%)</Text>
-      </View>
-      {stats.map(s => (
-        <View key={s.cat} className="bg-white p-6 mb-4 rounded-xl shadow-md">
-          <Text className="text-xl font-bold capitalize mb-2">{s.cat}</Text>
-          <Text className="text-lg mb-2">{s.learned}/{s.total} learned ({s.percent}%)</Text>
-          <Link href={`/flashcards/${s.cat}`} asChild>
-            <TouchableOpacity className="bg-blue-500 p-3 rounded-lg">
-              <Text className="text-white font-bold text-center">Review {s.cat}</Text>
-            </TouchableOpacity>
-          </Link>
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      {/* Header */}
+      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text className="text-[#6B7280] text-xl">✕</Text>
+        </TouchableOpacity>
+        <View className="flex-1 mx-4">
+          <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
+            <View style={{ width: `${progress}%`, backgroundColor: '#800816' }} className="h-full rounded-full" />
+          </View>
         </View>
-      ))}
-    </ScrollView>
+        <View style={{ backgroundColor: '#FEF3C7' }} className="px-3 py-1 rounded-full">
+          <Text className="text-[#92400E] text-sm font-bold">{currentIndex + 1}/{sessionWords.length}</Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Title */}
+        <View className="px-5 mb-6 items-center">
+          <Text className="text-[#4A1942] text-xl font-bold mb-2">What does this mean?</Text>
+        </View>
+
+        {/* Word Card */}
+        <View className="px-5 mb-8 items-center">
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 2, borderColor: isAnswerChecked ? (isCorrect ? '#10B981' : '#EF4444') : '#E5D5D0' }} className="p-6 w-full items-center shadow-sm">
+            {currentWord.image?.startsWith('http') ? (
+              <Image source={{ uri: currentWord.image }} className="w-32 h-32 rounded-xl mb-4" />
+            ) : (
+              <Text className="text-6xl mb-4">{currentWord.image || '📖'}</Text>
+            )}
+            <Text className="text-[#800816] text-4xl font-bold mb-1">{currentWord.nepali}</Text>
+            <Text className="text-[#6B7280] text-lg">{currentWord.roman}</Text>
+            <TouchableOpacity className="mt-4" onPress={() => speak(currentWord.nepali, 'ne-NP')}>
+              <View style={{ backgroundColor: '#FEE2E2' }} className="w-10 h-10 rounded-full items-center justify-center">
+                <Text className="text-[#800816]">🔊</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Options */}
+        <View className="px-5 mb-6">
+          {options.map((opt) => {
+            const isSelected = selectedOption === opt.id;
+            const isCorrectOption = opt.id === currentWord.id;
+            let borderColor = '#E5D5D0';
+            let bgColor = '#FFFFFF';
+
+            if (isAnswerChecked) {
+              if (isCorrectOption) {
+                borderColor = '#10B981';
+                bgColor = '#D1FAE5';
+              } else if (isSelected && !isCorrect) {
+                borderColor = '#EF4444';
+                bgColor = '#FEE2E2';
+              }
+            } else if (isSelected) {
+              borderColor = '#800816';
+              bgColor = '#FEE2E2';
+            }
+
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                disabled={isAnswerChecked}
+                style={{ backgroundColor: bgColor, borderRadius: 12, borderWidth: 2, borderColor }}
+                className="p-4 mb-3 flex-row items-center"
+                onPress={() => setSelectedOption(opt.id)}
+              >
+                <Text className="text-[#4A1942] text-base font-semibold flex-1">{opt.english}</Text>
+                {isAnswerChecked && isCorrectOption && <Text className="text-[#10B981] text-xl">✓</Text>}
+                {isAnswerChecked && isSelected && !isCorrect && <Text className="text-[#EF4444] text-xl">✕</Text>}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {/* Bottom Buttons */}
+      <View className="flex-row px-5 pb-8 pt-4 gap-3" style={{ backgroundColor: '#FBF9F4' }}>
+        {!isAnswerChecked ? (
+          <>
+            <TouchableOpacity
+              style={{ backgroundColor: '#F3F4F6' }}
+              className="flex-1 py-4 rounded-xl items-center"
+              onPress={handleSkip}
+            >
+              <Text className="text-[#6B7280] font-bold">SKIP</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ backgroundColor: selectedOption !== null ? '#800816' : '#D1D5DB' }}
+              className="flex-1 py-4 rounded-xl items-center"
+              disabled={selectedOption === null}
+              onPress={handleCheck}
+            >
+              <Text className="text-white font-bold">CHECK ANSWER</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity
+            style={{ backgroundColor: isCorrect ? '#10B981' : '#800816' }}
+            className="flex-1 py-4 rounded-xl items-center"
+            onPress={handleNext}
+          >
+            <Text className="text-white font-bold">CONTINUE</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
   );
 };
 
-export default Progress;
+export default Lesson;
 </file>
 
-<file path="src/data/vocab.ts">
+<file path="app/morning-vocab.tsx">
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { useRouter } from 'expo-router';
+import { vocab, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { useAuthStore } from '../src/stores/auth';
+import { speak } from '../src/services/tts';
+
+const MorningVocab = () => {
+  const router = useRouter();
+  const user = useAuthStore(s => s.user);
+  const { learnWord } = useVocabStore();
+  const uid = user?.id || GUEST_ID;
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isAnswerChecked, setIsAnswerChecked] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [score, setScore] = useState(0);
+
+  const words = useMemo(() => shuffle(vocab).slice(0, 5), []);
+  const currentWord = words[currentIndex];
+
+  const options = useMemo(() => {
+    if (!currentWord) return [];
+    const others = vocab.filter(w => w.id !== currentWord.id);
+    return shuffle([currentWord, ...shuffle(others).slice(0, 3)]);
+  }, [currentWord]);
+
+  const progress = ((currentIndex) / words.length) * 100;
+
+  const handleCheck = () => {
+    if (selectedOption === null) return;
+    const correct = selectedOption === currentWord.id;
+    setIsCorrect(correct);
+    setIsAnswerChecked(true);
+    if (correct) {
+      learnWord(uid, currentWord.id);
+      setScore(prev => prev + 1);
+      speak(currentWord.nepali, 'ne-NP');
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex + 1 >= words.length) {
+      setIsComplete(true);
+    } else {
+      setCurrentIndex(prev => prev + 1);
+      setSelectedOption(null);
+      setIsAnswerChecked(false);
+      setIsCorrect(false);
+    }
+  };
+
+  if (isComplete) {
+    return (
+      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
+        <Text className="text-6xl mb-4">🌅</Text>
+        <Text className="text-[#4A1942] text-2xl font-bold mb-2">Morning Vocab Complete!</Text>
+        <Text className="text-[#6B7280] text-base mb-6">Score: {score}/{words.length}</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#800816', borderRadius: 12 }}
+          className="px-8 py-4 w-full items-center"
+          onPress={() => router.push('/')}
+        >
+          <Text className="text-white font-bold text-lg">Continue</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!currentWord) return null;
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text className="text-[#6B7280] text-xl">✕</Text>
+        </TouchableOpacity>
+        <View className="flex-1 mx-4">
+          <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
+            <View style={{ width: `${progress}%`, backgroundColor: '#800816' }} className="h-full rounded-full" />
+          </View>
+        </View>
+        <View style={{ backgroundColor: '#FEF3C7' }} className="px-3 py-1 rounded-full">
+          <Text className="text-[#92400E] text-sm font-bold">{currentIndex + 1}/{words.length}</Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 mb-6 items-center">
+          <Text className="text-[#4A1942] text-xl font-bold mb-2">Morning Vocab</Text>
+          <Text className="text-[#6B7280] text-sm text-center">What does this mean?</Text>
+        </View>
+
+        <View className="px-5 mb-8 items-center">
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 2, borderColor: isAnswerChecked ? (isCorrect ? '#10B981' : '#EF4444') : '#E5D5D0' }} className="p-6 w-full items-center shadow-sm">
+            {currentWord.image?.startsWith('http') ? (
+              <Image source={{ uri: currentWord.image }} className="w-32 h-32 rounded-xl mb-4" />
+            ) : (
+              <Text className="text-6xl mb-4">{currentWord.image || '📖'}</Text>
+            )}
+            <Text className="text-[#800816] text-4xl font-bold mb-1">{currentWord.nepali}</Text>
+            <Text className="text-[#6B7280] text-lg">{currentWord.roman}</Text>
+            <TouchableOpacity className="mt-4" onPress={() => speak(currentWord.nepali, 'ne-NP')}>
+              <View style={{ backgroundColor: '#FEE2E2' }} className="w-10 h-10 rounded-full items-center justify-center">
+                <Text className="text-[#800816]">🔊</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View className="px-5 mb-6">
+          {options.map((opt) => {
+            const isSelected = selectedOption === opt.id;
+            const isCorrectOption = opt.id === currentWord.id;
+            let borderColor = '#E5D5D0';
+            let bgColor = '#FFFFFF';
+
+            if (isAnswerChecked) {
+              if (isCorrectOption) { borderColor = '#10B981'; bgColor = '#D1FAE5'; }
+              else if (isSelected && !isCorrect) { borderColor = '#EF4444'; bgColor = '#FEE2E2'; }
+            } else if (isSelected) {
+              borderColor = '#800816'; bgColor = '#FEE2E2';
+            }
+
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                disabled={isAnswerChecked}
+                style={{ backgroundColor: bgColor, borderRadius: 12, borderWidth: 2, borderColor }}
+                className="p-4 mb-3 flex-row items-center"
+                onPress={() => setSelectedOption(opt.id)}
+              >
+                <Text className="text-[#4A1942] text-base font-semibold flex-1">{opt.english}</Text>
+                {isAnswerChecked && isCorrectOption && <Text className="text-[#10B981] text-xl">✓</Text>}
+                {isAnswerChecked && isSelected && !isCorrect && <Text className="text-[#EF4444] text-xl">✕</Text>}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <View className="flex-row px-5 pb-8 pt-4 gap-3" style={{ backgroundColor: '#FBF9F4' }}>
+        {!isAnswerChecked ? (
+          <>
+            <TouchableOpacity style={{ backgroundColor: '#F3F4F6' }} className="flex-1 py-4 rounded-xl items-center" onPress={handleNext}>
+              <Text className="text-[#6B7280] font-bold">SKIP</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ backgroundColor: selectedOption !== null ? '#800816' : '#D1D5DB' }}
+              className="flex-1 py-4 rounded-xl items-center"
+              disabled={selectedOption === null}
+              onPress={handleCheck}
+            >
+              <Text className="text-white font-bold">CHECK ANSWER</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={{ backgroundColor: isCorrect ? '#10B981' : '#800816' }} className="flex-1 py-4 rounded-xl items-center" onPress={handleNext}>
+            <Text className="text-white font-bold">CONTINUE</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+};
+
+export default MorningVocab;
+</file>
+
+<file path="app/practice-phrases.tsx">
+import React, { useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { phrases } from '../src/data/phrases';
+import { shuffle } from '../src/data/vocab';
+import { speak } from '../src/services/tts';
+
+const PracticePhrases = () => {
+  const router = useRouter();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+
+  const sessionPhrases = useMemo(() => shuffle(phrases).slice(0, 8), []);
+  const current = sessionPhrases[currentIndex];
+
+  const handlePlay = async () => {
+    if (!current) return;
+    setIsPlaying(true);
+    await speak(current.nepali, 'ne-NP');
+    setIsPlaying(false);
+  };
+
+  const handleNext = () => {
+    if (currentIndex + 1 >= sessionPhrases.length) {
+      setIsComplete(true);
+    } else {
+      setCurrentIndex(prev => prev + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
+  };
+
+  if (isComplete) {
+    return (
+      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
+        <Text className="text-6xl mb-4">🎉</Text>
+        <Text className="text-[#4A1942] text-2xl font-bold mb-2">Practice Complete!</Text>
+        <Text className="text-[#6B7280] text-base mb-6 text-center">You've reviewed all Dashain phrases. Great job!</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#800816', borderRadius: 12 }}
+          className="px-8 py-4 w-full items-center"
+          onPress={() => router.back()}
+        >
+          <Text className="text-white font-bold text-lg">Back to Learn</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!current) return null;
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="close" size={24} color="#6B7280" />
+        </TouchableOpacity>
+        <Text className="text-[#4A1942] text-lg font-bold">Practice Phrases</Text>
+        <View style={{ backgroundColor: '#FEF3C7' }} className="px-3 py-1 rounded-full">
+          <Text className="text-[#92400E] text-sm font-bold">{currentIndex + 1}/{sessionPhrases.length}</Text>
+        </View>
+      </View>
+
+      <View className="px-5 mb-4">
+        <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
+          <View style={{ width: `${((currentIndex) / sessionPhrases.length) * 100}%`, backgroundColor: '#800816' }} className="h-full rounded-full" />
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 mb-8 items-center">
+          <View style={{ backgroundColor: '#FEE2E2' }} className="self-start px-3 py-1 rounded-full mb-6">
+            <Text className="text-[#800816] text-xs font-bold uppercase">Dashain Greetings</Text>
+          </View>
+
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 }} className="p-8 w-full items-center">
+            <TouchableOpacity
+              style={{ backgroundColor: isPlaying ? '#D1D5DB' : '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 10 }}
+              className="w-16 h-16 rounded-full items-center justify-center mb-6"
+              onPress={handlePlay}
+              disabled={isPlaying}
+            >
+              <Ionicons name={isPlaying ? 'pause' : 'volume-high'} size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <Text className="text-[#800816] text-3xl font-bold mb-3 text-center">{current.nepali}</Text>
+            <Text className="text-[#6B7280] text-lg mb-6">{current.roman}</Text>
+
+            <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12 }} className="w-full p-4 items-center">
+              <Text className="text-[#4A1942] text-base font-semibold">"{current.english}"</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      <View className="flex-row px-5 pb-8 pt-4 gap-3" style={{ backgroundColor: '#FBF9F4' }}>
+        <TouchableOpacity
+          style={{ backgroundColor: currentIndex === 0 ? '#E5D5D0' : '#FFFFFF', borderWidth: 2, borderColor: '#800816', opacity: currentIndex === 0 ? 0.5 : 1 }}
+          className="flex-1 py-4 rounded-xl items-center"
+          onPress={handlePrev}
+          disabled={currentIndex === 0}
+        >
+          <Text style={{ color: currentIndex === 0 ? '#9CA3AF' : '#800816' }} className="font-bold">Previous</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: '#800816' }}
+          className="flex-1 py-4 rounded-xl items-center"
+          onPress={handleNext}
+        >
+          <Text className="text-white font-bold">{currentIndex + 1 >= sessionPhrases.length ? 'Complete' : 'Next'}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+export default PracticePhrases;
+</file>
+
+<file path="src/components/BottomNav.tsx">
+import { View, Text, TouchableOpacity } from 'react-native';
+import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+type TabName = 'home' | 'learn' | 'ai-tutor' | 'profile';
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const TABS: { name: TabName; label: string; icon: IoniconName; activeIcon: IoniconName; href: string }[] = [
+  { name: 'home', label: 'Home', icon: 'home-outline', activeIcon: 'home', href: '/' },
+  { name: 'learn', label: 'Learn', icon: 'book-outline', activeIcon: 'book', href: '/learn' },
+  { name: 'ai-tutor', label: 'AI Tutor', icon: 'sparkles-outline', activeIcon: 'sparkles', href: '/ai-tutor' },
+  { name: 'profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person', href: '/profile' },
+];
+
+export default function BottomNav({ activeTab }: { activeTab?: TabName }) {
+  return (
+    <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center px-4 pb-6 pt-3">
+      {TABS.map(tab => {
+        const isActive = tab.name === activeTab;
+
+        if (isActive) {
+          return (
+            <View key={tab.name} className="flex-1 items-center">
+              <Ionicons name={tab.activeIcon} size={24} color="#800816" />
+              <Text className="text-[#800816] text-xs mt-1 font-semibold">{tab.label}</Text>
+            </View>
+          );
+        }
+
+        return (
+          <Link key={tab.name} href={tab.href} asChild>
+            <TouchableOpacity className="flex-1 items-center">
+              <Ionicons name={tab.icon} size={24} color="#9CA3AF" />
+              <Text className="text-[#9CA3AF] text-xs mt-1">{tab.label}</Text>
+            </TouchableOpacity>
+          </Link>
+        );
+      })}
+    </View>
+  );
+}
+</file>
+
+<file path="src/components/QuickActionsModal.tsx">
+import React, { useEffect, useRef } from 'react';
+import { Modal, View, Text, TouchableOpacity, Pressable, Platform, Animated, Dimensions } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+
+type Props = {
+  visible: boolean;
+  onClose: () => void;
+};
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+export const QuickActionsModal = ({ visible, onClose }: Props) => {
+  const router = useRouter();
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const cardAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    if (visible) {
+      slideAnim.setValue(SCREEN_HEIGHT);
+      fadeAnim.setValue(0);
+      cardAnims.forEach(anim => anim.setValue(0));
+
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          damping: 25,
+          stiffness: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        ...cardAnims.map((anim, i) =>
+          Animated.spring(anim, {
+            toValue: 1,
+            delay: 200 + i * 100,
+            damping: 20,
+            stiffness: 150,
+            useNativeDriver: true,
+          })
+        ),
+      ]).start();
+    }
+  }, [visible]);
+
+  const handleClose = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onClose());
+  };
+
+  const actions = [
+    { 
+      label: 'Practice Speaking', 
+      icon: 'account-voice', 
+      iconLib: 'material',
+      bg: '#F5E6E6', 
+      color: '#800816', 
+      route: '/echo-practice' 
+    },
+    { 
+      label: 'Quick Review', 
+      icon: 'file-document-edit', 
+      iconLib: 'material',
+      bg: '#FFF4E0', 
+      color: '#B45309', 
+      route: '/flashcards/greetings' 
+    },
+    { 
+      label: 'Ask Aama', 
+      icon: 'head-cog', 
+      iconLib: 'material',
+      bg: '#E8F5E9', 
+      color: '#065F46', 
+      route: '/ai-tutor' 
+    },
+    { 
+      label: 'Daily Challenge', 
+      icon: 'medal', 
+      iconLib: 'material',
+      bg: '#F5E6E6', 
+      color: '#800816', 
+      route: '/quiz/greetings' 
+    },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="none">
+      <View className="flex-1">
+        {/* Backdrop */}
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+          <Pressable className="flex-1 bg-black/40" onPress={handleClose} />
+        </Animated.View>
+
+        {/* Drawer */}
+        <Animated.View 
+          style={{ 
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          <View 
+            style={{ 
+              backgroundColor: '#F5F2ED', 
+              borderTopLeftRadius: 32, 
+              borderTopRightRadius: 32,
+              minHeight: SCREEN_HEIGHT * 0.6,
+            }} 
+            className="px-6 pb-10 pt-6"
+          >
+            {/* Handle */}
+            <View className="w-12 h-1.5 bg-[#E5D5D0] rounded-full self-center mb-8" />
+            
+            {/* Title */}
+            <Text 
+              className="text-[#800816] text-3xl font-bold mb-16 text-center" 
+              style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}
+            >
+              Quick Actions
+            </Text>
+            
+            {/* Grid */}
+            <View className="flex-row flex-wrap justify-between mb-8 mt-4">
+              {actions.map((action, i) => (
+                <Animated.View
+                  key={i}
+                  style={{
+                    opacity: cardAnims[i],
+                    transform: [
+                      { scale: cardAnims[i] },
+                    ],
+                  }}
+                  className="w-[48%] mb-5"
+                >
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#FFFFFF' }}
+                    className="p-5 rounded-3xl items-center shadow-sm"
+                    onPress={() => { handleClose(); router.push(action.route as any); }}
+                    activeOpacity={0.7}
+                  >
+                    <View 
+                      style={{ backgroundColor: action.bg }} 
+                      className="w-14 h-14 rounded-2xl items-center justify-center mb-3"
+                    >
+                      {action.iconLib === 'material' ? (
+                        <MaterialCommunityIcons name={action.icon as any} size={26} color={action.color} />
+                      ) : (
+                        <Ionicons name={action.icon as any} size={26} color={action.color} />
+                      )}
+                    </View>
+                    <Text className="text-[#1F2937] text-sm font-semibold text-center">{action.label}</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </View>
+
+            {/* Close Button */}
+            <View className="items-center mt-4">
+              <TouchableOpacity onPress={handleClose} activeOpacity={0.7}>
+                <View 
+                  style={{ backgroundColor: '#800816' }} 
+                  className="w-16 h-16 rounded-full items-center justify-center shadow-lg" 
+                  shadowColor="#800816" 
+                  shadowOffset={{ width: 0, height: 4 }} 
+                  shadowOpacity={0.4} 
+                  shadowRadius={8} 
+                  elevation={8}
+                >
+                  <Ionicons name="close" size={32} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+              <Text className="text-[#6B7280] text-sm font-medium mt-3">Close</Text>
+            </View>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
+</file>
+
+<file path="src/components/SplashScreen.tsx">
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+
+type Props = {
+  onFinish: () => void;
+};
+
+export default function SplashScreen({ onFinish }: Props) {
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: true }),
+    ]).start();
+
+    const timer = setTimeout(() => {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onFinish);
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+      <LinearGradient colors={['#6366F1', '#4F46E5']} className="flex-1 items-center justify-center">
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }} className="items-center">
+          <View className="w-24 h-24 bg-white/20 rounded-3xl items-center justify-center mb-6">
+            <Text className="text-5xl">🇳🇵</Text>
+          </View>
+          <Text className="text-4xl font-bold text-white tracking-wide">NepLearn</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.7)' }} className="text-lg mt-2">
+            Learn Nepali, one word at a time
+          </Text>
+        </Animated.View>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+</file>
+
+<file path="src/data/phrases.ts">
+export type Phrase = {
+  id: number;
+  nepali: string;
+  roman: string;
+  english: string;
+  category: string;
+};
+
+export const phrases: Phrase[] = [
+  { id: 1, nepali: 'विजया दशमी को शुभकामना', roman: 'Vijaya Dashami ko Shuvakamana', english: 'Happy Vijaya Dashami!', category: 'greetings' },
+  { id: 2, nepali: 'दशैं को शुभकामना', roman: 'Dashain ko Shuvakamana', english: 'Best wishes for Dashain', category: 'greetings' },
+  { id: 3, nepali: 'तपाईंलाई दशैं को शुभकामना', roman: 'Tapailai Dashain ko Shuvakamana', english: 'Wishing you a happy Dashain', category: 'greetings' },
+  { id: 4, nepali: 'मेरो दशैं रमाइलो छ', roman: 'Mero Dashain ramailo chha', english: 'My Dashain is fun', category: 'festival' },
+  { id: 5, nepali: 'टीका लगाउनुहुन्छ?', roman: 'Tika lagaaunuhunchha?', english: 'Will you receive tika?', category: 'festival' },
+  { id: 6, nepali: 'घर जानुहुन्छ?', roman: 'Ghar jaanuhunchha?', english: 'Are you going home?', category: 'festival' },
+  { id: 7, nepali: 'नयाँ लुगा किन्ने', roman: 'Naya luga kinne', english: 'Buying new clothes', category: 'festival' },
+  { id: 8, nepali: 'पिङ खेल्ने', roman: 'Pinga khelne', english: 'Playing on the swing', category: 'festival' },
+  { id: 9, nepali: 'मिठाई खाने', roman: 'Mithaai khaane', english: 'Eating sweets', category: 'festival' },
+  { id: 10, nepali: 'आशीर्वाद लिने', roman: 'Aashirwad line', english: 'Receiving blessings', category: 'festival' },
+];
+</file>
+
+<file path="src/services/image.ts">
+const cache = new Map<string, string | null>();
+
+export async function getWordImage(english: string): Promise<string | null> {
+  if (cache.has(english)) return cache.get(english) ?? null;
+
+  try {
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(english)}`,
+      { headers: { 'User-Agent': 'NepLearn/1.0' } }
+    );
+    if (!res.ok) throw new Error('Not found');
+    const data = await res.json();
+    const url = data?.thumbnail?.source || data?.originalimage?.source || null;
+    cache.set(english, url);
+    return url;
+  } catch {
+    // Try simplified term for compound words
+    const simple = english.replace(/[?.!]/g, '').split(' ')[0];
+    if (simple !== english) return getWordImage(simple);
+    cache.set(english, null);
+    return null;
+  }
+}
+</file>
+
+<file path="src/services/tts.ts">
+import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
+
+function langCode(lang: string): string {
+  return lang === 'ne-NP' ? 'ne' : 'en';
+}
+
+async function speakViaUrl(text: string, lang: string): Promise<void> {
+  const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${langCode(lang)}&q=${encodeURIComponent(text)}`;
+  await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+  const { sound } = await Audio.Sound.createAsync(
+    { uri: url },
+    { shouldPlay: true }
+  );
+  return new Promise((resolve) => {
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync();
+        resolve();
+      }
+    });
+  });
+}
+
+export async function speak(text: string, lang: string = 'ne-NP'): Promise<void> {
+  const voices = await Speech.getAvailableVoicesAsync();
+  const hasLang = voices.some(v => v.language === lang);
+
+  if (hasLang) {
+    const isSpeaking = await Speech.isSpeakingAsync();
+    if (isSpeaking) await Speech.stop();
+    await Speech.speak(text, { language: lang, rate: 0.8 });
+  } else {
+    await speakViaUrl(text, lang);
+  }
+}
+</file>
+
+<file path="src/stores/auth.ts">
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PersistStorage } from 'zustand/middleware';
 
-const asyncStorage: PersistStorage<VocabState> = {
+const asyncStorage: PersistStorage<AuthState> = {
   getItem: async (name) => {
     const val = await AsyncStorage.getItem(name);
     return val ? JSON.parse(val) : null;
@@ -418,116 +1637,32 @@ const asyncStorage: PersistStorage<VocabState> = {
   },
 };
 
-export type Word = {
-  id: number;
-  english: string;
-  nepali: string;
-  roman: string;
-  category: string;
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  photo?: string;
 };
 
-type VocabState = {
-  learned: number[];
-  learnWord: (id: number) => void;
-  unlearnWord: (id: number) => void;
-  isLearned: (id: number) => boolean;
-  toggleLearned: (id: number) => void;
+type AuthState = {
+  user: User | null;
+  setUser: (user: User) => void;
+  clearUser: () => void;
 };
 
-export const useVocabStore = create<VocabState>()(
+export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
-      learned: [],
-      learnWord: (id) => set({ learned: [...get().learned, id] }),
-      unlearnWord: (id) => set({ learned: get().learned.filter(l => l !== id) }),
-      isLearned: (id) => get().learned.includes(id),
-      toggleLearned: (id) => {
-        const learned = get().learned;
-        if (learned.includes(id)) {
-          set({ learned: learned.filter(l => l !== id) });
-        } else {
-          set({ learned: [...learned, id] });
-        }
-      },
+    (set) => ({
+      user: null,
+      setUser: (user) => set({ user }),
+      clearUser: () => set({ user: null }),
     }),
     {
-      name: 'nepali-vocab',
+      name: 'nepali-auth',
       storage: asyncStorage,
     }
   )
 );
-
-export const categories = [
-  'greetings', 'numbers', 'colors', 'family', 'food',
-  'directions', 'days', 'time', 'adjectives', 'places',
-] as const;
-
-export type Category = (typeof categories)[number];
-
-export const vocab: Word[] = [
-  { id: 1, english: 'Hello', nepali: 'नमस्ते', roman: 'Namaste', category: 'greetings' },
-  { id: 2, english: 'Goodbye', nepali: 'नमस्कार', roman: 'Namaskar', category: 'greetings' },
-  { id: 3, english: 'Thank you', nepali: 'धन्यवाद', roman: 'Dhanyabad', category: 'greetings' },
-  { id: 4, english: 'Please', nepali: 'कृपया', roman: 'Kripaya', category: 'greetings' },
-  { id: 5, english: 'Yes', nepali: 'हो', roman: 'Ho', category: 'greetings' },
-  { id: 6, english: 'No', nepali: 'होइन', roman: 'Hoina', category: 'greetings' },
-  { id: 7, english: 'Sorry', nepali: 'माफ गर्नुहोस्', roman: 'Maaf garnuhos', category: 'greetings' },
-  { id: 8, english: 'Good morning', nepali: 'शुभ प्रभात', roman: 'Shubha prabhat', category: 'greetings' },
-  { id: 9, english: 'How are you?', nepali: 'तपाईं कस्तो हुनुहुन्छ?', roman: 'Tapai kasto hunuhunchha?', category: 'greetings' },
-  { id: 10, english: 'Fine', nepali: 'ठीक छ', roman: 'Thik chha', category: 'greetings' },
-  { id: 11, english: 'One', nepali: 'एक', roman: 'Ek', category: 'numbers' },
-  { id: 12, english: 'Two', nepali: 'दुई', roman: 'Dui', category: 'numbers' },
-  { id: 13, english: 'Three', nepali: 'तीन', roman: 'Tin', category: 'numbers' },
-  { id: 14, english: 'Four', nepali: 'चार', roman: 'Char', category: 'numbers' },
-  { id: 15, english: 'Five', nepali: 'पाँच', roman: 'Panch', category: 'numbers' },
-  { id: 16, english: 'Six', nepali: 'छ', roman: 'Chha', category: 'numbers' },
-  { id: 17, english: 'Seven', nepali: 'सात', roman: 'Saat', category: 'numbers' },
-  { id: 18, english: 'Eight', nepali: 'आठ', roman: 'Aath', category: 'numbers' },
-  { id: 19, english: 'Nine', nepali: 'नौ', roman: 'Nau', category: 'numbers' },
-  { id: 20, english: 'Ten', nepali: 'दस', roman: 'Das', category: 'numbers' },
-  { id: 21, english: 'Red', nepali: 'रातो', roman: 'Rato', category: 'colors' },
-  { id: 22, english: 'Blue', nepali: 'निलो', roman: 'Nilo', category: 'colors' },
-  { id: 23, english: 'Green', nepali: 'हरियो', roman: 'Hariyo', category: 'colors' },
-  { id: 24, english: 'Yellow', nepali: 'पहेंलो', roman: 'Pahenlo', category: 'colors' },
-  { id: 25, english: 'Black', nepali: 'कालो', roman: 'Kalo', category: 'colors' },
-  { id: 26, english: 'Mother', nepali: 'आमा', roman: 'Aama', category: 'family' },
-  { id: 27, english: 'Father', nepali: 'बुबा', roman: 'Buba', category: 'family' },
-  { id: 28, english: 'Brother', nepali: 'दाजु/भाइ', roman: 'Daju/Bhai', category: 'family' },
-  { id: 29, english: 'Sister', nepali: 'दिदी/बहिनी', roman: 'Didi/Bahini', category: 'family' },
-  { id: 30, english: 'Child', nepali: 'बालबालिका', roman: 'Balbalika', category: 'family' },
-  { id: 31, english: 'Water', nepali: 'पानी', roman: 'Pani', category: 'food' },
-  { id: 32, english: 'Rice', nepali: 'भात', roman: 'Bhaat', category: 'food' },
-  { id: 33, english: 'Bread', nepali: 'रोटी', roman: 'Roti', category: 'food' },
-  { id: 34, english: 'Vegetable', nepali: 'तरकारी', roman: 'Tarkari', category: 'food' },
-  { id: 35, english: 'Fruit', nepali: 'फलफूल', roman: 'Phalphal', category: 'food' },
-  { id: 36, english: 'Left', nepali: 'बायाँ', roman: 'Bayaa', category: 'directions' },
-  { id: 37, english: 'Right', nepali: 'दायाँ', roman: 'Daya', category: 'directions' },
-  { id: 38, english: 'Straight', nepali: 'सिधा', roman: 'Sidha', category: 'directions' },
-  { id: 39, english: 'Here', nepali: 'यहाँ', roman: 'Yahaa', category: 'directions' },
-  { id: 40, english: 'There', nepali: 'त्यहाँ', roman: 'Tyahaa', category: 'directions' },
-  { id: 41, english: 'Monday', nepali: 'सोमबार', roman: 'Sombar', category: 'days' },
-  { id: 42, english: 'Tuesday', nepali: 'मङ्गलबार', roman: 'Mangalbar', category: 'days' },
-  { id: 43, english: 'Wednesday', nepali: 'बुधबार', roman: 'Budhbar', category: 'days' },
-  { id: 44, english: 'Thursday', nepali: 'बिहीबार', roman: 'Bihibar', category: 'days' },
-  { id: 45, english: 'Friday', nepali: 'शुक्रबार', roman: 'Shukrabar', category: 'days' },
-  { id: 46, english: 'Today', nepali: 'आज', roman: 'Aaja', category: 'time' },
-  { id: 47, english: 'Tomorrow', nepali: 'भोलि', roman: 'Bholi', category: 'time' },
-  { id: 48, english: 'Big', nepali: 'ठूलो', roman: 'Thulo', category: 'adjectives' },
-  { id: 49, english: 'Small', nepali: 'सानो', roman: 'Sano', category: 'adjectives' },
-  { id: 50, english: 'Happy', nepali: 'खुशी', roman: 'Khushi', category: 'adjectives' },
-  { id: 51, english: 'House', nepali: 'घर', roman: 'Ghar', category: 'places' },
-  { id: 52, english: 'School', nepali: 'स्कूल', roman: 'School', category: 'places' },
-  { id: 53, english: 'Market', nepali: 'बजार', roman: 'Bajar', category: 'places' },
-  { id: 54, english: 'Mountain', nepali: 'हिमाल', roman: 'Himal', category: 'places' },
-];
-
-export function getWordsByCategory(cat: string): Word[] {
-  return vocab.filter(w => w.category === cat);
-}
-
-export function shuffle<T>(array: T[]): T[] {
-  return [...array].sort(() => Math.random() - 0.5);
-}
 </file>
 
 <file path=".gitignore">
@@ -578,57 +1713,46 @@ yarn-error.*
 /// <reference types="nativewind/types" />
 </file>
 
-<file path="app.json">
+<file path="eas.json">
 {
-  "expo": {
-    "name": "NepaliLearner",
-    "experiments": {
-"reactCanary": true
-},
-    "slug": "NepaliLearner",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+  "cli": {
+    "version": ">= 12.5.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
     },
-    "ios": {
-      "supportsTablet": true
+    "preview": {
+      "distribution": "internal"
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-router"
-    ]
+    "production": {
+      "autoIncrement": true
+    }
+  },              
+  "submit": {
+    "production": {}
   }
 }
-</file>
-
-<file path="babel.config.js">
-module.exports = function(api) {
-  api.cache(true);
-  return {
-    presets: ['babel-preset-expo'],
-  };
-};
 </file>
 
 <file path="index.ts">
 import 'react-native-gesture-handler';
 import 'expo-router/entry';
+</file>
+
+<file path="MEMORY.md">
+# NepLearn Memory
+
+## Deadline
+- **Sunday** - Project must be finished by this weekend.
+- **Reminder**: Remind the user about the deadline periodically (after building something or ~1 hour).
+
+## Project Context
+- **Lesson Screen**: Completely rewritten `app/lesson.tsx`. Now features dynamic word selection, multiple-choice answers, check/skip logic, TTS audio, visual feedback (green/red), and a completion summary.
+- **Menu**: Added hamburger menu with Settings, Help, About, Sign Out.
+- **Settings**: Created `app/settings.tsx` with placeholder options.
 </file>
 
 <file path="metro.config.js">
@@ -646,46 +1770,6 @@ module.exports = withNativeWind(config, { input: "./app/global.css" });
 // NOTE: This file should not be edited and should be committed with your source code. It is generated by NativeWind.
 </file>
 
-<file path="package.json">
-{
-  "name": "nepalilearner",
-  "version": "1.0.0",
-  "main": "index.ts",
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "dependencies": {
-    "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~54.0.0",
-    "expo-av": "~16.0.8",
-    "expo-constants": "~17.0.8",
-    "expo-linking": "~7.0.5",
-    "expo-router": "~4.0.0",
-    "expo-speech": "~14.0.0",
-    "expo-status-bar": "~3.0.9",
-    "nativewind": "^4.2.3",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-native": "0.79.5",
-    "react-native-gesture-handler": "~2.24.0",
-    "react-native-reanimated": "~3.17.0",
-    "react-native-safe-area-context": "~5.4.0",
-    "react-native-screens": "~4.10.0",
-    "react-native-web": "^0.21.0",
-    "tailwindcss": "^3.4.0",
-    "zustand": "^5.0.13"
-  },
-  "devDependencies": {
-    "@types/react": "^19.0.0",
-    "typescript": "~5.9.2"
-  },
-  "private": true
-}
-</file>
-
 <file path="tailwind.config.js">
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -695,7 +1779,26 @@ module.exports = {
   ],
   presets: [require('nativewind/preset')],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: {
+          DEFAULT: '#6366F1',
+          50: '#F0F0FF',
+          100: '#E0E0FF',
+          200: '#C4C4FF',
+          300: '#A5A5FF',
+          400: '#8585FF',
+          500: '#6366F1',
+          600: '#4F46E5',
+          700: '#4338CA',
+          800: '#3730A3',
+          900: '#312E81',
+        },
+        surface: '#F8FAFC',
+        'text-primary': '#0F172A',
+        'text-secondary': '#64748B',
+      },
+    },
   },
   plugins: [],
 };
@@ -716,9 +1819,1782 @@ module.exports = {
     "**/*.ts",
     "**/*.tsx",
     "nativewind.d.ts",
-    "nativewind-env.d.ts"
+    "nativewind-env.d.ts",
+    "typings/*.d.ts"
   ]
 }
+</file>
+
+<file path="app/onboarding.tsx">
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Image, Animated } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useVocabStore, type LearningGoal, type LearningLevel } from '../src/data/vocab';
+
+const GOALS: { id: LearningGoal; label: string; icon: string }[] = [
+  { id: 'travel', label: 'Travel', icon: '✈️' },
+  { id: 'culture', label: 'Culture', icon: '🏛️' },
+  { id: 'business', label: 'Business', icon: '💼' },
+  { id: 'family', label: 'Family', icon: '👨‍👩‍👧‍' },
+];
+
+const LEVELS: { id: LearningLevel; label: string; desc: string }[] = [
+  { id: 'beginner', label: 'Beginner', desc: 'I\'m just starting with "Namaste"' },
+  { id: 'intermediate', label: 'Intermediate', desc: 'I can hold basic conversations' },
+  { id: 'advanced', label: 'Advanced', desc: 'I want to master formal Nepali' },
+];
+
+const COLORS = {
+  bg: '#FDF8F0',
+  primary: '#7B1E2E',
+  primaryLight: '#9B2D3E',
+  accent: '#8B5A2B',
+  text: '#2D1810',
+  textSecondary: '#6B4F3A',
+  card: '#FFFFFF',
+  cardBorder: '#E8DDD5',
+  cardSelected: '#7B1E2E',
+  cardSelectedBg: '#FDF5F0',
+};
+
+const FadeIn = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
+  const opacity = React.useRef(new Animated.Value(0)).current;
+  const translateY = React.useRef(new Animated.Value(20)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 500, delay, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 500, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+};
+
+export default function Onboarding() {
+  const router = useRouter();
+  const { setLearningGoal, setLearningLevel, completeOnboarding } = useVocabStore();
+  const [goal, setGoal] = useState<LearningGoal | null>(null);
+  const [level, setLevel] = useState<LearningLevel | null>(null);
+
+  const handleStart = () => {
+    if (goal) setLearningGoal(goal);
+    if (level) setLearningLevel(level);
+    completeOnboarding();
+    router.replace('/');
+  };
+
+  const canStart = goal !== null && level !== null;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        {/* Mountain Image */}
+        <FadeIn delay={100}>
+          <View className="px-6 pt-16 pb-4">
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80' }}
+              style={{ width: '100%', height: 220, borderRadius: 24 }}
+              resizeMode="cover"
+            />
+          </View>
+        </FadeIn>
+
+        {/* Title */}
+        <FadeIn delay={200}>
+          <View className="px-8 mt-4">
+            <Text style={{ fontFamily: 'serif', fontSize: 32, fontWeight: '600', color: COLORS.text, textAlign: 'center' }}>
+              Namaste, Traveler
+            </Text>
+            <Text style={{ fontSize: 16, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 24 }}>
+              Begin your journey into the heart of Nepal through its beautiful language.
+            </Text>
+          </View>
+        </FadeIn>
+
+        {/* Learning Goal */}
+        <FadeIn delay={300}>
+          <View className="px-8 mt-8">
+            <View className="flex-row items-center mb-4">
+              <Text style={{ fontSize: 14 }}>🇳🇵</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary, marginLeft: 8, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                Choose Your Learning Goal
+              </Text>
+            </View>
+            <View className="flex-row flex-wrap" style={{ gap: 10 }}>
+              {GOALS.map((g) => {
+                const isSelected = goal === g.id;
+                return (
+                  <TouchableOpacity
+                    key={g.id}
+                    onPress={() => setGoal(g.id)}
+                    style={{
+                      width: '48%',
+                      padding: 16,
+                      borderRadius: 16,
+                      backgroundColor: isSelected ? COLORS.cardSelectedBg : COLORS.card,
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? COLORS.cardSelected : COLORS.cardBorder,
+                      alignItems: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 3,
+                      elevation: 2,
+                    }}
+                  >
+                    <Text style={{ fontSize: 24, marginBottom: 6 }}>{g.icon}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isSelected ? COLORS.primary : COLORS.text }}>
+                      {g.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </FadeIn>
+
+        {/* Level Selection */}
+        <FadeIn delay={400}>
+          <View className="px-8 mt-8">
+            <View className="flex-row items-center mb-4">
+              <Text style={{ fontSize: 14 }}>📊</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary, marginLeft: 8, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                Select Your Level
+              </Text>
+            </View>
+            {LEVELS.map((l) => {
+              const isSelected = level === l.id;
+              return (
+                <TouchableOpacity
+                  key={l.id}
+                  onPress={() => setLevel(l.id)}
+                  style={{
+                    padding: 16,
+                    borderRadius: 16,
+                    backgroundColor: COLORS.card,
+                    borderWidth: 1,
+                    borderColor: isSelected ? COLORS.primary : COLORS.cardBorder,
+                    marginBottom: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.03,
+                    shadowRadius: 2,
+                    elevation: 1,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text }}>
+                      {l.label}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginTop: 2 }}>
+                      {l.desc}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: isSelected ? COLORS.primary : COLORS.cardBorder,
+                      backgroundColor: isSelected ? COLORS.primary : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {isSelected && (
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' }} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </FadeIn>
+
+        {/* Start Button */}
+        <FadeIn delay={500}>
+          <View className="px-8 mt-8">
+            <TouchableOpacity
+              onPress={handleStart}
+              disabled={!canStart}
+              style={{
+                paddingVertical: 18,
+                borderRadius: 32,
+                backgroundColor: canStart ? COLORS.primary : COLORS.cardBorder,
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: canStart ? 0.2 : 0.05,
+                shadowRadius: 8,
+                elevation: canStart ? 4 : 1,
+              }}
+            >
+              <Text style={{ fontSize: 18, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.5 }}>
+                Start Learning →
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.replace('/signin')}
+              className="mt-4 items-center"
+            >
+              <Text style={{ fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' }}>
+                I already have an account
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </FadeIn>
+      </ScrollView>
+    </View>
+  );
+}
+</file>
+
+<file path="app/progress.tsx">
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import BottomNav from '../src/components/BottomNav';
+import { categories, vocab, GUEST_ID } from '../src/data/vocab';
+import { useVocabStore } from '../src/data/vocab';
+import { useAuthStore } from '../src/stores/auth';
+
+const CATEGORY_COLORS: Record<string, string> = {
+  greetings: '#6366F1',
+  numbers: '#8B5CF6',
+  colors: '#EC4899',
+  family: '#14B8A6',
+  food: '#F97316',
+  directions: '#06B6D4',
+  days: '#F59E0B',
+  time: '#10B981',
+  adjectives: '#D946EF',
+  places: '#0EA5E9',
+};
+
+const CATEGORY_EMOJIS: Record<string, string> = {
+  greetings: '👋',
+  numbers: '🔢',
+  colors: '🎨',
+  family: '👨‍👩‍👧‍👦',
+  food: '🍜',
+  directions: '🧭',
+  days: '📅',
+  time: '⏰',
+  adjectives: '✨',
+  places: '🏔️',
+};
+
+const Progress = () => {
+  const router = useRouter();
+  const user = useAuthStore(s => s.user);
+  const clearUser = useAuthStore(s => s.clearUser);
+  const { isLearned } = useVocabStore();
+  const uid = user?.id || GUEST_ID;
+
+  const stats = categories.map(cat => {
+    const words = vocab.filter(w => w.category === cat);
+    const learned = words.filter(w => isLearned(uid, w.id)).length;
+    return { cat, learned, total: words.length, percent: Math.round((learned / words.length) * 100) };
+  });
+
+  const totalLearned = stats.reduce((sum, s) => sum + s.learned, 0);
+  const totalWords = stats.reduce((sum, s) => sum + s.total, 0);
+  const overallPercent = totalWords > 0 ? Math.round((totalLearned / totalWords) * 100) : 0;
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={{ backgroundColor: '#800816', borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }} className="px-6 pt-14 pb-8">
+        <View className="flex-row items-center mb-4">
+          <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl mr-3">
+            <Text className="text-white text-xl">←</Text>
+          </TouchableOpacity>
+          <Text className="text-xl font-bold text-white flex-1" numberOfLines={1}>
+            {user ? `${user.name}'s Progress` : 'Progress'}
+          </Text>
+          {user ? (
+            <TouchableOpacity onPress={clearUser} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="px-3 py-1.5 rounded-xl">
+              <Text className="text-white text-sm font-semibold">Sign Out</Text>
+            </TouchableOpacity>
+          ) : (
+            <Link href="/signin" asChild>
+              <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="px-3 py-1.5 rounded-xl">
+                <Text className="text-white text-sm font-semibold">Sign In</Text>
+              </TouchableOpacity>
+            </Link>
+          )}
+        </View>
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 24 }} className="p-6 items-center">
+          <Text className="text-5xl font-bold text-white mb-1">{overallPercent}%</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.8)' }} className="text-lg">Overall Progress</Text>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} className="h-2 rounded-full w-full mt-3 overflow-hidden">
+            <View className="h-full bg-white rounded-full" style={{ width: overallPercent + '%' as any }} />
+          </View>
+          <Text style={{ color: 'rgba(255,255,255,0.8)' }} className="text-sm mt-2">{totalLearned} of {totalWords} words mastered</Text>
+        </View>
+      </View>
+
+      {/* Stats */}
+      <View className="px-5 -mt-4">
+        {stats.map((s) => {
+          const color = CATEGORY_COLORS[s.cat] || '#6366F1';
+          const emoji = CATEGORY_EMOJIS[s.cat] || '📖';
+
+          return (
+            <View
+              key={s.cat}
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 8,
+                elevation: 3,
+              }}
+              className="p-4 mb-3"
+            >
+              <View className="flex-row items-center mb-3">
+                <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#F1F5F9' }}>
+                  <Text className="text-xl">{emoji}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-[#1A1A2E] capitalize">{s.cat}</Text>
+                  <Text className="text-sm" style={{ color: '#64748B' }}>{s.learned}/{s.total} words</Text>
+                </View>
+                <Text className="text-lg font-bold" style={{ color }}>{s.percent}%</Text>
+              </View>
+              <View className="h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
+                <View className="h-full rounded-full" style={{ width: s.percent + '%' as any, backgroundColor: color }} />
+              </View>
+              <View className="flex-row gap-2 mt-3">
+                <Link href={`/flashcards/${s.cat}`} asChild style={{ flex: 1 }}>
+                  <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#F1F5F9' }}>
+                    <Text className="text-sm font-semibold" style={{ color: '#475569' }}>🃏 Review</Text>
+                  </TouchableOpacity>
+                </Link>
+                <Link href={`/quiz/${s.cat}`} asChild style={{ flex: 1 }}>
+                  <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#EEF2FF' }}>
+                    <Text className="text-sm font-semibold" style={{ color: '#6366F1' }}>✍️ Quiz</Text>
+                  </TouchableOpacity>
+                </Link>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+      </ScrollView>
+      <BottomNav />
+    </View>
+  );
+};
+
+export default Progress;
+</file>
+
+<file path="app/settings.tsx">
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import BottomNav from '../src/components/BottomNav';
+
+const Settings = () => {
+  const router = useRouter();
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="px-5 pt-12 pb-4 flex-row items-center">
+        <TouchableOpacity onPress={() => router.back()} className="mr-4">
+          <Text className="text-[#800816] text-xl">←</Text>
+        </TouchableOpacity>
+        <Text className="text-[#4A1942] text-xl font-bold">Settings</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16 }} className="overflow-hidden mb-6">
+          <TouchableOpacity className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}>
+            <Text className="text-[#4A1942] text-base">Text-to-Speech Speed</Text>
+            <Text className="text-[#6B7280] text-base">Normal</Text>
+          </TouchableOpacity>
+          <TouchableOpacity className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}>
+            <Text className="text-[#4A1942] text-base">Notifications</Text>
+            <Text className="text-[#6B7280] text-base">Enabled</Text>
+          </TouchableOpacity>
+          <TouchableOpacity className="px-4 py-4 flex-row justify-between items-center">
+            <Text className="text-[#4A1942] text-base">Daily Reminder</Text>
+            <Text className="text-[#6B7280] text-base">9:00 AM</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16 }} className="overflow-hidden mb-6">
+          <TouchableOpacity className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}>
+            <Text className="text-[#4A1942] text-base">Clear Learned Words</Text>
+            <Text className="text-[#DC2626] text-base">Reset</Text>
+          </TouchableOpacity>
+          <TouchableOpacity className="px-4 py-4 flex-row justify-between items-center">
+            <Text className="text-[#4A1942] text-base">Account</Text>
+            <Text className="text-[#6B7280] text-base">Manage</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+      <BottomNav />
+    </View>
+  );
+};
+
+export default Settings;
+</file>
+
+<file path="app/signin.tsx">
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes,
+  isSuccessResponse,
+} from '@react-native-google-signin/google-signin';
+import { GOOGLE_CLIENT_ID } from '../src/config';
+import { useAuthStore } from '../src/stores/auth';
+
+export default function SignIn() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    try {
+      // Configure Google Sign-In with the Web Client ID
+      GoogleSignin.configure({
+        webClientId: GOOGLE_CLIENT_ID,
+        scopes: ['openid', 'profile', 'email'],
+      });
+    } catch (e) {
+      console.warn('GoogleSignin configure failed. Native module may be missing (e.g., running in Expo Go).', e);
+    }
+  }, []);
+
+  const handleSignIn = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
+
+      const response = await GoogleSignin.signIn();
+      
+      if (isSuccessResponse(response)) {
+        const { user } = response.data;
+        
+        // Native SDK provides user details directly, no need for extra fetch!
+        useAuthStore.getState().setUser({
+          id: user.id,
+          name: user.name || 'User',
+          email: user.email,
+          photo: user.photo || undefined,
+        });
+        
+        router.replace('/');
+      } else {
+        // Sign-in cancelled by user
+        setError('Sign-in was cancelled. Tap the button to try again.');
+      }
+    } catch (err: any) {
+      if (isErrorWithCode(err)) {
+        switch (err.code) {
+          case statusCodes.IN_PROGRESS:
+            setError('Sign in is already in progress.');
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            setError('Google Play Services are not available on this device. Please install or update them.');
+            break;
+          default:
+            setError(`Sign in failed: ${err.message}`);
+        }
+      } else {
+        setError(`An unknown error occurred: ${err?.message || 'Unknown error'}`);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const goHome = () => router.replace('/');
+
+  return (
+    <View className="flex-1 bg-[#F8FAFC] justify-center items-center px-8">
+      <TouchableOpacity onPress={goHome} className="absolute top-16 left-6 p-2">
+        <Text className="text-2xl text-[#64748B]">←</Text>
+      </TouchableOpacity>
+
+      <View className="items-center mb-4">
+        <View className="w-20 h-20 bg-indigo-100 rounded-2xl items-center justify-center mb-4">
+          <Text className="text-4xl">🇳🇵</Text>
+        </View>
+        <Text className="text-3xl font-bold text-[#4F46E5] tracking-wide">NepLearn</Text>
+        <Text className="text-sm text-[#64748B] mt-1">Learn Nepali, one word at a time</Text>
+      </View>
+
+      <View className="w-full border-t border-[#E2E8F0] my-8" />
+
+      <View className="items-center mb-8">
+        <Text className="text-xl font-bold text-[#0F172A] text-center">Sign in to save progress</Text>
+        <Text className="text-sm text-[#64748B] text-center mt-1">
+          Your progress will be synced to your account
+        </Text>
+      </View>
+
+      {error && (
+        <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' }} className="px-4 py-3 mb-6 w-full">
+          <Text className="text-[#DC2626] text-sm text-center">{error}</Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        onPress={handleSignIn}
+        disabled={isLoading}
+        className="flex-row bg-white border border-[#E2E8F0] py-4 px-8 rounded-2xl items-center justify-center w-full"
+        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2, opacity: isLoading ? 0.6 : 1 }}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#4285F4" style={{ marginRight: 8 }} />
+        ) : (
+          <Text className="text-xl font-bold text-[#4285F4] mr-3">G</Text>
+        )}
+        <Text className="text-lg font-semibold text-[#0F172A]">
+          {isLoading ? 'Signing in...' : 'Sign in with Google'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={goHome} className="mt-6">
+        <Text className="text-sm text-[#94A3B8]">Continue without signing in</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+</file>
+
+<file path="app/story.tsx">
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../src/components/BottomNav';
+
+const Story = () => {
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Hero Image */}
+        <View className="w-full h-64 mb-6">
+          <Image
+            source={{ uri: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=800' }}
+            className="w-full h-full"
+            resizeMode="cover"
+          />
+          <View style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} className="absolute inset-0" />
+        </View>
+
+        {/* Content Container */}
+        <View className="px-5 -mt-10" style={{ backgroundColor: '#FBF9F4', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+          {/* Tag & Title */}
+          <View className="mb-4">
+            <View style={{ backgroundColor: '#FEE2E2' }} className="self-start px-3 py-1 rounded-full mb-3">
+              <Text className="text-[#800816] text-xs font-bold">FOLKLORE</Text>
+            </View>
+            <Text className="text-[#4A1942] text-3xl font-bold mb-2">The Legend of the Yeti</Text>
+            <View className="flex-row items-center">
+              <Ionicons name="time-outline" size={16} color="#6B7280" />
+              <Text className="text-[#6B7280] text-sm ml-1">10 min read • Level A2</Text>
+            </View>
+          </View>
+
+          {/* Audio Player */}
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 }} className="flex-row items-center p-4 mb-6">
+            <TouchableOpacity style={{ backgroundColor: '#800816' }} className="w-10 h-10 rounded-full items-center justify-center mr-4">
+              <Ionicons name="play" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View className="flex-1">
+              <Text className="text-[#4A1942] text-sm font-semibold mb-1">Listen to this Legend (Nepali)</Text>
+              <View style={{ backgroundColor: '#F3F4F6' }} className="h-1.5 rounded-full overflow-hidden">
+                <View style={{ width: '30%', backgroundColor: '#800816' }} className="h-full rounded-full" />
+              </View>
+            </View>
+            <Text className="text-[#6B7280] text-xs ml-3">03:42</Text>
+          </View>
+
+          {/* Story Text */}
+          <Text className="text-[#4A1942] text-base leading-7 mb-6">
+            High above the clouds, where the air grows thin and the wind whispers through the crags of Mount Everest, lives a creature spoken of in hushed tones around the warmth of a yak-butter fire. He is known as the <Text className="text-[#800816] font-bold underline">Him-manav</Text>.
+          </Text>
+
+          <Text className="text-[#4A1942] text-base leading-7 mb-6">
+            To the Sherpa people of the Khumbu region, the Yeti is not merely a myth but a guardian of the high passes. It is said to be a bipedal giant, covered in thick reddish-brown hair, roaming the vast <Text className="text-[#800816] font-bold underline">Himal</Text> during the quiet hours of the night.
+          </Text>
+
+          {/* Cultural Insight */}
+          <View style={{ backgroundColor: '#064E3B', borderRadius: 20 }} className="p-5 mb-6">
+            <View className="flex-row items-center mb-3">
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="w-8 h-8 rounded-full items-center justify-center mr-3">
+                <Ionicons name="bulb" size={18} color="#FFFFFF" />
+              </View>
+              <Text className="text-[#D1FAE5] text-xs font-bold tracking-wider">CULTURAL INSIGHT</Text>
+            </View>
+            <Text className="text-white text-lg font-bold mb-2">The Guardian of the Pass</Text>
+            <Text className="text-[#D1FAE5] text-sm leading-6">
+              In Sherpa tradition, seeing a Yeti is considered a powerful spiritual omen. Many monasteries in the region, such as Khumjung, even claim to possess relics like Yeti scalps, preserving a deep reverence for these mountain spirits.
+            </Text>
+          </View>
+
+          {/* More Text */}
+          <Text className="text-[#4A1942] text-base leading-7 mb-6">
+            Tales of the Yeti describe his feet as being backwards—a clever trick to confuse anyone attempting to track it. If you find a trail leading toward the peaks, it may actually be descending into the valley. This dual nature mirrors the mountains themselves: beautiful, but dangerous to those who do not respect the silence of the <Text className="text-[#800816] font-bold underline">Sagarmatha</Text>.
+          </Text>
+
+          {/* Footer Actions */}
+          <View className="mb-6">
+            <TouchableOpacity style={{ backgroundColor: '#800816' }} className="py-4 rounded-xl items-center flex-row justify-center mb-3">
+              <Text className="text-white text-base font-bold mr-2">Next Chapter: The Tracks in Khumjung</Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5D5D0' }} className="py-4 rounded-xl items-center">
+              <Text className="text-[#4A1942] text-base font-semibold">Back to Folklore Map</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <BottomNav activeTab="learn" />
+    </View>
+  );
+};
+
+export default Story;
+</file>
+
+<file path="src/data/vocab.ts">
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { PersistStorage } from 'zustand/middleware';
+
+const asyncStorage: PersistStorage<VocabState> = {
+  getItem: async (name) => {
+    const val = await AsyncStorage.getItem(name);
+    return val ? JSON.parse(val) : null;
+  },
+  setItem: async (name, value) => {
+    await AsyncStorage.setItem(name, JSON.stringify(value));
+  },
+  removeItem: async (name) => {
+    await AsyncStorage.removeItem(name);
+  },
+};
+
+export type Word = {
+  id: number;
+  english: string;
+  nepali: string;
+  roman: string;
+  category: string;
+  image?: string;
+};
+
+export type LearningGoal = 'travel' | 'culture' | 'business' | 'family';
+export type LearningLevel = 'beginner' | 'intermediate' | 'advanced';
+
+type VocabState = {
+  learnedByUser: Record<string, number[]>;
+  learningGoal: LearningGoal | null;
+  learningLevel: LearningLevel | null;
+  onboardingDone: boolean;
+  setLearningGoal: (goal: LearningGoal) => void;
+  setLearningLevel: (level: LearningLevel) => void;
+  completeOnboarding: () => void;
+  learnWord: (userId: string, id: number) => void;
+  unlearnWord: (userId: string, id: number) => void;
+  isLearned: (userId: string, id: number) => boolean;
+  toggleLearned: (userId: string, id: number) => void;
+  getLearned: (userId: string) => number[];
+};
+
+export const useVocabStore = create<VocabState>()(
+  persist(
+    (set, get) => ({
+      learnedByUser: {},
+      learningGoal: null,
+      learningLevel: null,
+      onboardingDone: false,
+      setLearningGoal: (goal) => set({ learningGoal: goal }),
+      setLearningLevel: (level) => set({ learningLevel: level }),
+      completeOnboarding: () => set({ onboardingDone: true }),
+      learnWord: (userId, id) => {
+        const userLearned = get().learnedByUser[userId] || [];
+        set({ learnedByUser: { ...get().learnedByUser, [userId]: [...userLearned, id] } });
+      },
+      unlearnWord: (userId, id) => {
+        const userLearned = get().learnedByUser[userId] || [];
+        set({ learnedByUser: { ...get().learnedByUser, [userId]: userLearned.filter(l => l !== id) } });
+      },
+      isLearned: (userId, id) => (get().learnedByUser[userId] || []).includes(id),
+      toggleLearned: (userId, id) => {
+        const userLearned = get().learnedByUser[userId] || [];
+        if (userLearned.includes(id)) {
+          set({ learnedByUser: { ...get().learnedByUser, [userId]: userLearned.filter(l => l !== id) } });
+        } else {
+          set({ learnedByUser: { ...get().learnedByUser, [userId]: [...userLearned, id] } });
+        }
+      },
+      getLearned: (userId) => get().learnedByUser[userId] || [],
+    }),
+    {
+      name: 'nepali-vocab',
+      storage: asyncStorage,
+    }
+  )
+);
+
+export const GUEST_ID = '__guest__';
+
+export const categories = [
+  'greetings', 'numbers', 'colors', 'family', 'food',
+  'directions', 'days', 'time', 'adjectives', 'places',
+] as const;
+
+export type Category = (typeof categories)[number];
+
+export const vocab: Word[] = [
+  { id: 1, english: 'Hello', nepali: 'नमस्ते', roman: 'Namaste', category: 'greetings', image: 'https://boldhimalaya.com/wp-content/uploads/2026/02/budd-namesta-scaled-e1771388267815.jpg' },
+  { id: 2, english: 'Goodbye', nepali: 'फेरि भेटौंला', roman: 'Pheri bhetauula', category: 'greetings', image: '👋' },
+  { id: 3, english: 'Thank you', nepali: 'धन्यवाद', roman: 'Dhanyabad', category: 'greetings', image: '🙏' },
+  { id: 4, english: 'Please', nepali: 'कृपया', roman: 'Kripaya', category: 'greetings', image: '🙏' },
+  { id: 5, english: 'Yes', nepali: 'हो', roman: 'Ho', category: 'greetings', image: '✅' },
+  { id: 6, english: 'No', nepali: 'होइन', roman: 'Hoina', category: 'greetings', image: '❌' },
+  { id: 7, english: 'Sorry', nepali: 'माफ गर्नुहोस्', roman: 'Maaf garnuhos', category: 'greetings', image: '😔' },
+  { id: 8, english: 'Good morning', nepali: 'शुभ प्रभात', roman: 'Shubha prabhat', category: 'greetings', image: '🌅' },
+  { id: 9, english: 'How are you?', nepali: 'तपाईं कस्तो हुनुहुन्छ?', roman: 'Tapai kasto hunuhunchha?', category: 'greetings', image: '🤔' },
+  { id: 10, english: 'Fine', nepali: 'ठीक छ', roman: 'Thik chha', category: 'greetings', image: '👍' },
+  { id: 11, english: 'One', nepali: 'एक', roman: 'Ek', category: 'numbers', image: '1️⃣' },
+  { id: 12, english: 'Two', nepali: 'दुई', roman: 'Dui', category: 'numbers', image: '2️⃣' },
+  { id: 13, english: 'Three', nepali: 'तीन', roman: 'Tin', category: 'numbers', image: '3️⃣' },
+  { id: 14, english: 'Four', nepali: 'चार', roman: 'Char', category: 'numbers', image: '4️⃣' },
+  { id: 15, english: 'Five', nepali: 'पाँच', roman: 'Panch', category: 'numbers', image: '5️⃣' },
+  { id: 16, english: 'Six', nepali: 'छ', roman: 'Chha', category: 'numbers', image: '6️⃣' },
+  { id: 17, english: 'Seven', nepali: 'सात', roman: 'Saat', category: 'numbers', image: '7️⃣' },
+  { id: 18, english: 'Eight', nepali: 'आठ', roman: 'Aath', category: 'numbers', image: '8️⃣' },
+  { id: 19, english: 'Nine', nepali: 'नौ', roman: 'Nau', category: 'numbers', image: '9️⃣' },
+  { id: 20, english: 'Ten', nepali: 'दस', roman: 'Das', category: 'numbers', image: '🔟' },
+  { id: 21, english: 'Red', nepali: 'रातो', roman: 'Rato', category: 'colors', image: '🔴' },
+  { id: 22, english: 'Blue', nepali: 'निलो', roman: 'Nilo', category: 'colors', image: '🔵' },
+  { id: 23, english: 'Green', nepali: 'हरियो', roman: 'Hariyo', category: 'colors', image: '🟢' },
+  { id: 24, english: 'Yellow', nepali: 'पहेंलो', roman: 'Pahenlo', category: 'colors', image: '🟡' },
+  { id: 25, english: 'Black', nepali: 'कालो', roman: 'Kalo', category: 'colors', image: '⚫' },
+  { id: 26, english: 'Mother', nepali: 'आमा', roman: 'Aama', category: 'family', image: '👩' },
+  { id: 27, english: 'Father', nepali: 'बुबा', roman: 'Buba', category: 'family', image: '👨' },
+  { id: 28, english: 'Brother', nepali: 'दाजु/भाइ', roman: 'Daju/Bhai', category: 'family', image: '👦' },
+  { id: 29, english: 'Sister', nepali: 'दिदी/बहिनी', roman: 'Didi/Bahini', category: 'family', image: '👧' },
+  { id: 30, english: 'Child', nepali: 'बालबालिका', roman: 'Balbalika', category: 'family', image: '👶' },
+  { id: 31, english: 'Water', nepali: 'पानी', roman: 'Pani', category: 'food', image: '💧' },
+  { id: 32, english: 'Rice', nepali: 'भात', roman: 'Bhaat', category: 'food', image: '🍚' },
+  { id: 33, english: 'Bread', nepali: 'रोटी', roman: 'Roti', category: 'food', image: '🍞' },
+  { id: 34, english: 'Vegetable', nepali: 'तरकारी', roman: 'Tarkari', category: 'food', image: '🥦' },
+  { id: 35, english: 'Fruit', nepali: 'फलफूल', roman: 'Phalphal', category: 'food', image: '🍎' },
+  { id: 36, english: 'Left', nepali: 'बायाँ', roman: 'Bayaa', category: 'directions', image: '⬅️' },
+  { id: 37, english: 'Right', nepali: 'दायाँ', roman: 'Daya', category: 'directions', image: '➡️' },
+  { id: 38, english: 'Straight', nepali: 'सिधा', roman: 'Sidha', category: 'directions', image: '⬆️' },
+  { id: 39, english: 'Here', nepali: 'यहाँ', roman: 'Yahaa', category: 'directions', image: '📍' },
+  { id: 40, english: 'There', nepali: 'त्यहाँ', roman: 'Tyahaa', category: 'directions', image: '📍' },
+  { id: 41, english: 'Monday', nepali: 'सोमबार', roman: 'Sombar', category: 'days', image: '📅' },
+  { id: 42, english: 'Tuesday', nepali: 'मङ्गलबार', roman: 'Mangalbar', category: 'days', image: '📅' },
+  { id: 43, english: 'Wednesday', nepali: 'बुधबार', roman: 'Budhbar', category: 'days', image: '📅' },
+  { id: 44, english: 'Thursday', nepali: 'बिहीबार', roman: 'Bihibar', category: 'days', image: '📅' },
+  { id: 45, english: 'Friday', nepali: 'शुक्रबार', roman: 'Shukrabar', category: 'days', image: '📅' },
+  { id: 46, english: 'Today', nepali: 'आज', roman: 'Aaja', category: 'time', image: '📅' },
+  { id: 47, english: 'Tomorrow', nepali: 'भोलि', roman: 'Bholi', category: 'time', image: '📅' },
+  { id: 48, english: 'Big', nepali: 'ठूलो', roman: 'Thulo', category: 'adjectives', image: '📏' },
+  { id: 49, english: 'Small', nepali: 'सानो', roman: 'Sano', category: 'adjectives', image: '🔍' },
+  { id: 50, english: 'Happy', nepali: 'खुशी', roman: 'Khushi', category: 'adjectives', image: '😊' },
+  { id: 51, english: 'House', nepali: 'घर', roman: 'Ghar', category: 'places', image: '🏠' },
+  { id: 52, english: 'School', nepali: 'स्कूल', roman: 'School', category: 'places', image: '🏫' },
+  { id: 53, english: 'Market', nepali: 'बजार', roman: 'Bajar', category: 'places', image: '🏪' },
+  { id: 54, english: 'Mountain', nepali: 'हिमाल', roman: 'Himal', category: 'places', image: '⛰️' },
+];
+
+export function getWordsByCategory(cat: string): Word[] {
+  return vocab.filter(w => w.category === cat);
+}
+
+export function shuffle<T>(array: T[]): T[] {
+  return [...array].sort(() => Math.random() - 0.5);
+}
+</file>
+
+<file path="src/config.ts">
+// Google OAuth client IDs
+// Get these from https://console.cloud.google.com/apis/credentials
+
+// Web client — used when running on web (npx expo start --web)
+// Authorized redirect URIs to add in Google Cloud Console:
+//   - http://localhost:8081
+export const GOOGLE_CLIENT_ID = '176881736395-29mk0b06ut3v239i07ijuqghg5mj9998.apps.googleusercontent.com';
+
+// Android client — used on native Android
+// 1. Go to Google Cloud Console → APIs & Services → Credentials
+// 2. Create OAuth 2.0 Client ID → Android
+// 3. Package name: com.neplearn.app (update if different)
+// 4. SHA-1: get from https://console.cloud.google.com/apis/credentials → For Android
+//    Or from: cd android && ./gradlew signingReport
+// 5. Paste the full client ID below (e.g., "123456789-abc123.apps.googleusercontent.com")
+export const GOOGLE_ANDROID_CLIENT_ID = '176881736395-v2dv6718r1sedu5pgifkvid70vn07jrt.apps.googleusercontent.com';
+
+// iOS client — used on native iOS (optional for now)
+// Same process as Android but with iOS bundle ID
+export const GOOGLE_IOS_CLIENT_ID = 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com';
+</file>
+
+<file path="app.json">
+{
+  "expo": {
+    "scheme": "neplearn",
+    "name": "NepLearn",
+    "slug": "NepLearn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "experiments": {
+      "reactCanary": true
+    },
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#4F46E5"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "package": "com.neplearn.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "86e6ac25-acce-4ebb-a3b1-568dd84ea3b5"
+      }
+    }
+  }
+}
+</file>
+
+<file path="babel.config.js">
+module.exports = function(api) {
+  api.cache(true);
+  return {
+    presets: [
+      ['babel-preset-expo', {
+        jsxImportSource: 'nativewind',
+        unstable_transformImportMeta: true,
+      }],
+      'nativewind/babel',
+    ],
+  };
+};
+</file>
+
+<file path="package.json">
+{
+  "name": "nepalilearner",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-google-signin/google-signin": "^16.1.2",
+    "expo": "~54.0.35",
+    "expo-av": "~16.0.8",
+    "expo-constants": "~18.0.13",
+    "expo-crypto": "~15.0.9",
+    "expo-dev-client": "~6.0.21",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-linking": "~8.0.12",
+    "expo-router": "~6.0.24",
+    "expo-speech": "~14.0.0",
+    "expo-status-bar": "~3.0.9",
+    "expo-web-browser": "~15.0.11",
+    "nativewind": "^4.2.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-web": "^0.21.0",
+    "react-native-worklets": "0.5.1",
+    "tailwindcss": "^3.4.0",
+    "zustand": "^5.0.13"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
+</file>
+
+<file path="app/_layout.tsx">
+import React, { useState } from 'react';
+import { Stack } from 'expo-router';
+import SplashScreen from '../src/components/SplashScreen';
+import { useVocabStore } from '../src/data/vocab';
+import './global.css';
+
+export default function RootLayout() {
+  const [splashDone, setSplashDone] = useState(false);
+  const onboardingDone = useVocabStore(s => s.onboardingDone);
+
+  if (!splashDone) {
+    return <SplashScreen onFinish={() => setSplashDone(true)} />;
+  }
+
+  if (!onboardingDone) {
+    return (
+      <Stack>
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="signin" options={{ headerShown: false }} />
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack>
+      <Stack.Screen name="signin" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="learn" options={{ headerShown: false }} />
+      <Stack.Screen name="ai-tutor" options={{ headerShown: false }} />
+      <Stack.Screen name="lesson" options={{ headerShown: false }} />
+      <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack.Screen name="flashcards/[category]" options={{ headerShown: false }} />
+      <Stack.Screen name="quiz/[category]" options={{ headerShown: false }} />
+      <Stack.Screen name="progress" options={{ headerShown: false }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="morning-vocab" options={{ headerShown: false }} />
+      <Stack.Screen name="echo-practice" options={{ headerShown: false }} />
+      <Stack.Screen name="journal" options={{ headerShown: false }} />
+      <Stack.Screen name="practice-phrases" options={{ headerShown: false }} />
+    </Stack>
+  );
+}
+</file>
+
+<file path="app/ai-tutor.tsx">
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../src/components/BottomNav';
+
+const AITutor = () => {
+  const [isListening, setIsListening] = useState(true);
+  const animValues = useRef([
+    new Animated.Value(0.3),
+    new Animated.Value(0.6),
+    new Animated.Value(1),
+    new Animated.Value(0.5),
+    new Animated.Value(0.8),
+  ]).current;
+
+  useEffect(() => {
+    if (!isListening) return;
+    const animations = animValues.map((val, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(val, {
+            toValue: 0.3 + Math.random() * 0.7,
+            duration: 400 + i * 100,
+            useNativeDriver: false,
+          }),
+          Animated.timing(val, {
+            toValue: 0.3,
+            duration: 400 + i * 100,
+            useNativeDriver: false,
+          }),
+        ])
+      )
+    );
+    Animated.parallel(animations).start();
+    return () => animations.forEach(a => a.stop());
+  }, [isListening]);
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      {/* Header */}
+      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+        <View className="flex-row items-center">
+          <Link href="/" asChild>
+            <TouchableOpacity className="mr-3">
+              <Text className="text-[#800816] text-xl">‹</Text>
+            </TouchableOpacity>
+          </Link>
+          <View>
+            <Text className="text-[#4A1942] text-lg font-bold">AI Tutor</Text>
+            <View className="flex-row items-center">
+              <View style={{ backgroundColor: '#10B981' }} className="w-2 h-2 rounded-full mr-1" />
+              <Text className="text-[#10B981] text-xs">Online</Text>
+            </View>
+          </View>
+        </View>
+        <View className="flex-row items-center">
+          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5D5D0' }} className="flex-row items-center px-3 py-1.5 rounded-full mr-3">
+            <Text className="text-[#F59E0B] mr-1">🔥</Text>
+            <Text className="text-[#4A1942] text-sm font-bold">12</Text>
+          </View>
+          <TouchableOpacity>
+            <Text className="text-[#6B7280] text-xl">⋮</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Tutor Profile */}
+        <View className="items-center mb-6">
+          <View style={{ backgroundColor: '#E5D5D0' }} className="w-24 h-24 rounded-full items-center justify-center mb-3">
+            <Text className="text-4xl">👩</Text>
+          </View>
+          <Text className="text-[#4A1942] text-2xl font-bold mb-1">Aama</Text>
+          <Text className="text-[#6B7280] text-sm">Native Speaker & Language Expert</Text>
+        </View>
+
+        {/* Chat Bubble */}
+        <View className="px-5 mb-4">
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, borderBottomLeftRadius: 4 }} className="p-4">
+            <Text className="text-[#4A1942] text-base mb-2">"तपाईंलाई कस्तो छ?" (Tapāīlāī kasto cha?)</Text>
+            <Text className="text-[#800816] text-base font-semibold">How are you doing today?</Text>
+          </View>
+        </View>
+
+        {/* Aama's Tip */}
+        <View className="px-5 mb-6">
+          <View style={{ backgroundColor: '#FEF3C7', borderRadius: 16 }} className="p-4">
+            <View className="flex-row items-start">
+              <View style={{ backgroundColor: '#FDE68A' }} className="w-10 h-10 rounded-full items-center justify-center mr-3 mt-0.5">
+                <Text className="text-lg">💡</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-[#92400E] text-sm font-bold mb-2">AAMA'S TIP</Text>
+                <Text className="text-[#78350F] text-sm leading-5">
+                  In Nepali, we use <Text className="font-bold">तपाईं (Tapāī)</Text> for respect. Try replying: <Text className="italic">"Sanchai chu, dhanyabaad!"</Text>
+                </Text>
+              </View>
+              <TouchableOpacity className="absolute top-2 right-2">
+                <Text className="text-[#9CA3AF] text-lg">✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Action Cards */}
+        <View className="px-5 mb-6">
+          <View className="flex-row">
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E5D5D0' }} className="flex-1 p-4 mr-2 items-center">
+              <View style={{ backgroundColor: '#FEE2E2' }} className="w-12 h-12 rounded-full items-center justify-center mb-3">
+                <Text className="text-xl">文A</Text>
+              </View>
+              <Text className="text-[#6B7280] text-xs mb-1">VOCABULARY</Text>
+              <Text className="text-[#4A1942] text-base font-bold">Essentials</Text>
+            </View>
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E5D5D0' }} className="flex-1 p-4 ml-2 items-center">
+              <View style={{ backgroundColor: '#FEF3C7' }} className="w-12 h-12 rounded-full items-center justify-center mb-3">
+                <Text className="text-xl">📖</Text>
+              </View>
+              <Text className="text-[#6B7280] text-xs mb-1">SCRIPT</Text>
+              <Text className="text-[#4A1942] text-base font-bold">Devanagari</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Microphone Button */}
+        <View className="items-center mb-4">
+          <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 10 }} className="w-20 h-20 rounded-full items-center justify-center mb-4">
+            <Text className="text-white text-3xl">🎤</Text>
+          </View>
+          <Text className="text-[#800816] text-sm font-bold mb-4">AAMA IS LISTENING...</Text>
+          <View className="flex-row items-center justify-center">
+            {animValues.map((val, i) => (
+              <Animated.View
+                key={i}
+                style={{
+                  width: 4,
+                  height: 24,
+                  marginHorizontal: 3,
+                  borderRadius: 2,
+                  backgroundColor: i === 2 ? '#800816' : '#D4D4D8',
+                  transform: [{ scaleY: val }],
+                }}
+              />
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <BottomNav activeTab="ai-tutor" />
+    </View>
+  );
+};
+
+export default AITutor;
+</file>
+
+<file path="app/index.tsx">
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Alert } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import BottomNav from '../src/components/BottomNav';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
+import { useVocabStore } from '../src/data/vocab';
+import { useAuthStore } from '../src/stores/auth';
+import { QuickActionsModal } from '@/src/components/QuickActionsModal';
+
+const Home = () => {
+  const router = useRouter();
+  const user = useAuthStore(s => s.user);
+  const clearUser = useAuthStore(s => s.clearUser);
+  const { isLearned } = useVocabStore();
+  const uid = user?.id || GUEST_ID;
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+
+  const viewDebugData = async () => {
+    try {
+      const data = await AsyncStorage.getItem('nepali-vocab');
+      Alert.alert('Debug Data', data || 'No data found');
+    } catch (e) {
+      Alert.alert('Error', 'Failed to read storage');
+    }
+  };
+
+  const totalLearned = categories.reduce((sum, cat) => {
+    const words = getWordsByCategory(cat);
+    return sum + words.filter(w => isLearned(uid, w.id)).length;
+  }, 0);
+  const totalWords = categories.reduce((sum, cat) => sum + getWordsByCategory(cat).length, 0);
+  const xp = totalLearned * 100;
+  const xpToNext = 1500;
+  const level = Math.floor(totalLearned / 5) + 1;
+  const streak = Math.min(totalLearned, 15);
+
+  const userName = user?.name || 'Guest';
+  const firstName = userName.split(' ')[0];
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="px-5 pt-12 pb-4">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center flex-1">
+              <View style={{ backgroundColor: '#E5E7EB' }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
+                <Text className="text-base">👤</Text>
+              </View>
+              <View>
+                <Text className="text-[#4A1942] text-sm">Namaste,</Text>
+                <Text className="text-[#800816] text-base font-bold">{userName}</Text>
+              </View>
+            </View>
+            <View className="flex-row">
+              <TouchableOpacity style={{ backgroundColor: '#F3F4F6' }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
+                <Ionicons name="notifications-outline" size={20} color="#4A1942" />
+              </TouchableOpacity>
+              <TouchableOpacity style={{ backgroundColor: '#F3F4F6' }} className="w-10 h-10 rounded-full items-center justify-center" onPress={() => setMenuVisible(true)}>
+                <Text className="text-lg">☰</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Menu Modal */}
+        <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+          <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setMenuVisible(false)}>
+            <View className="absolute top-12 right-5" style={{ backgroundColor: '#FFFFFF', borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, width: 220 }}>
+              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/settings'); }}>
+                <Text className="text-[#4A1942] text-base font-semibold">⚙️ Settings</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); Alert.alert('Help & Support', 'Contact us at support@neplearn.com'); }}>
+                <Text className="text-[#4A1942] text-base font-semibold">❓ Help & Support</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); Alert.alert('About', 'NepLearn v1.0.0\nYour journey through the peaks of wisdom.'); }}>
+                <Text className="text-[#4A1942] text-base font-semibold">ℹ️ About</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="px-4 py-3" onPress={() => { setMenuVisible(false); clearUser(); }}>
+                <Text className="text-[#DC2626] text-base font-semibold">🚪 Sign Out</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); viewDebugData(); }}>
+                <Text className="text-[#6B7280] text-base font-semibold">🐛 Debug Data</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Tagline */}
+        <View className="px-5 pb-4">
+          <Text className="text-[#4A1942] text-lg font-semibold">NepLearn</Text>
+          <Text className="text-[#6B7280] text-sm">Your journey through the peaks of wisdom.</Text>
+        </View>
+
+        {/* Daily Streak Card */}
+        <View className="px-5 mb-6">
+          <View style={{ backgroundColor: '#800816', borderRadius: 24 }} className="px-5 py-5">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white/80 text-sm font-semibold tracking-wider">DAILY STREAK</Text>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} className="w-12 h-12 rounded-full items-center justify-center">
+                <Text className="text-2xl">🔥</Text>
+              </View>
+            </View>
+            <Text className="text-white text-4xl font-bold mb-4">{streak} Days</Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-white/90 text-sm">Level {level}: Apprentice</Text>
+              <Text className="text-white/90 text-sm">{xp} / {xpToNext} XP</Text>
+            </View>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="h-2 rounded-full overflow-hidden mb-5">
+              <View className="h-full rounded-full" style={{ width: `${Math.min((xp / xpToNext) * 100, 100)}%`, backgroundColor: '#F59E0B' }} />
+            </View>
+            <Link href="/profile" asChild>
+              <TouchableOpacity style={{ backgroundColor: '#FFFFFF' }} className="py-3 rounded-full items-center">
+                <Text className="text-[#800816] font-bold text-base">View Achievements</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </View>
+
+        {/* Continue Learning */}
+        <View className="px-5 mb-6">
+          <Text className="text-[#4A1942] text-base font-semibold mb-3">CONTINUE LEARNING</Text>
+          <Link href="/lesson" asChild>
+            <TouchableOpacity style={{ backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#E5D5D0' }} className="p-4 flex-row items-center">
+              <View style={{ backgroundColor: '#800816' }} className="w-20 h-20 rounded-xl items-center justify-center mr-4">
+                <Text className="text-3xl">▶️</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-[#6B7280] text-xs mb-1">Basics of Devanagari</Text>
+                <Text className="text-[#4A1942] text-sm font-semibold mb-2">Lesson 4: Vowel Markers (Matras)</Text>
+                <Text className="text-[#92400E] text-sm font-semibold">8 mins left</Text>
+              </View>
+              <Text className="text-[#800816] text-xl">→</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+
+        {/* Daily Challenges */}
+        <View className="px-5 mb-6">
+          <Text className="text-[#4A1942] text-base font-semibold mb-3">DAILY CHALLENGES</Text>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#E5D5D0' }} className="overflow-hidden">
+            {/* Morning Vocab */}
+            <Link href="/morning-vocab" asChild>
+              <TouchableOpacity className="p-4 flex-row items-center border-b" style={{ borderColor: '#E5D5D0' }}>
+                <View style={{ backgroundColor: '#FEE2E2' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-xl">📖</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#4A1942] text-sm font-semibold mb-1">Morning Vocab</Text>
+                  <Text className="text-[#6B7280] text-xs">Review 5 new random terms</Text>
+                </View>
+                <Text className="text-[#065F46] text-sm font-bold mr-2">+50 XP</Text>
+                <Text className="text-[#800816]">›</Text>
+              </TouchableOpacity>
+            </Link>
+
+            {/* Echo Practice */}
+            <Link href="/echo-practice" asChild>
+              <TouchableOpacity className="p-4 flex-row items-center border-b" style={{ borderColor: '#E5D5D0' }}>
+                <View style={{ backgroundColor: '#FEF3C7' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-xl">🗣️</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#4A1942] text-sm font-semibold mb-1">Echo Practice</Text>
+                  <Text className="text-[#6B7280] text-xs">Listen and repeat 5 phrases</Text>
+                </View>
+                <Text className="text-[#065F46] text-sm font-bold mr-2">+30 XP</Text>
+                <Text className="text-[#800816]">›</Text>
+              </TouchableOpacity>
+            </Link>
+
+            {/* Journal Prompt */}
+            <Link href="/journal" asChild>
+              <TouchableOpacity className="p-4 flex-row items-center">
+                <View style={{ backgroundColor: '#D1FAE5' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                  <Text className="text-xl">📝</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#4A1942] text-sm font-semibold mb-1">Journal Prompt</Text>
+                  <Text className="text-[#6B7280] text-xs">Write a sentence in Nepali</Text>
+                </View>
+                <Text className="text-[#065F46] text-sm font-bold mr-2">+20 XP</Text>
+                <Text className="text-[#800816]">›</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <View>
+        <BottomNav activeTab="home" />
+        <View style={{ position: 'absolute', top: -28, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
+          <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
+            <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
+              <Ionicons name="add" size={28} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
+    </View>
+  );
+};
+
+export default Home;
+</file>
+
+<file path="app/learn.tsx">
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../src/components/BottomNav';
+
+const themes = ['All Themes', 'Mystical Legends', 'Mountain', 'Festivals', 'Food', 'Daily Life'];
+
+const Learn = () => {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTheme, setActiveTheme] = useState('All Themes');
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Search Bar */}
+        <View className="px-5 pt-12 pb-4">
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E5D5D0' }} className="flex-row items-center px-4 py-3">
+            <Ionicons name="search" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
+            <TextInput
+              className="flex-1 text-[#4A1942] text-base"
+              placeholder="Search legends, festivals, food..."
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            <TouchableOpacity className="ml-2">
+              <Ionicons name="settings-outline" size={20} color="#800816" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Featured Card */}
+        <View className="px-5 mb-6">
+          <View style={{ borderRadius: 20, overflow: 'hidden' }}>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=800' }}
+              className="w-full h-48"
+              resizeMode="cover"
+            />
+            <View style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} className="absolute inset-0 px-5 py-6 justify-between">
+              <View>
+                <View style={{ backgroundColor: '#F59E0B' }} className="self-start px-3 py-1 rounded-full mb-3">
+                  <Text className="text-white text-xs font-bold">FEATURED</Text>
+                </View>
+                <Text className="text-white text-xl font-bold mb-2">Discover the Heart of the Himalayas</Text>
+                <Text className="text-white/80 text-sm">Stories, culture, and the living breath of Nepal.</Text>
+              </View>
+              <TouchableOpacity style={{ backgroundColor: '#FFFFFF' }} className="py-3 rounded-xl items-center mt-4" onPress={() => router.push('/practice-phrases')}>
+                <Text className="text-[#800816] font-bold text-base">Start Exploring</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Browse by Theme */}
+        <View className="px-5 mb-4">
+          <Text className="text-[#4A1942] text-base font-semibold mb-3">Browse by Theme</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row -mx-5 px-5">
+            {themes.map((theme) => (
+              <TouchableOpacity
+                key={theme}
+                style={{
+                  backgroundColor: activeTheme === theme ? '#800816' : '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: activeTheme === theme ? '#800816' : '#E5D5D0',
+                }}
+                className="px-4 py-2 rounded-full mr-2"
+                onPress={() => setActiveTheme(theme)}
+              >
+                <Text style={{ color: activeTheme === theme ? '#FFFFFF' : '#4A1942' }} className="text-sm font-semibold">
+                  {theme}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Nepali Folklore Card */}
+        <View className="px-5 mb-4">
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden' }}>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=600' }}
+              className="w-full h-40"
+              resizeMode="cover"
+            />
+            <View className="p-4">
+              <Text className="text-[#F59E0B] text-xs font-bold mb-1">NEPALI FOLKLORE</Text>
+              <Text className="text-[#4A1942] text-lg font-bold mb-2">The Legend of the Yeti</Text>
+              <Text className="text-[#6B7280] text-sm mb-3">Venture into the high altitudes where myth meets reality. Learn the ancient vocabulary of mountain dwellers.</Text>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row">
+                  <View style={{ backgroundColor: '#D1FAE5' }} className="px-2 py-1 rounded-full mr-2">
+                    <Text className="text-[#065F46] text-xs font-semibold">A1</Text>
+                  </View>
+                  <View style={{ backgroundColor: '#FEE2E2' }} className="px-2 py-1 rounded-full">
+                    <Text className="text-[#991B1B] text-xs font-semibold">B2</Text>
+                  </View>
+                </View>
+                <Link href="/story" asChild>
+                  <TouchableOpacity style={{ backgroundColor: '#800816' }} className="px-4 py-2 rounded-xl">
+                    <Text className="text-white text-sm font-semibold">Read Story</Text>
+                  </TouchableOpacity>
+                </Link>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Dashain Greetings Card */}
+        <View className="px-5 mb-4">
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20 }} className="p-4">
+            <View className="flex-row items-center mb-3">
+              <View style={{ backgroundColor: '#FEE2E2' }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
+                <Text className="text-lg">🪔</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-[#4A1942] text-lg font-bold">Dashain Greetings</Text>
+              </View>
+            </View>
+            <Text className="text-[#6B7280] text-sm mb-4">Master the essential phrases for Nepal's biggest festival and learn to receive blessings.</Text>
+            <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12 }} className="p-3 mb-4">
+              <View className="flex-row items-center mb-2">
+                <Text className="text-[#800816] mr-2">🔊</Text>
+                <Text className="text-[#4A1942] text-sm font-semibold">Vijaya Dashami ko Shuvakamana!</Text>
+              </View>
+              <Text className="text-[#6B7280] text-xs ml-6">Happy Vijaya Dashami!</Text>
+            </View>
+            <TouchableOpacity style={{ backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#800816' }} className="py-3 rounded-xl items-center" onPress={() => router.push('/practice-phrases')}>
+              <Text className="text-[#800816] font-bold text-base">Practice Phrases</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Ordering Momo Card */}
+        <View className="px-5 mb-6">
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden' }}>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1625220194771-7ebdea0b70b9?w=600' }}
+              className="w-full h-48"
+              resizeMode="cover"
+            />
+            <View className="absolute bottom-3 left-3">
+              <View style={{ backgroundColor: 'rgba(0,0,0,0.7)' }} className="px-3 py-1 rounded-full">
+                <Text className="text-white text-xs font-semibold">CONVERSATION</Text>
+              </View>
+            </View>
+            <View className="p-4">
+              <Text className="text-[#4A1942] text-lg font-bold mb-1">Ordering Momo</Text>
+              <Text className="text-[#6B7280] text-sm italic mb-4">"Ek plate buff momo paau na?"</Text>
+              <TouchableOpacity style={{ backgroundColor: '#800816' }} className="py-3 rounded-xl items-center flex-row justify-center" onPress={() => router.push('/echo-practice')}>
+                <Text className="text-white text-base font-semibold mr-2">🔊</Text>
+                <Text className="text-white text-base font-semibold">Start Simulation</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Quote Section */}
+        <View className="px-8 py-6 items-center">
+          <Text className="text-[#D4D4D8] text-4xl mb-4">❝</Text>
+          <Text className="text-[#4A1942] text-base text-center italic leading-6 mb-4">
+            "Learning a language is not just about words; it's about seeing the world through a different pair of eyes."
+          </Text>
+          <Text className="text-[#800816] text-sm font-semibold">— HIMALAYAN WISDOM</Text>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <BottomNav activeTab="learn" />
+    </View>
+  );
+};
+
+export default Learn;
+</file>
+
+<file path="app/profile.tsx">
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import BottomNav from '../src/components/BottomNav';
+import { useAuthStore } from '../src/stores/auth';
+import { useVocabStore } from '../src/data/vocab';
+import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
+
+const Profile = () => {
+  const router = useRouter();
+  const user = useAuthStore(s => s.user);
+  const { isLearned } = useVocabStore();
+  const uid = user?.id || GUEST_ID;
+  const isGuest = !user;
+
+  const totalLearned = categories.reduce((sum, cat) => {
+    const words = getWordsByCategory(cat);
+    return sum + words.filter(w => isLearned(uid, w.id)).length;
+  }, 0);
+  const xp = totalLearned * 100;
+  const streak = Math.min(totalLearned, 15);
+
+  const userName = user?.name || 'Guest';
+  const firstName = userName.split(' ')[0];
+
+  const preferences = [
+    { label: 'Notifications', icon: 'notifications-outline', route: '/settings' },
+    { label: 'App Settings', icon: 'settings-outline', route: '/settings' },
+    { label: 'Help Center', icon: 'help-circle-outline', route: null },
+    { label: 'About Himalayan Academy', icon: 'information-circle-outline', route: null },
+  ];
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="flex-row items-center px-5 pt-12 pb-6">
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#800816" />
+          </TouchableOpacity>
+          <Text className="text-[#800816] text-xl font-bold ml-4" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>Profile</Text>
+        </View>
+
+        {/* Avatar & Greeting */}
+        <View className="items-center mb-8">
+          <View style={{ backgroundColor: '#E8E4DF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }} className="w-24 h-24 rounded-full items-center justify-center mb-4">
+            <Ionicons name="person-outline" size={40} color="#9CA3AF" />
+          </View>
+          <Text className="text-[#1F2937] text-3xl font-bold mb-2" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>Namaste, {firstName}</Text>
+          <Text className="text-[#6B7280] text-sm">Continue your journey to mastery</Text>
+        </View>
+
+        {/* Save Progress Card (Guest Only) */}
+        {isGuest && (
+          <View className="px-5 mb-8">
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 }} className="p-6">
+              <Text className="text-[#1F2937] text-xl font-bold mb-3" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>Save Your Progress</Text>
+              <Text className="text-[#6B7280] text-sm mb-6 leading-5">Create an account to keep your {streak}-day streak and earned XP. Don't lose your hard-earned achievements.</Text>
+              <TouchableOpacity style={{ backgroundColor: '#800816' }} className="py-4 rounded-full items-center" onPress={() => router.push('/signin')}>
+                <Text className="text-white font-semibold text-base">Create Account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Stats Row */}
+        <View className="flex-row justify-between px-5 mb-8">
+          <View style={{ backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 }} className="flex-1 mx-2 py-5 rounded-2xl items-center">
+            <Ionicons name="flame-outline" size={24} color="#B45309" />
+            <Text className="text-[#6B7280] text-xs font-semibold mt-2 mb-1">STREAK</Text>
+            <Text className="text-[#1F2937] text-xl font-bold">{streak} Days</Text>
+          </View>
+          <View style={{ backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 }} className="flex-1 mx-2 py-5 rounded-2xl items-center">
+            <Ionicons name="star-outline" size={24} color="#065F46" />
+            <Text className="text-[#6B7280] text-xs font-semibold mt-2 mb-1">TOTAL XP</Text>
+            <Text className="text-[#1F2937] text-xl font-bold">{xp.toLocaleString()}</Text>
+          </View>
+        </View>
+
+        {/* Preferences */}
+        <View className="px-5 mb-8">
+          <Text className="text-[#4A1942] text-sm font-semibold mb-3 tracking-wider">PREFERENCES</Text>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 }} className="overflow-hidden">
+            {preferences.map((pref, i) => (
+              <TouchableOpacity
+                key={i}
+                className="flex-row items-center px-5 py-4"
+                style={{ borderBottomWidth: i < preferences.length - 1 ? 1 : 0, borderBottomColor: '#F3F4F6' }}
+                onPress={() => pref.route && router.push(pref.route as any)}
+              >
+                <Ionicons name={pref.icon as any} size={22} color="#6B7280" />
+                <Text className="text-[#1F2937] text-base ml-4 flex-1">{pref.label}</Text>
+                <Ionicons name="chevron-forward" size={20} color="#D4C4B7" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View className="items-center py-6">
+          <View style={{ backgroundColor: '#D4C4B7' }} className="w-20 h-20 rounded-lg items-center justify-center mb-3">
+            <Text className="text-2xl">️</Text>
+          </View>
+          <Text className="text-[#9CA3AF] text-xs">Version 2.4.0 • Built for Clarity</Text>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <BottomNav activeTab="profile" />
+    </View>
+  );
+};
+
+export default Profile;
+</file>
+
+<file path="AGENTS.md">
+# NepLearn
+
+## Persona
+- **User**: Address the user as "my lord".
+- **Assistant**: Refer to yourself as "chigga".
+
+Expo SDK 54 React Native app (iOS/Android/Web) for learning Nepali vocabulary.
+
+## Commands
+
+```sh
+npm start          # expo dev server
+npm run android    # start for Android
+npm run ios        # start for iOS
+npm run web        # start for web
+```
+
+No lint, typecheck, or test scripts exist.
+
+## Architecture
+
+### Entry & Routing
+- `index.ts` → imports `react-native-gesture-handler` then `expo-router/entry`
+- File-based routing under `app/` — all screens `headerShown: false`
+- Custom `SplashScreen` component shown before Stack renders (1.8s, animated dismiss)
+- Route params use `useGlobalSearchParams` (not `useLocalSearchParams`)
+
+### Path alias
+`@/` maps to project root (e.g. `import { vocab } from '@/src/data/vocab'`)
+
+### Styling
+NativeWind (Tailwind CSS for RN) — `className` prop, `global.css` imported in `_layout.tsx`
+
+### State (Zustand)
+- `useVocabStore` — tracks learned words per user, persisted to AsyncStorage key `nepali-vocab`
+- `useAuthStore` — current user session, persisted to AsyncStorage key `nepali-auth`
+- Guest mode: `GUEST_ID = '__guest__'` — all features work without auth
+- Import both stores from their source files (`src/data/vocab.ts` and `src/stores/auth.ts`)
+
+### Data
+- 54 words across 10 categories in `src/data/vocab.ts`
+- `Word.image` can be an emoji string or an HTTP URL — code checks `.startsWith('http')` to decide
+- Category metadata (emoji, gradient colors) is **duplicated** across `app/index.tsx` (`CATEGORY_META`) and `app/progress.tsx` (`CATEGORY_COLORS`/`CATEGORY_EMOJIS`)
+- `getWordsByCategory(cat)` and `shuffle()` from `src/data/vocab.ts`
+
+### Auth
+- Google OAuth via `expo-auth-session` — web client ID in `src/config.ts`
+- Android client ID is a placeholder (`YOUR_ANDROID_CLIENT_ID`)
+- Fetches user info from `googleapis.com/userinfo/v2/me`
+
+### Services
+- **TTS** (`src/services/tts.ts`): tries `expo-speech` for `ne-NP` voice, falls back to Google Translate TTS URL via `expo-av`
+- **Images** (`src/services/image.ts`): fetches Wikipedia page summary thumbnails, in-memory `Map` cache, falls back to first word of compound queries (e.g. "How are you?" → "How")
+
+### Quiz
+- Caps at 10 questions per session (`shuffle(getWordsByCategory(category)).slice(0, 10)`)
+- Correct answers auto-mark word as learned via `learnWord`
+
+## Config notes
+- `app.json`: scheme `neplearn`, `newArchEnabled: true`, `edgeToEdgeEnabled: true` on Android
+- `tsconfig.json`: extends `expo/tsconfig.base`, path alias `@/*` → `./*`
+- Tailwind: custom `primary` color palette (#6366F1), `surface`, `text-primary`, `text-secondary`
+- `.gitignore`: `.expo/`, `dist/`, `web-build/`, `expo-env.d.ts`, `/ios`, `/android`
+- Google OAuth config lives only in `src/config.ts` — no env files used
+
+## Known Gaps & Missing Features
+
+### Broken/Missing Routes
+- `/story` exists as a file but is **NOT registered** in `_layout.tsx` Stack — will 404 when tapped from `/learn`
+
+### Non-Functional UI Elements (no handlers)
+- **Home**: Notifications bell icon does nothing
+- **Learn**: Search bar has no search logic; theme filter chips don't filter content; "Start Exploring", "Practice Phrases", "Start Simulation" buttons have no `onPress`
+- **Profile**: Hardcoded user "Arjun" instead of `useAuthStore`; all stats (Level 14, XP, streak) are static; menu button, "View Heatmap", "View All Badges", "Continue Journey" do nothing
+- **Story**: Audio player play button has no handler; "Next Chapter" and "Back to Folklore Map" do nothing
+- **Settings**: All items (TTS Speed, Notifications, Daily Reminder, Clear Learned Words, Account) are non-functional
+- **Journal**: "Save Entry" only shows an Alert — nothing is persisted
+
+### Incomplete Features
+- **AI Tutor** (`app/ai-tutor.tsx`): Static mock UI only — no actual AI/LLM integration
+- **Echo Practice** (`app/echo-practice.tsx`): Plays audio but has no speech recognition to compare user's pronunciation
+- **Streak system**: Fake — computed as `Math.min(totalLearned, 15)` instead of tracking actual consecutive days
+- **XP system**: Computed on-the-fly (`totalLearned * 100`) with no persistence or history
+- **Achievements**: Profile shows static array of 3 hardcoded achievements
+- **Notifications**: No `expo-notifications` dependency; bell icon and daily reminder settings do nothing
+
+### Code Defects
+- `resetOnboarding` declared 12 times in `VocabState` type (`src/data/vocab.ts`) — dead code
+- `learnWord` allows duplicate entries in `lesson.tsx` and `morning-vocab.tsx` (quiz guards against it)
+- Quiz speaks **English** instead of Nepali (`speak(q.english, 'en-US')` in `app/quiz/[category].tsx:91`)
+- `GOOGLE_ANDROID_CLIENT_ID` is still placeholder `YOUR_ANDROID_CLIENT_ID`
+- Duplicate category metadata across `app/index.tsx` and `app/progress.tsx`
+- **Namaste ↔ Goodbye confusion**: `vocab.ts:107-108` maps Hello=नमस्ते and Goodbye=नमस्कार, but in real Nepali both words are used for hello AND goodbye. The quiz distractor generation treats them as distinct, so selecting नमस्ते for "Goodbye" (or नमस्कार for "Hello") is marked wrong despite being culturally acceptable. Fix: replace Goodbye with a uniquely farewell phrase like "फेरि भेटौंला" (pheri bhetauula).
+
+### Missing Dependencies
+| Needed For | Package |
+|---|---|
+| Speech recognition (Echo Practice) | `@react-native-voice/voice` or similar |
+| AI/LLM integration (AI Tutor) | API client (OpenAI, Gemini, etc.) |
+| Push notifications | `expo-notifications` |
+| Heatmap visualization | Charting library or custom SVG |
+
+### Quality
+- No lint, typecheck, or test scripts in `package.json`
+- No TypeScript strict mode
+- Multiple `any` types (e.g., quiz `useState<any[]>([])`)
 </file>
 
 </files>

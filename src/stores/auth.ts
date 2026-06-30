@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
+import { upsertProfile } from '../services/db';
 import type { Session } from '@supabase/supabase-js';
 
 export type User = {
@@ -55,15 +56,14 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
     supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
+        const name = session.user.user_metadata?.name || 'User';
+        const email = session.user.email || '';
+        const photo = session.user.user_metadata?.picture || undefined;
         set({
           session,
-          user: {
-            id: session.user.id,
-            name: session.user.user_metadata?.name || 'User',
-            email: session.user.email || '',
-            photo: session.user.user_metadata?.picture || undefined,
-          },
+          user: { id: session.user.id, name, email, photo },
         });
+        upsertProfile(session.user.id, name, email, photo);
       } else {
         set({ session: null, user: null });
       }

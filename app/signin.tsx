@@ -9,7 +9,9 @@ import {
 } from '@react-native-google-signin/google-signin';
 import { GOOGLE_CLIENT_ID } from '../src/config';
 import { supabase } from '../src/services/supabase';
+import { upsertProfile, syncLearnWord } from '../src/services/db';
 import { useAuthStore } from '../src/stores/auth';
+import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 
 export default function SignIn() {
   const router = useRouter();
@@ -59,12 +61,24 @@ export default function SignIn() {
         }
 
         if (data?.user) {
-          useAuthStore.getState().setUser({
-            id: data.user.id,
-            name: user.name || 'User',
-            email: user.email,
-            photo: user.photo || undefined,
-          });
+          const name = user.name || 'User';
+          const email = user.email;
+          const photo = user.photo || undefined;
+          useAuthStore.getState().setUser({ id: data.user.id, name, email, photo });
+          upsertProfile(data.user.id, name, email, photo);
+
+          const vocabState = useVocabStore.getState();
+          const guestWords = vocabState.learnedByUser[GUEST_ID] || [];
+          if (guestWords.length > 0) {
+            const existingUserWords = vocabState.learnedByUser[data.user.id] || [];
+            const merged = [...new Set([...existingUserWords, ...guestWords])];
+            useVocabStore.setState({
+              learnedByUser: { ...vocabState.learnedByUser, [data.user.id]: merged },
+            });
+            for (const wordId of guestWords) {
+              syncLearnWord(data.user.id, wordId);
+            }
+          }
         }
 
         router.replace('/');

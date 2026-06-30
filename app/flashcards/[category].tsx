@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, Image, Animated, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { getWordsByCategory, shuffle, GUEST_ID } from '../../src/data/vocab';
 import { speak } from '../../src/services/tts';
 import { getWordImage } from '../../src/services/image';
@@ -107,7 +108,7 @@ const Flashcards = () => {
       <LinearGradient colors={['#6366F1', '#4F46E5']} className="px-6 pt-16 pb-8 rounded-b-[32px]">
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl">
-            <Text className="text-white text-xl">←</Text>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text className="text-white text-lg font-semibold capitalize">{category}</Text>
           <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="px-3 py-1.5 rounded-xl">
@@ -136,7 +137,7 @@ const Flashcards = () => {
                 ) : imgUrl ? (
                   <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-4" resizeMode="contain" />
                 ) : (
-                  <Text className="text-6xl mb-4">{word.image || '💡'}</Text>
+                  <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{word.image || '💡'}</Text>
                 )}
                 <Text className="text-3xl font-bold text-[#0F172A] text-center">{word.english}</Text>
                 <Text className="text-base text-[#94A3B8] mt-4">Tap to reveal Nepali</Text>
@@ -148,7 +149,7 @@ const Flashcards = () => {
                 ) : imgUrl ? (
                   <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" />
                 ) : (
-                  <Text className="text-5xl mb-3">{word.image || '💡'}</Text>
+                  <Text className="text-5xl mb-3 text-center" style={{ lineHeight: 56, paddingVertical: 4 }}>{word.image || '💡'}</Text>
                 )}
                 <Text className="text-4xl font-bold text-[#4F46E5] text-center mb-3">{word.nepali}</Text>
                 <Text className="text-xl text-[#64748B] text-center">({word.roman})</Text>

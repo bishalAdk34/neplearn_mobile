@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '../src/stores/auth';
+import { GUEST_ID, useVocabStore } from '../src/data/vocab';
+import { saveJournalEntry, addXp, updateStreak } from '../src/services/db';
 
 const prompts = [
   { nepali: 'आज तपाईंको दिन कस्तो थियो?', roman: 'Aaja tapaiko din kasto thiyo?', english: 'How was your day today?' },
@@ -11,15 +15,33 @@ const prompts = [
 
 const Journal = () => {
   const router = useRouter();
+  const user = useAuthStore(s => s.user);
+  const uid = user?.id || GUEST_ID;
   const [text, setText] = useState('');
-  const prompt = prompts[Math.floor(Math.random() * prompts.length)];
+  const [saving, setSaving] = useState(false);
+  const prompt = React.useMemo(
+    () => prompts[Math.floor(Math.random() * prompts.length)],
+    [],
+  );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (text.trim().length === 0) {
       Alert.alert('Empty', 'Please write something before submitting.');
       return;
     }
-    Alert.alert('Saved', 'Your journal entry has been saved! 📝');
+    setSaving(true);
+    const result = await saveJournalEntry(uid, prompt.nepali, prompt.roman, prompt.english, text.trim());
+    if (result) {
+      if (uid === GUEST_ID) {
+        useVocabStore.getState().addLocalXp(uid, 25);
+        useVocabStore.getState().addLocalStreak(uid);
+      } else {
+        await addXp(uid, 25, 'journal');
+        await updateStreak(uid);
+      }
+    }
+    setSaving(false);
+    Alert.alert('Saved', result ? 'Your journal entry has been saved! You earned 25 XP.' : 'Journal entry saved locally.');
     router.push('/');
   };
 
@@ -27,7 +49,7 @@ const Journal = () => {
     <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
       <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
         <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-[#6B7280] text-xl">✕</Text>
+          <Ionicons name="close" size={24} color="#6B7280" />
         </TouchableOpacity>
         <Text className="text-[#4A1942] text-xl font-bold">Daily Journal</Text>
         <View style={{ width: 24 }} />
@@ -56,12 +78,16 @@ const Journal = () => {
 
       <View className="px-5 pb-8 pt-4" style={{ backgroundColor: '#FBF9F4' }}>
         <TouchableOpacity
-          style={{ backgroundColor: text.trim().length > 0 ? '#800816' : '#D1D5DB' }}
-          className="py-4 rounded-xl items-center"
+          style={{ backgroundColor: text.trim().length > 0 && !saving ? '#800816' : '#D1D5DB' }}
+          className="py-4 rounded-xl items-center flex-row justify-center"
           onPress={handleSubmit}
-          disabled={text.trim().length === 0}
+          disabled={text.trim().length === 0 || saving}
         >
-          <Text className="text-white font-bold text-lg">SAVE ENTRY</Text>
+          {saving ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-bold text-lg">SAVE ENTRY</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

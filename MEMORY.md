@@ -1,91 +1,50 @@
 # NepLearn Memory
 
 ## Deadline
-- **Sunday** - Project must be finished by this weekend.
+- **Sunday** — Project must be finished by this weekend.
 - **Reminder**: Remind the user about the deadline periodically (after building something or ~1 hour).
 
 ## Project Context
-- **Lesson Screen**: Completely rewritten `app/lesson.tsx`. Now features dynamic word selection, multiple-choice answers, check/skip logic, TTS audio, visual feedback (green/red), and a completion summary.
-- **Menu**: Added hamburger menu with Settings, Help, About, Sign Out.
-- **Settings**: Created `app/settings.tsx` with placeholder options.
-- **Backend**: Supabase integrated with hybrid Google OAuth (client Google Sign-In → `signInWithIdToken`). Session managed by Supabase.
+A React Native / Expo app (iOS/Android/Web) for learning Nepali vocabulary. Uses Supabase for auth and backend, Zustand + AsyncStorage for local state, NativeWind for styling.
 
-## Done
-### Phase 1 — Quick Wins & Bug Fixes
-- Registered `/story` route in `_layout.tsx` Stack (was 404ing)
-- Fixed quiz speaking English instead of Nepali (`'en-US'` → `'ne-NP'` in `app/quiz/[category].tsx`)
-- Fixed `learnWord` allowing duplicate entries (added `isLearned` guard in `lesson.tsx` and `morning-vocab.tsx`)
-- `resetOnboarding` dead code and duplicate category metadata were already cleaned up
+## Current State (June 30, 2026)
 
-### Backend Phase A+B — Supabase setup + Hybrid Auth
-- Installed `@supabase/supabase-js`
-- Created `src/services/supabase.ts` — Supabase client with AsyncStorage session persistence
-- Created `supabase/migrations/001_schema.sql` — all tables (profiles, learned words, streaks, XP, journal, chat history) + RLS policies
-- Updated `src/config.ts` — added `SUPABASE_URL` and `SUPABASE_ANON_KEY` placeholders
-- Rewrote `src/stores/auth.ts` — no longer persists to AsyncStorage; Supabase handles session. Exposes `initialize()` and `clearUser()`.
-- Updated `app/signin.tsx` — Google Sign-In → `supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })`
-- Wired `initializeAuth()` in `app/_layout.tsx` on splash finish
-- Created `.env.example`
+### What's Done
+1. **Supabase OAuth** — Google Sign-In via `@react-native-google-signin` → `supabase.auth.signInWithIdToken`. Session managed by Supabase. Guest mode still works without auth.
+2. **Database service** (`src/services/db.ts`) — Full CRUD for learned words, journal entries, XP, streaks against Supabase. Guest users skip cloud ops.
+3. **Learned words sync** — Bidirectional. Local → cloud on learn/unlearn. Cloud → local on app start via `syncFromCloud`. Deduped with `Set` union merge.
+4. **XP system** — Real persistence. +20/lesson, +15/quiz, +25/journal, +30/echo practice. `get_total_xp` RPC sums all XP. Profile fetches real total.
+5. **Streak system** — Real consecutive-day tracking. Compares `last_activity_date` against today/yesterday. Resets on miss. Updates on any XP-earning activity.
+6. **Journal persistence** — Saves to `journal_entries` table. Awards XP. Shows spinner while saving.
+7. **Settings** — Clear learned words (wipes local + cloud), Account info, Sign Out wired up.
+8. **Profile** — Uses real XP and streak from Supabase, falls back to local computation.
+9. **Notifications** — `expo-notifications` installed, service layer (`src/services/notifications.ts`) handles permissions/scheduling/removal. Settings has toggle + time picker + test notification.
+10. **Achievements** — 14 achievements with real unlock logic (words learned, categories mastered, streaks, XP). Dedicated screen + profile integration.
+11. **Echo Practice Speech Recognition** — `@dev-amirzubair/react-native-voice` integrated. `useSpeechRecognition` hook (`src/hooks/useSpeechRecognition.ts`) wraps the Voice API. After audio plays, mic auto-starts listening in `ne-NP`. Recognized text compared against Nepali script via fuzzy matching (Levenshtein threshold 0.7). Correct → green +10 XP bonus per word. Wrong → red + retry/skip. 5s timeout fallback. Completion: +30 + (correctCount × 10) XP.
 
-## Plan
+### SQL Migration ✅ RUN
+Tables `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_entries`, `ai_chat_history` + RPC `get_total_xp` are created.
 
-### Phase 2 — Wire Up Non-Functional UI
-- **Home**: Notifications bell icon handler
-- **Learn**: Search + filter chip filtering logic; wire "Start Exploring", "Practice Phrases", "Start Simulation" buttons
-- **Profile**: Wire preferences menu items (Help Center, About); use real auth data
-- **Settings**: Implement TTS speed control, notifications toggle, daily reminder, clear learned words, account management
-- **Story**: Wire audio play, Next Chapter, Back to Folklore Map
-- **Journal**: Persist entries to AsyncStorage
+### What's Next (Priority Order)
+1. **Enable Google Auth** in Supabase dashboard (Authentication → Providers → Google) and add the redirect URI to Google Cloud Console
+2. AI Tutor integration (Gemini/OpenAI)
+3. Wire up Story screen buttons (audio play, Next Chapter, Back to Folklore Map)
+4. Quality: remove `any` types, lint
 
-### Phase 3 — Real Gamification
-- **Streak**: Replace `Math.min(totalLearned, 15)` with real consecutive-day tracking in Zustand
-- **XP**: Persistent XP store with level progression
-- **Achievements**: Milestone-based unlock system
+### Known Issues
+- AI Tutor is still a static mock with no real LLM integration
+- Story audio play button has no handler
+- Story "Next Chapter" and "Back to Folklore Map" buttons have no `onPress`
+- `any` types scattered across codebase (13 occurrences)
+- Quiz English/Nepali speaking was fixed but verify on device
 
-### Phase 4 — Feature Completeness
-- **Echo Practice**: Add `@react-native-voice/voice` for speech recognition
-- **AI Tutor**: Integrate Gemini/OpenAI API for real conversations
-- **Notifications**: Add `expo-notifications`, wire bell + daily reminder
-- **Heatmap**: Add charting lib / custom SVG for activity visualization
-
-### Phase 5 — Quality
-- ESLint, TypeScript strict mode, test scripts
-- Remove `any` types (quiz `useState<any[]>` etc.)
-- Extract shared types for category metadata
-- Move OAuth client IDs to `.env`
-
-### Backend Phase C — Sync user data to Supabase
-- Learned words, XP, streaks, achievements → Supabase DB
-- Guest data migration on signup
-
-### Backend Phase D — AI Tutor Edge Function
-- Supabase Edge Function (Deno) proxying to Gemini/OpenAI
-
-### Backend Phase E — Journal persistence
-- Save/load journal entries from `journal_entries` table
-
-### Backend Phase F — Cleanup
-- Remove old AsyncStorage-only stores
-- Offline resilience layer (Zustand cache → sync to Supabase)
-
----
-## Supabase Setup Progress
+## Supabase Setup Checklist
 
 ### ✅ Done
 1. Project created at supabase.com
-2. `SUPABASE_URL` and `SUPABASE_ANON_KEY` pasted into `src/config.ts`
+2. `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `src/config.ts`
 
-### ⏳ Next Steps (when you're back, tell chigga)
-3. **Enable Google Auth** in Supabase dashboard
-   - Authentication → Providers → Google → Enable
-   - Paste Web Client ID: `176881736395-29mk0b06ut3v239i07ijuqghg5mj9998.apps.googleusercontent.com`
-   - Copy the Redirect URL shown (looks like `https://<project>.supabase.co/auth/v1/callback`)
-   - Go to https://console.cloud.google.com/apis/credentials → edit your Web OAuth client → add that Redirect URL to Authorized redirect URIs
-   - Click Save
-
-4. **Run the SQL migration**
-   - Supabase Dashboard → SQL Editor → New query
-   - Open `supabase/migrations/001_schema.sql` from this project, copy contents, paste, click Run
-
-5. **Verify**
-   - Sign in via the app → check `profiles` table in Supabase for your row
+### ⏳ Tell Chigga When You're Back
+3. Run `supabase/migrations/001_schema.sql` in Supabase SQL Editor
+4. Enable Google Auth in Supabase dashboard, add redirect URI to Google Cloud Console
+5. Verify: sign in via app → check `profiles` table for your row

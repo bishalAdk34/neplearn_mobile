@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { vocab, getWordsByCategory, shuffle, GUEST_ID } from '../../src/data/vocab';
 import { speak } from '../../src/services/tts';
 import { getWordImage } from '../../src/services/image';
 import { useVocabStore } from '../../src/data/vocab';
 import { useAuthStore } from '../../src/stores/auth';
+import { addXp, updateStreak } from '../../src/services/db';
 
 const Quiz = () => {
   const params = useGlobalSearchParams();
@@ -67,6 +69,13 @@ const Quiz = () => {
       const newScore = score + 1;
       setScore(newScore);
       if (!isLearned(uid, q.id)) learnWord(uid, q.id);
+      if (uid === GUEST_ID) {
+        useVocabStore.getState().addLocalXp(uid, 15);
+        useVocabStore.getState().addLocalStreak(uid);
+      } else {
+        addXp(uid, 15, 'quiz');
+        updateStreak(uid);
+      }
       Animated.spring(scaleAnim, { toValue: 1.05, friction: 3, useNativeDriver: true }).start();
     } else {
       Animated.sequence([
@@ -88,7 +97,7 @@ const Quiz = () => {
   };
 
   const speakWord = () => {
-    if (q) speak(q.english, 'ne-NP');
+    if (q) speak(q.nepali, 'ne-NP');
   };
 
   if (!q) return (
@@ -106,7 +115,7 @@ const Quiz = () => {
       <LinearGradient colors={['#6366F1', '#4F46E5']} className="px-6 pt-16 pb-8 rounded-b-[32px]">
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl">
-            <Text className="text-white text-xl">←</Text>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <View className="flex-row items-center">
             <Text className="text-yellow-300 text-lg mr-1">⭐</Text>
@@ -134,7 +143,7 @@ const Quiz = () => {
           ) : imgUrl ? (
             <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" />
           ) : (
-            <Text className="text-5xl mb-2">{q.image || '💡'}</Text>
+            <Text className="text-5xl mb-2 text-center" style={{ lineHeight: 56, paddingVertical: 4 }}>{q.image || '💡'}</Text>
           )}
           <TouchableOpacity onPress={speakWord} className="flex-row items-center mb-6">
             <Text className="text-3xl font-bold text-[#0F172A] mr-2">{q.english}</Text>

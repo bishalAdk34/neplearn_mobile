@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { vocab, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
 import { speak } from '../src/services/tts';
+import { addXp, updateStreak } from '../src/services/db';
 
 const MorningVocab = () => {
   const router = useRouter();
@@ -17,6 +19,21 @@ const MorningVocab = () => {
   const [isCorrect, setIsCorrect] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [score, setScore] = useState(0);
+  const [xpAwarded, setXpAwarded] = useState(false);
+
+  useEffect(() => {
+    if (isComplete && !xpAwarded) {
+      setXpAwarded(true);
+      const earned = score * 20;
+      if (uid === GUEST_ID) {
+        useVocabStore.getState().addLocalXp(uid, earned);
+        useVocabStore.getState().addLocalStreak(uid);
+      } else {
+        addXp(uid, earned, 'lesson');
+        updateStreak(uid);
+      }
+    }
+  }, [isComplete]);
 
   const words = useMemo(() => shuffle(vocab).slice(0, 5), []);
   const currentWord = words[currentIndex];
@@ -55,9 +72,10 @@ const MorningVocab = () => {
   if (isComplete) {
     return (
       <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
-        <Text className="text-6xl mb-4">🌅</Text>
+        <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>🌅</Text>
         <Text className="text-[#4A1942] text-2xl font-bold mb-2">Morning Vocab Complete!</Text>
-        <Text className="text-[#6B7280] text-base mb-6">Score: {score}/{words.length}</Text>
+        <Text className="text-[#6B7280] text-base mb-2">Score: {score}/{words.length}</Text>
+        <Text className="text-[#800816] text-sm font-semibold mb-6">+{score * 20} XP earned</Text>
         <TouchableOpacity
           style={{ backgroundColor: '#800816', borderRadius: 12 }}
           className="px-8 py-4 w-full items-center"
@@ -75,7 +93,7 @@ const MorningVocab = () => {
     <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
       <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
         <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-[#6B7280] text-xl">✕</Text>
+          <Ionicons name="close" size={24} color="#6B7280" />
         </TouchableOpacity>
         <View className="flex-1 mx-4">
           <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
@@ -98,7 +116,7 @@ const MorningVocab = () => {
             {currentWord.image?.startsWith('http') ? (
               <Image source={{ uri: currentWord.image }} className="w-32 h-32 rounded-xl mb-4" />
             ) : (
-              <Text className="text-6xl mb-4">{currentWord.image || '📖'}</Text>
+              <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{currentWord.image || '📖'}</Text>
             )}
             <Text className="text-[#800816] text-4xl font-bold mb-1">{currentWord.nepali}</Text>
             <Text className="text-[#6B7280] text-lg">{currentWord.roman}</Text>

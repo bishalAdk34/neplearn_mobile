@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
 import { speak } from '../src/services/tts';
+import { addXp, updateStreak } from '../src/services/db';
 
 const Lesson = () => {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useGlobalSearchParams();
   const category = params.category as string | undefined;
   const user = useAuthStore(s => s.user);
   const { learnWord, isLearned } = useVocabStore();
@@ -63,12 +65,29 @@ const Lesson = () => {
     handleNext();
   };
 
+  const [xpAwarded, setXpAwarded] = useState(false);
+
+  useEffect(() => {
+    if (isLessonComplete && !xpAwarded) {
+      setXpAwarded(true);
+      const earned = correctCount * 20;
+      if (uid === GUEST_ID) {
+        useVocabStore.getState().addLocalXp(uid, earned);
+        useVocabStore.getState().addLocalStreak(uid);
+      } else {
+        addXp(uid, earned, 'lesson');
+        updateStreak(uid);
+      }
+    }
+  }, [isLessonComplete]);
+
   if (isLessonComplete) {
     return (
       <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
-        <Text className="text-6xl mb-4">🎉</Text>
+        <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>🎉</Text>
         <Text className="text-[#4A1942] text-2xl font-bold mb-2">Lesson Complete!</Text>
-        <Text className="text-[#6B7280] text-base mb-6">You got {correctCount}/{sessionWords.length} correct</Text>
+        <Text className="text-[#6B7280] text-base mb-2">You got {correctCount}/{sessionWords.length} correct</Text>
+        <Text className="text-[#800816] text-sm font-semibold mb-6">+{correctCount * 20} XP earned</Text>
         <TouchableOpacity
           style={{ backgroundColor: '#800816', borderRadius: 12 }}
           className="px-8 py-4 w-full items-center"
@@ -86,9 +105,9 @@ const Lesson = () => {
     <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-[#6B7280] text-xl">✕</Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="close" size={24} color="#6B7280" />
+          </TouchableOpacity>
         <View className="flex-1 mx-4">
           <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
             <View style={{ width: `${progress}%`, backgroundColor: '#800816' }} className="h-full rounded-full" />
@@ -111,7 +130,7 @@ const Lesson = () => {
             {currentWord.image?.startsWith('http') ? (
               <Image source={{ uri: currentWord.image }} className="w-32 h-32 rounded-xl mb-4" />
             ) : (
-              <Text className="text-6xl mb-4">{currentWord.image || '📖'}</Text>
+              <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{currentWord.image || '📖'}</Text>
             )}
             <Text className="text-[#800816] text-4xl font-bold mb-1">{currentWord.nepali}</Text>
             <Text className="text-[#6B7280] text-lg">{currentWord.roman}</Text>

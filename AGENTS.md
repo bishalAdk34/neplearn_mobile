@@ -51,6 +51,17 @@ NativeWind (Tailwind CSS for RN) — `className` prop, `global.css` imported in 
 ### Services
 - **TTS** (`src/services/tts.ts`): tries `expo-speech` for `ne-NP` voice, falls back to Google Translate TTS URL via `expo-av`
 - **Images** (`src/services/image.ts`): fetches Wikipedia page summary thumbnails, in-memory `Map` cache, falls back to first word of compound queries (e.g. "How are you?" → "How")
+- **DB** (`src/services/db.ts`): Supabase CRUD — syncs learned words, journal entries, XP, streaks to cloud for authenticated users; guest users skip cloud ops
+
+### Backend (Supabase)
+Tables: `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_entries`, `ai_chat_history`
+- Learned words sync bidirectionally (local → cloud on learn/unlearn, cloud → local on app start via `syncFromCloud`)
+- XP earned from: lesson (+20/correct), quiz (+15/correct), journal (+25/save), echo practice (+30/complete)
+- Streak auto-updated on any XP-earning activity; consecutive days tracked; resets on miss
+- Journal entries persisted to `journal_entries` table
+- Guest mode: all features work locally, no cloud sync
+- `get_total_xp` RPC for efficient XP sum
+- Auth: Supabase session with Google OAuth via `@react-native-google-signin`
 
 ### Quiz
 - Caps at 10 questions per session (`shuffle(getWordsByCategory(category)).slice(0, 10)`)
@@ -71,26 +82,20 @@ NativeWind (Tailwind CSS for RN) — `className` prop, `global.css` imported in 
 ### Non-Functional UI Elements (no handlers)
 - **Home**: Notifications bell icon does nothing
 - **Learn**: Search bar has no search logic; theme filter chips don't filter content; "Start Exploring", "Practice Phrases", "Start Simulation" buttons have no `onPress`
-- **Profile**: Hardcoded user "Arjun" instead of `useAuthStore`; all stats (Level 14, XP, streak) are static; menu button, "View Heatmap", "View All Badges", "Continue Journey" do nothing
+- **Profile**: "View Heatmap", "View All Badges", "Continue Journey" do nothing
 - **Story**: Audio player play button has no handler; "Next Chapter" and "Back to Folklore Map" do nothing
-- **Settings**: All items (TTS Speed, Notifications, Daily Reminder, Clear Learned Words, Account) are non-functional
-- **Journal**: "Save Entry" only shows an Alert — nothing is persisted
+- **Settings**: TTS Speed, Notifications, Daily Reminder items are non-functional
 
 ### Incomplete Features
 - **AI Tutor** (`app/ai-tutor.tsx`): Static mock UI only — no actual AI/LLM integration
 - **Echo Practice** (`app/echo-practice.tsx`): Plays audio but has no speech recognition to compare user's pronunciation
-- **Streak system**: Fake — computed as `Math.min(totalLearned, 15)` instead of tracking actual consecutive days
-- **XP system**: Computed on-the-fly (`totalLearned * 100`) with no persistence or history
 - **Achievements**: Profile shows static array of 3 hardcoded achievements
 - **Notifications**: No `expo-notifications` dependency; bell icon and daily reminder settings do nothing
 
 ### Code Defects
 - `resetOnboarding` declared 12 times in `VocabState` type (`src/data/vocab.ts`) — dead code
-- `learnWord` allows duplicate entries in `lesson.tsx` and `morning-vocab.tsx` (quiz guards against it)
 - Quiz speaks **English** instead of Nepali (`speak(q.english, 'en-US')` in `app/quiz/[category].tsx:91`)
-- `GOOGLE_ANDROID_CLIENT_ID` is still placeholder `YOUR_ANDROID_CLIENT_ID`
 - Duplicate category metadata across `app/index.tsx` and `app/progress.tsx`
-- **Namaste ↔ Goodbye confusion**: `vocab.ts:107-108` maps Hello=नमस्ते and Goodbye=नमस्कार, but in real Nepali both words are used for hello AND goodbye. The quiz distractor generation treats them as distinct, so selecting नमस्ते for "Goodbye" (or नमस्कार for "Hello") is marked wrong despite being culturally acceptable. Fix: replace Goodbye with a uniquely farewell phrase like "फेरि भेटौंला" (pheri bhetauula).
 
 ### Missing Dependencies
 | Needed For | Package |

@@ -154,3 +154,13 @@ create policy "Users can read own chat history"
 create policy "Users can insert own chat messages"
   on public.ai_chat_history for insert
   with check (auth.uid() = user_id);
+
+-- 7. RPC: get total XP for a user
+create or replace function public.get_total_xp(p_user_id uuid)
+returns integer
+language sql stable
+as $$
+  select coalesce(sum(xp_amount), 0)::integer
+  from public.user_xp
+  where user_id = p_user_id;
+$$;

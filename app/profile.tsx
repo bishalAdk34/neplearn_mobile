@@ -32,8 +32,10 @@ const Profile = () => {
     getAchievementStatuses(uid).then(setAchievements);
   }, [isGuest, uid]);
 
-  const xp = cloudXp ?? totalLearned * 100;
-  const streak = cloudStreak?.current_streak ?? Math.min(totalLearned, 15);
+  const localXp = useVocabStore.getState().getLocalXp(uid);
+  const localStreak = useVocabStore.getState().getLocalStreak(uid);
+  const xp = isGuest ? localXp : (cloudXp ?? 0);
+  const streak = isGuest ? localStreak.current : (cloudStreak?.current_streak ?? 0);
 
   const userName = user?.name || 'Guest';
   const firstName = userName.split(' ')[0];

@@ -1,36 +1,11 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
-import { categories, vocab, GUEST_ID } from '../src/data/vocab';
+import { categories, vocab, GUEST_ID, CATEGORY_META } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  greetings: '#6366F1',
-  numbers: '#8B5CF6',
-  colors: '#EC4899',
-  family: '#14B8A6',
-  food: '#F97316',
-  directions: '#06B6D4',
-  days: '#F59E0B',
-  time: '#10B981',
-  adjectives: '#D946EF',
-  places: '#0EA5E9',
-};
-
-const CATEGORY_EMOJIS: Record<string, string> = {
-  greetings: '👋',
-  numbers: '🔢',
-  colors: '🎨',
-  family: '👨‍👩‍👧‍👦',
-  food: '🍜',
-  directions: '🧭',
-  days: '📅',
-  time: '⏰',
-  adjectives: '✨',
-  places: '🏔️',
-};
 
 const Progress = () => {
   const router = useRouter();
@@ -56,7 +31,7 @@ const Progress = () => {
       <View style={{ backgroundColor: '#800816', borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }} className="px-6 pt-14 pb-8">
         <View className="flex-row items-center mb-4">
           <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl mr-3">
-            <Text className="text-white text-xl">←</Text>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-white flex-1" numberOfLines={1}>
             {user ? `${user.name}'s Progress` : 'Progress'}
@@ -86,8 +61,9 @@ const Progress = () => {
       {/* Stats */}
       <View className="px-5 -mt-4">
         {stats.map((s) => {
-          const color = CATEGORY_COLORS[s.cat] || '#6366F1';
-          const emoji = CATEGORY_EMOJIS[s.cat] || '📖';
+          const meta = CATEGORY_META[s.cat];
+          const color = meta.color;
+          const emoji = meta.emoji;
 
           return (
             <View

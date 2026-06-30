@@ -60,6 +60,7 @@ export default function RootLayout() {
       <Stack.Screen name="practice-phrases" options={{ headerShown: false }} />
       <Stack.Screen name="story" options={{ headerShown: false }} />
       <Stack.Screen name="about" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="achievements" options={{ headerShown: false }} />
     </Stack>
   );
