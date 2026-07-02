@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
 import { upsertProfile } from '../services/db';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, Subscription } from '@supabase/supabase-js';
 
 export type User = {
   id: string;
@@ -18,7 +18,10 @@ type AuthState = {
   setSession: (session: Session | null) => void;
   clearUser: () => Promise<void>;
   initialize: () => Promise<void>;
+  cleanup: () => void;
 };
+
+let authSubscription: Subscription | null = null;
 
 export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
@@ -32,6 +35,13 @@ export const useAuthStore = create<AuthState>()((set) => ({
   clearUser: async () => {
     await supabase.auth.signOut();
     set({ user: null, session: null });
+  },
+
+  cleanup: () => {
+    if (authSubscription) {
+      authSubscription.unsubscribe();
+      authSubscription = null;
+    }
   },
 
   initialize: async () => {
@@ -54,7 +64,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
       set({ isLoading: false });
     }
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    // Clean up existing subscription before creating new one
+    if (authSubscription) {
+      authSubscription.unsubscribe();
+    }
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         const name = session.user.user_metadata?.name || 'User';
         const email = session.user.email || '';
@@ -68,5 +83,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
         set({ session: null, user: null });
       }
     });
+    authSubscription = data.subscription;
   },
 }));

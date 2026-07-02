@@ -5,8 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore } from '../src/data/vocab';
-import { sendMessage } from '../src/services/ai';
+import { sendMessage, isOffline } from '../src/services/ai';
 import { saveChatMessage, fetchChatHistory, addXp, updateStreak } from '../src/services/db';
+import { useNetworkState } from '../src/hooks/useNetworkState';
 import type { ChatMessage } from '../src/services/ai';
 
 const QUICK_ACTIONS = [
@@ -57,6 +58,7 @@ const TypingDots = () => {
 const AITutor = () => {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { isOffline: networkOffline } = useNetworkState();
   const learnedByUser = useVocabStore(s => s.learnedByUser);
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
@@ -172,8 +174,10 @@ const AITutor = () => {
           <View>
             <Text className="text-[#4A1942] text-lg font-bold">AI Tutor</Text>
             <View className="flex-row items-center">
-              <View className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#10B981' }} />
-              <Text className="text-xs" style={{ color: '#10B981' }}>Online</Text>
+              <View className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: networkOffline ? '#EF4444' : '#10B981' }} />
+              <Text className="text-xs" style={{ color: networkOffline ? '#EF4444' : '#10B981' }}>
+                {networkOffline ? 'Offline' : 'Online'}
+              </Text>
             </View>
           </View>
         </View>
@@ -187,6 +191,14 @@ const AITutor = () => {
           </View>
         </View>
       </View>
+
+      {networkOffline && (
+        <View className="px-4 py-2" style={{ backgroundColor: '#FEF3C7' }}>
+          <Text className="text-amber-800 text-sm text-center">
+            You're offline. Changes sync when back online.
+          </Text>
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
@@ -246,9 +258,9 @@ const AITutor = () => {
         />
         <TouchableOpacity
           onPress={() => handleSend(inputText)}
-          disabled={!inputText.trim() || isLoading}
+          disabled={!inputText.trim() || isLoading || networkOffline}
           className="ml-3 w-11 h-11 rounded-full items-center justify-center"
-          style={{ backgroundColor: inputText.trim() && !isLoading ? '#800816' : '#D4D4D8' }}
+          style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline ? '#800816' : '#D4D4D8' }}
         >
           <Ionicons name="send" size={18} color="#FFFFFF" />
         </TouchableOpacity>

@@ -109,9 +109,11 @@ const Home = () => {
               <TouchableOpacity className="px-4 py-3" onPress={() => { setMenuVisible(false); clearUser(); }}>
                 <Text className="text-[#DC2626] text-base font-semibold">🚪 Sign Out</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); viewDebugData(); }}>
-                <Text className="text-[#6B7280] text-base font-semibold">🐛 Debug Data</Text>
-              </TouchableOpacity>
+              {__DEV__ && (
+                <TouchableOpacity className="px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); viewDebugData(); }}>
+                  <Text className="text-[#6B7280] text-base font-semibold">🐛 Debug Data</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </TouchableOpacity>
         </Modal>

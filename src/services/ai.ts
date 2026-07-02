@@ -1,4 +1,5 @@
 import { GEMINI_API_KEY } from '../config';
+import { networkManager } from './network';
 
 const MODEL = 'gemini-2.0-flash';
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
@@ -24,11 +25,19 @@ RULES:
 - Encourage practice and celebrate progress
 - NEVER comment on your own responses or say "I hope this helps"`;
 
+export function isOffline(): boolean {
+  return !networkManager.getIsConnected();
+}
+
 export async function sendMessage(
   history: ChatMessage[],
   newMessage: string,
   context?: string,
 ): Promise<string> {
+  if (!networkManager.getIsConnected()) {
+    return 'You are currently offline. Aama needs an internet connection to respond. Please reconnect and try again. 🙏';
+  }
+
   const contents = history.map(msg => ({
     role: msg.role,
     parts: [{ text: msg.text }],

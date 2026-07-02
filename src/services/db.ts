@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import { networkManager } from './network';
+import { enqueue } from './offlineQueue';
 
 const AI_CHAT_STORAGE_KEY = 'nepali-ai-chat';
 
@@ -13,20 +15,30 @@ export async function upsertProfile(userId: string, name: string, email: string,
 
 export async function syncLearnWord(userId: string, wordId: number) {
   if (userId.startsWith('__guest__')) return;
-  const { error } = await supabase
-    .from('user_learned_words')
-    .upsert({ user_id: userId, word_id: wordId }, { onConflict: 'user_id,word_id' });
-  if (error) console.warn('syncLearnWord failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('user_learned_words')
+      .upsert({ user_id: userId, word_id: wordId }, { onConflict: 'user_id,word_id' });
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'LEARN_WORD', payload: { userId, wordId } });
 }
 
 export async function syncUnlearnWord(userId: string, wordId: number) {
   if (userId.startsWith('__guest__')) return;
-  const { error } = await supabase
-    .from('user_learned_words')
-    .delete()
-    .eq('user_id', userId)
-    .eq('word_id', wordId);
-  if (error) console.warn('syncUnlearnWord failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('user_learned_words')
+      .delete()
+      .eq('user_id', userId)
+      .eq('word_id', wordId);
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'UNLEARN_WORD', payload: { userId, wordId } });
 }
 
 export async function fetchLearnedWords(userId: string): Promise<number[]> {
@@ -72,10 +84,15 @@ export async function saveJournalEntry(
 
 export async function addXp(userId: string, amount: number, source: 'lesson' | 'quiz' | 'journal' | 'streak' | 'echo_practice' | 'ai_tutor') {
   if (userId.startsWith('__guest__')) return;
-  const { error } = await supabase
-    .from('user_xp')
-    .insert({ user_id: userId, xp_amount: amount, source });
-  if (error) console.warn('addXp failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('user_xp')
+      .insert({ user_id: userId, xp_amount: amount, source });
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'ADD_XP', payload: { userId, xpAmount: amount, xpSource: source } });
 }
 
 export async function getTotalXp(userId: string): Promise<number> {
@@ -165,10 +182,15 @@ export async function saveChatMessage(
     await AsyncStorage.setItem(key, JSON.stringify(msgs));
     return;
   }
-  const { error } = await supabase
-    .from('ai_chat_history')
-    .insert({ user_id: userId, role, content });
-  if (error) console.warn('saveChatMessage failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('ai_chat_history')
+      .insert({ user_id: userId, role, content });
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'SAVE_CHAT_MESSAGE', payload: { userId, chatRole: role, chatContent: content } });
 }
 
 export async function fetchChatHistory(
