@@ -161,7 +161,7 @@ const AITutor = () => {
     <KeyboardAvoidingView
       className="flex-1"
       style={{ backgroundColor: '#FBF9F4' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
@@ -191,6 +191,7 @@ const AITutor = () => {
       <ScrollView
         ref={scrollRef}
         className="flex-1"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
