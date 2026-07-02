@@ -15,4 +15,4 @@ export const SUPABASE_URL = 'https://rjxjfofofsuixtvacxxw.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_RCwy_tHG4HreyLdaud9G9g_RIXqBIQX';
 
 // Google Gemini — get a free API key at https://aistudio.google.com/apikey
-export const GEMINI_API_KEY = 'AIzaSyBikQkDFPy7Kpo0BMTvcjX9qMNiXROm0N4';
+export const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
