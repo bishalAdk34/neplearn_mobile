@@ -7,7 +7,10 @@ export type QueueOperationType =
   | 'UNLEARN_WORD'
   | 'ADD_XP'
   | 'UPDATE_STREAK'
-  | 'SAVE_CHAT_MESSAGE';
+  | 'SAVE_CHAT_MESSAGE'
+  | 'SAVE_JOURNAL'
+  | 'UPSERT_PROFILE'
+  | 'UPSERT_SRS';
 
 export interface QueuedOperationPayload {
   userId: string;
@@ -16,6 +19,26 @@ export interface QueuedOperationPayload {
   xpSource?: string;
   chatRole?: 'user' | 'assistant';
   chatContent?: string;
+  // UPDATE_STREAK (state push)
+  streakCurrent?: number;
+  streakLongest?: number;
+  streakLastDate?: string;
+  // SAVE_JOURNAL
+  promptNepali?: string;
+  promptRoman?: string;
+  promptEnglish?: string;
+  responseText?: string;
+  // UPSERT_PROFILE
+  profileName?: string;
+  profileEmail?: string;
+  profileAvatarUrl?: string;
+  // UPSERT_SRS
+  srsBox?: number;
+  srsLastResult?: boolean;
+  srsLastReviewedAt?: string;
+  srsDueAt?: string;
+  srsCorrectCount?: number;
+  srsIncorrectCount?: number;
 }
 
 export interface QueuedOperation {
@@ -24,6 +47,7 @@ export interface QueuedOperation {
   payload: QueuedOperationPayload;
   createdAt: number;
   retryCount: number;
+  dedupeKey?: string;
 }
 
 function generateId(): string {
@@ -45,29 +69,22 @@ async function saveQueue(queue: QueuedOperation[]): Promise<void> {
 }
 
 export async function enqueue(
-  operation: Omit<QueuedOperation, 'id' | 'createdAt' | 'retryCount'>
+  operation: Omit<QueuedOperation, 'id' | 'createdAt' | 'retryCount'>,
+  dedupeKey?: string
 ): Promise<void> {
-  const queue = await getQueue();
+  let queue = await getQueue();
+  if (dedupeKey) {
+    // Latest state replaces any older queued op with the same key
+    queue = queue.filter((op) => op.dedupeKey !== dedupeKey);
+  }
   queue.push({
     ...operation,
     id: generateId(),
     createdAt: Date.now(),
     retryCount: 0,
+    dedupeKey,
   });
   await saveQueue(queue);
-}
-
-export async function dequeue(): Promise<QueuedOperation | null> {
-  const queue = await getQueue();
-  if (queue.length === 0) return null;
-  const [first, ...rest] = queue;
-  await saveQueue(rest);
-  return first;
-}
-
-export async function peekQueue(): Promise<QueuedOperation | null> {
-  const queue = await getQueue();
-  return queue[0] || null;
 }
 
 export async function incrementRetry(id: string): Promise<void> {

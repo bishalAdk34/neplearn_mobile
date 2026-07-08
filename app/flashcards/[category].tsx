@@ -3,16 +3,22 @@ import { View, Text, Image, Animated, TouchableOpacity, Alert, ActivityIndicator
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getWordsByCategory, shuffle, GUEST_ID } from '../../src/data/vocab';
 import { speak } from '../../src/services/tts';
 import { getWordImage } from '../../src/services/image';
 import { useVocabStore } from '../../src/data/vocab';
 import { useAuthStore } from '../../src/stores/auth';
+import { useSrsStore } from '../../src/stores/srs';
+import { colors } from '../../src/theme';
+import { ProgressBar } from '../../src/components/ui';
+import { hapticLight } from '../../src/utils/haptics';
 
 const Flashcards = () => {
   const params = useGlobalSearchParams();
   const category = typeof params.category === 'string' ? params.category : '';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore(s => s.user);
   const { toggleLearned, isLearned } = useVocabStore();
   const uid = user?.id || GUEST_ID;
@@ -27,17 +33,28 @@ const Flashcards = () => {
   const word = words[currentIndex];
 
   useEffect(() => {
+    let cancelled = false;
     if (word.image?.startsWith('http')) {
       setImgUrl(word.image);
       setLoadingImg(false);
     } else {
       setImgUrl(null);
       setLoadingImg(true);
-      getWordImage(word.english).then(url => {
-        setImgUrl(url);
-        setLoadingImg(false);
-      });
+      getWordImage(word.english)
+        .then(url => {
+          if (cancelled) return;
+          setImgUrl(url);
+          setLoadingImg(false);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setImgUrl(null);
+          setLoadingImg(false);
+        });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [word.english, word.image]);
 
   const speakWord = useCallback((text: string) => {
@@ -85,6 +102,11 @@ const Flashcards = () => {
   };
 
   const handleLearn = () => {
+    hapticLight();
+    // Self-grade: marking as learned counts as a correct review
+    if (!isLearned(uid, word.id)) {
+      useSrsStore.getState().recordResult(uid, word.id, true, 'flashcards');
+    }
     toggleLearned(uid, word.id);
     goNext();
   };
@@ -105,7 +127,7 @@ const Flashcards = () => {
 
   return (
     <View className="flex-1 bg-[#F8FAFC]">
-      <LinearGradient colors={['#6366F1', '#4F46E5']} className="px-6 pt-16 pb-8 rounded-b-[32px]">
+      <LinearGradient colors={[colors.accent, '#4F46E5']} style={{ paddingTop: insets.top + 12 }} className="px-6 pb-8 rounded-b-[32px]">
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl">
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -115,9 +137,7 @@ const Flashcards = () => {
             <Text className="text-white font-bold">{currentIndex + 1}/{words.length}</Text>
           </View>
         </View>
-        <View style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} className="h-1.5 rounded-full overflow-hidden">
-          <View className="h-full bg-white rounded-full" style={{ width: progress + '%' as any }} />
-        </View>
+        <ProgressBar progress={progress / 100} height={6} color="#FFFFFF" trackColor="rgba(255,255,255,0.3)" />
       </LinearGradient>
 
       <View className="flex-1 px-6 -mt-4">
@@ -158,7 +178,7 @@ const Flashcards = () => {
                   className="mt-6 bg-[#EEF2FF] px-6 py-2 rounded-full flex-row items-center"
                 >
                   <Text className="text-lg mr-2">🔊</Text>
-                  <Text className="text-primary font-semibold">Pronounce</Text>
+                  <Text className="text-accent font-semibold">Pronounce</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -182,7 +202,7 @@ const Flashcards = () => {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={goNext}
-              className="flex-1 bg-primary py-4 rounded-2xl flex-row justify-center items-center"
+              className="flex-1 bg-accent py-4 rounded-2xl flex-row justify-center items-center"
               style={{ shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
             >
               <Text className="text-white font-bold text-lg mr-2">➡️</Text>

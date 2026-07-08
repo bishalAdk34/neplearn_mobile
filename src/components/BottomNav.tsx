@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 type TabName = 'home' | 'learn' | 'ai-tutor' | 'profile';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -14,15 +15,15 @@ const TABS: { name: TabName; label: string; icon: IoniconName; activeIcon: Ionic
 
 export default function BottomNav({ activeTab }: { activeTab?: TabName }) {
   return (
-    <View style={{ backgroundColor: '#FBF9F4', borderTopWidth: 1, borderTopColor: '#E5D5D0' }} className="flex-row items-center justify-center px-4 py-4">
+    <View style={{ backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border }} className="flex-row items-center justify-center px-4 py-4">
       {TABS.map(tab => {
         const isActive = tab.name === activeTab;
 
         if (isActive) {
           return (
             <View key={tab.name} className="flex-1 items-center">
-              <Ionicons name={tab.activeIcon} size={24} color="#800816" />
-              <Text className="text-[#800816] text-xs mt-1 font-semibold">{tab.label}</Text>
+              <Ionicons name={tab.activeIcon} size={24} color={colors.primary} />
+              <Text className="text-brand text-xs mt-1 font-semibold">{tab.label}</Text>
             </View>
           );
         }
@@ -30,8 +31,8 @@ export default function BottomNav({ activeTab }: { activeTab?: TabName }) {
         return (
           <Link key={tab.name} href={tab.href} asChild>
             <TouchableOpacity className="flex-1 items-center">
-              <Ionicons name={tab.icon} size={24} color="#9CA3AF" />
-              <Text className="text-[#9CA3AF] text-xs mt-1">{tab.label}</Text>
+              <Ionicons name={tab.icon} size={24} color={colors.textTertiary} />
+              <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">{tab.label}</Text>
             </TouchableOpacity>
           </Link>
         );

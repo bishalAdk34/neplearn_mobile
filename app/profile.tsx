@@ -8,6 +8,8 @@ import { useVocabStore } from '../src/data/vocab';
 import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
 import { getTotalXp, getStreak } from '../src/services/db';
 import { getAchievementStatuses, type AchievementStatus } from '../src/data/achievements';
+import { colors } from '../src/theme';
+import { ScreenHeader } from '../src/components/ui';
 
 const Profile = () => {
   const router = useRouter();
@@ -26,10 +28,12 @@ const Profile = () => {
 
   useEffect(() => {
     if (!isGuest) {
-      getTotalXp(uid).then(setCloudXp);
-      getStreak(uid).then(setCloudStreak);
+      getTotalXp(uid).then(setCloudXp).catch(() => setCloudXp(null));
+      getStreak(uid).then(setCloudStreak).catch(() => setCloudStreak(null));
     }
-    getAchievementStatuses(uid).then(setAchievements);
+    getAchievementStatuses(uid)
+      .then(setAchievements)
+      .catch(e => console.warn('Failed to load achievements:', e));
   }, [isGuest, uid]);
 
   const localXp = useVocabStore.getState().getLocalXp(uid);
@@ -40,7 +44,7 @@ const Profile = () => {
   const userName = user?.name || 'Guest';
   const firstName = userName.split(' ')[0];
 
-  const preferences = [
+  const preferences: { label: string; icon: string; route: string | null; onPress?: () => void }[] = [
     { label: 'Notifications', icon: 'notifications-outline', route: '/settings' },
     { label: 'App Settings', icon: 'settings-outline', route: '/settings' },
     { label: 'Help Center', icon: 'help-circle-outline', route: null },
@@ -48,32 +52,27 @@ const Profile = () => {
   ];
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+    <View className="flex-1 bg-cream">
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="flex-row items-center px-5 pt-12 pb-6">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#800816" />
-          </TouchableOpacity>
-          <Text className="text-[#800816] text-xl font-bold ml-4" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>Profile</Text>
-        </View>
+        <ScreenHeader title="Profile" backIcon="back" />
 
         {/* Avatar & Greeting */}
         <View className="items-center mb-8">
-          <View style={{ backgroundColor: '#E8E4DF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }} className="w-24 h-24 rounded-full items-center justify-center mb-4">
-            <Ionicons name="person-outline" size={40} color="#9CA3AF" />
+          <View className="w-24 h-24 rounded-full items-center justify-center mb-4" style={{ backgroundColor: '#E8E4DF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
+            <Ionicons name="person-outline" size={40} color={colors.textTertiary} />
           </View>
-          <Text className="text-[#1F2937] text-3xl font-bold mb-2" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>Namaste, {firstName}</Text>
-          <Text className="text-[#6B7280] text-sm">Continue your journey to mastery</Text>
+          <Text className="text-3xl font-bold mb-2" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#1F2937' }}>Namaste, {firstName}</Text>
+          <Text style={{ color: colors.textSecondary }} className="text-sm">Continue your journey to mastery</Text>
         </View>
 
         {/* Save Progress Card (Guest Only) */}
         {isGuest && (
           <View className="px-5 mb-8">
-            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 }} className="p-6">
-              <Text className="text-[#1F2937] text-xl font-bold mb-3" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' }}>Save Your Progress</Text>
-              <Text className="text-[#6B7280] text-sm mb-6 leading-5">Create an account to keep your {streak}-day streak and earned XP. Don't lose your hard-earned achievements.</Text>
-              <TouchableOpacity style={{ backgroundColor: '#800816' }} className="py-4 rounded-full items-center" onPress={() => router.push('/signin')}>
+            <View className="bg-white p-6" style={{ borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 }}>
+              <Text className="text-xl font-bold mb-3" style={{ fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#1F2937' }}>Save Your Progress</Text>
+              <Text className="text-sm mb-6 leading-5" style={{ color: colors.textSecondary }}>Create an account to keep your {streak}-day streak and earned XP. Don't lose your hard-earned achievements.</Text>
+              <TouchableOpacity className="bg-brand py-4 rounded-full items-center" onPress={() => router.push('/signin')}>
                 <Text className="text-white font-semibold text-base">Create Account</Text>
               </TouchableOpacity>
             </View>
@@ -82,34 +81,34 @@ const Profile = () => {
 
         {/* Stats Row */}
         <View className="flex-row justify-between px-5 mb-8">
-          <View style={{ backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 }} className="flex-1 mx-2 py-5 rounded-2xl items-center">
+          <View className="bg-white flex-1 mx-2 py-5 rounded-2xl items-center" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 }}>
             <Ionicons name="flame-outline" size={24} color="#B45309" />
-            <Text className="text-[#6B7280] text-xs font-semibold mt-2 mb-1">STREAK</Text>
-            <Text className="text-[#1F2937] text-xl font-bold">{streak} Days</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold mt-2 mb-1">STREAK</Text>
+            <Text className="text-xl font-bold" style={{ color: '#1F2937' }}>{streak} Days</Text>
           </View>
-          <View style={{ backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 }} className="flex-1 mx-2 py-5 rounded-2xl items-center">
-            <Ionicons name="star-outline" size={24} color="#065F46" />
-            <Text className="text-[#6B7280] text-xs font-semibold mt-2 mb-1">TOTAL XP</Text>
-            <Text className="text-[#1F2937] text-xl font-bold">{xp.toLocaleString()}</Text>
+          <View className="bg-white flex-1 mx-2 py-5 rounded-2xl items-center" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 }}>
+            <Ionicons name="star-outline" size={24} color={colors.successDark} />
+            <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold mt-2 mb-1">TOTAL XP</Text>
+            <Text className="text-xl font-bold" style={{ color: '#1F2937' }}>{xp.toLocaleString()}</Text>
           </View>
         </View>
 
         {/* Achievements */}
         <View className="px-5 mb-8">
-          <Text className="text-[#4A1942] text-sm font-semibold mb-3 tracking-wider">ACHIEVEMENTS</Text>
-          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 }} className="overflow-hidden">
+          <Text className="text-ink text-sm font-semibold mb-3 tracking-wider">ACHIEVEMENTS</Text>
+          <View className="bg-white overflow-hidden" style={{ borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 }}>
             {achievements.slice(0, 3).map((ach, i) => (
               <View
                 key={ach.achievement.id}
                 className="flex-row items-center px-5 py-4"
                 style={{ borderBottomWidth: i < 2 ? 1 : 0, borderBottomColor: '#F3F4F6' }}
               >
-                <View style={{ backgroundColor: ach.unlocked ? ach.achievement.bgColor : '#F3F4F6' }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
+                <View style={{ backgroundColor: ach.unlocked ? ach.achievement.bgColor : colors.mutedSurface }} className="w-12 h-12 rounded-full items-center justify-center mr-4">
                   <Text className="text-xl">{ach.unlocked ? ach.achievement.icon : '🔒'}</Text>
                 </View>
                 <View className="flex-1">
-                  <Text className={`text-base font-bold ${ach.unlocked ? 'text-[#1F2937]' : 'text-[#9CA3AF]'}`}>{ach.achievement.title}</Text>
-                  <Text className={`text-sm ${ach.unlocked ? 'text-[#6B7280]' : 'text-[#9CA3AF]'}`}>{ach.achievement.description}</Text>
+                  <Text className={`text-base font-bold`} style={{ color: ach.unlocked ? '#1F2937' : colors.textTertiary }}>{ach.achievement.title}</Text>
+                  <Text className="text-sm" style={{ color: ach.unlocked ? colors.textSecondary : colors.textTertiary }}>{ach.achievement.description}</Text>
                 </View>
               </View>
             ))}
@@ -118,15 +117,15 @@ const Profile = () => {
               style={{ borderTopWidth: 1, borderTopColor: '#F3F4F6' }}
               onPress={() => router.push('/achievements')}
             >
-              <Text className="text-[#800816] font-semibold">View All Achievements</Text>
+              <Text className="text-brand font-semibold">View All Achievements</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Preferences */}
         <View className="px-5 mb-8">
-          <Text className="text-[#4A1942] text-sm font-semibold mb-3 tracking-wider">PREFERENCES</Text>
-          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 }} className="overflow-hidden">
+          <Text className="text-ink text-sm font-semibold mb-3 tracking-wider">PREFERENCES</Text>
+          <View className="bg-white overflow-hidden" style={{ borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 }}>
             {preferences.map((pref, i) => (
               <TouchableOpacity
                 key={i}
@@ -137,8 +136,8 @@ const Profile = () => {
                   else if (pref.route) router.push(pref.route as any);
                 }}
               >
-                <Ionicons name={pref.icon as any} size={22} color="#6B7280" />
-                <Text className="text-[#1F2937] text-base ml-4 flex-1">{pref.label}</Text>
+                <Ionicons name={pref.icon as any} size={22} color={colors.textSecondary} />
+                <Text className="text-base ml-4 flex-1" style={{ color: '#1F2937' }}>{pref.label}</Text>
                 <Ionicons name="chevron-forward" size={20} color="#D4C4B7" />
               </TouchableOpacity>
             ))}

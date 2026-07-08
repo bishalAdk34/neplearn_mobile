@@ -1,3 +1,4 @@
+import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from './supabase';
 import {
   getQueue,
@@ -6,12 +7,14 @@ import {
   QueuedOperation,
 } from './offlineQueue';
 import { networkManager } from './network';
+import { mergeStreaks } from './streak';
 
 const MAX_RETRIES = 3;
 
 class SyncManager {
   private isSyncing = false;
   private unsubscribe: (() => void) | null = null;
+  private appStateSubscription: { remove: () => void } | null = null;
 
   init(): void {
     this.unsubscribe = networkManager.addListener((isConnected) => {
@@ -19,6 +22,15 @@ class SyncManager {
         this.processQueue();
       }
     });
+
+    this.appStateSubscription = AppState.addEventListener(
+      'change',
+      (state: AppStateStatus) => {
+        if (state === 'active' && networkManager.getIsConnected()) {
+          this.processQueue();
+        }
+      }
+    );
 
     // Initial sync if already online
     if (networkManager.getIsConnected()) {
@@ -87,9 +99,38 @@ class SyncManager {
         }
 
         case 'UPDATE_STREAK': {
-          // Streak logic handled by db.ts updateStreak, just re-call it
-          // For now, mark success since streak ops are idempotent
-          return true;
+          if (
+            payload.streakCurrent === undefined ||
+            payload.streakLongest === undefined ||
+            !payload.streakLastDate
+          ) {
+            return true; // Legacy op without state payload — drop it
+          }
+          const { data: remote } = await supabase
+            .from('user_streaks')
+            .select('current_streak, longest_streak, last_activity_date')
+            .eq('user_id', payload.userId)
+            .maybeSingle();
+
+          const merged = mergeStreaks(
+            {
+              current: payload.streakCurrent,
+              longest: payload.streakLongest,
+              lastDate: payload.streakLastDate,
+            },
+            remote
+          );
+
+          const { error } = await supabase.from('user_streaks').upsert(
+            {
+              user_id: payload.userId,
+              current_streak: merged.current,
+              longest_streak: merged.longest,
+              last_activity_date: merged.lastDate,
+            },
+            { onConflict: 'user_id' }
+          );
+          return !error;
         }
 
         case 'SAVE_CHAT_MESSAGE': {
@@ -100,6 +141,53 @@ class SyncManager {
               role: payload.chatRole,
               content: payload.chatContent,
             });
+          return !error;
+        }
+
+        case 'SAVE_JOURNAL': {
+          const { error } = await supabase
+            .from('journal_entries')
+            .insert({
+              user_id: payload.userId,
+              prompt_nepali: payload.promptNepali,
+              prompt_roman: payload.promptRoman,
+              prompt_english: payload.promptEnglish,
+              response_text: payload.responseText,
+            });
+          return !error;
+        }
+
+        case 'UPSERT_PROFILE': {
+          const { error } = await supabase
+            .from('profiles')
+            .upsert(
+              {
+                id: payload.userId,
+                name: payload.profileName,
+                email: payload.profileEmail,
+                avatar_url: payload.profileAvatarUrl,
+              },
+              { onConflict: 'id' }
+            );
+          return !error;
+        }
+
+        case 'UPSERT_SRS': {
+          const { error } = await supabase
+            .from('user_word_srs')
+            .upsert(
+              {
+                user_id: payload.userId,
+                word_id: payload.wordId,
+                box: payload.srsBox,
+                last_result: payload.srsLastResult,
+                last_reviewed_at: payload.srsLastReviewedAt,
+                due_at: payload.srsDueAt,
+                correct_count: payload.srsCorrectCount,
+                incorrect_count: payload.srsIncorrectCount,
+              },
+              { onConflict: 'user_id,word_id' }
+            );
           return !error;
         }
 
@@ -117,6 +205,10 @@ class SyncManager {
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
+    }
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
     }
   }
 }

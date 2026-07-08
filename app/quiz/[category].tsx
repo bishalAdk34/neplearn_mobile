@@ -3,21 +3,28 @@ import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator } from
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { vocab, getWordsByCategory, shuffle, GUEST_ID } from '../../src/data/vocab';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getWordsByCategory, GUEST_ID } from '../../src/data/vocab';
 import { speak } from '../../src/services/tts';
 import { getWordImage } from '../../src/services/image';
 import { useVocabStore } from '../../src/data/vocab';
 import { useAuthStore } from '../../src/stores/auth';
-import { addXp, updateStreak } from '../../src/services/db';
+import { useSrsStore } from '../../src/stores/srs';
+import { awardXp } from '../../src/services/xp';
+import { buildQuestions, type QuizQuestion } from '../../src/utils/quizBuilder';
+import { colors } from '../../src/theme';
+import { ProgressBar } from '../../src/components/ui';
+import { hapticSuccess, hapticError } from '../../src/utils/haptics';
 
 const Quiz = () => {
   const params = useGlobalSearchParams();
   const category = typeof params.category === 'string' ? params.category : '';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore(s => s.user);
   const { learnWord, isLearned } = useVocabStore();
   const uid = user?.id || GUEST_ID;
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [score, setScore] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -27,14 +34,7 @@ const Quiz = () => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const words = shuffle(getWordsByCategory(category)).slice(0, 10);
-    const qData = words.map(word => {
-      const allNepali = vocab.map(w => w.nepali).filter(n => n !== word.nepali);
-      const wrong = shuffle(allNepali).slice(0, 3);
-      const options = shuffle([word.nepali, ...wrong]);
-      return { ...word, options };
-    });
-    setQuestions(qData);
+    setQuestions(buildQuestions(getWordsByCategory(category), 10));
   }, [category]);
 
   useEffect(() => {
@@ -45,19 +45,29 @@ const Quiz = () => {
   const q = questions[currentQ];
 
   useEffect(() => {
-    if (q) {
-      if (q.image?.startsWith('http')) {
-        setImgUrl(q.image);
-        setLoadingImg(false);
-      } else {
-        setImgUrl(null);
-        setLoadingImg(true);
-        getWordImage(q.english).then(url => {
+    if (!q) return;
+    let cancelled = false;
+    if (q.image?.startsWith('http')) {
+      setImgUrl(q.image);
+      setLoadingImg(false);
+    } else {
+      setImgUrl(null);
+      setLoadingImg(true);
+      getWordImage(q.english)
+        .then(url => {
+          if (cancelled) return;
           setImgUrl(url);
           setLoadingImg(false);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setImgUrl(null);
+          setLoadingImg(false);
         });
-      }
     }
+    return () => {
+      cancelled = true;
+    };
   }, [q]);
 
   const selectAnswer = (opt: string) => {
@@ -65,19 +75,16 @@ const Quiz = () => {
     setSelected(opt);
 
     const correct = opt === q?.nepali;
+    if (q) useSrsStore.getState().recordResult(uid, q.id, correct, 'quiz');
     if (correct) {
+      hapticSuccess();
       const newScore = score + 1;
       setScore(newScore);
       if (!isLearned(uid, q.id)) learnWord(uid, q.id);
-      if (uid === GUEST_ID) {
-        useVocabStore.getState().addLocalXp(uid, 15);
-        useVocabStore.getState().addLocalStreak(uid);
-      } else {
-        addXp(uid, 15, 'quiz');
-        updateStreak(uid);
-      }
+      awardXp(uid, 15, 'quiz');
       Animated.spring(scaleAnim, { toValue: 1.05, friction: 3, useNativeDriver: true }).start();
     } else {
+      hapticError();
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
@@ -112,7 +119,7 @@ const Quiz = () => {
 
   return (
     <View className="flex-1 bg-[#F8FAFC]">
-      <LinearGradient colors={['#6366F1', '#4F46E5']} className="px-6 pt-16 pb-8 rounded-b-[32px]">
+      <LinearGradient colors={[colors.accent, '#4F46E5']} style={{ paddingTop: insets.top + 12 }} className="px-6 pb-8 rounded-b-[32px]">
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl">
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -125,9 +132,7 @@ const Quiz = () => {
             <Text className="text-white font-bold">{currentQ + 1}/{questions.length}</Text>
           </View>
         </View>
-        <View style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} className="h-1.5 rounded-full overflow-hidden">
-          <View className="h-full bg-white rounded-full" style={{ width: progress + '%' as any }} />
-        </View>
+        <ProgressBar progress={progress / 100} height={6} color="#FFFFFF" trackColor="rgba(255,255,255,0.3)" />
       </LinearGradient>
 
       <Animated.View

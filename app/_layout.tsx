@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import SplashScreen from '../src/components/SplashScreen';
-import { useVocabStore } from '../src/data/vocab';
+import { useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { useSrsStore } from '../src/stores/srs';
 import { useAuthStore } from '../src/stores/auth';
-import { initNotifications } from '../src/services/notifications';
+import { initNotifications, initNotificationLogListener, refreshDailyReminder } from '../src/services/notifications';
 import { networkManager } from '../src/services/network';
 import { syncManager } from '../src/services/syncManager';
 import { NetworkProvider } from '../src/contexts/NetworkContext';
@@ -24,6 +26,27 @@ export default function RootLayout() {
 
   useEffect(() => {
     initNotifications();
+
+    let unsubscribeLog: (() => void) | undefined;
+    initNotificationLogListener().then(unsub => {
+      unsubscribeLog = unsub;
+    });
+
+    // Keep the daily reminder copy streak-aware: refresh whenever the app foregrounds.
+    const refreshReminder = () => {
+      const uid = useAuthStore.getState().user?.id || GUEST_ID;
+      const streak = useVocabStore.getState().getLocalStreak(uid).current;
+      refreshDailyReminder(streak).catch(() => {});
+    };
+    refreshReminder();
+    const appStateSub = AppState.addEventListener('change', state => {
+      if (state === 'active') refreshReminder();
+    });
+
+    return () => {
+      unsubscribeLog?.();
+      appStateSub.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -38,6 +61,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (user && !user.id.startsWith('__guest__')) {
       syncFromCloud(user.id);
+      useSrsStore.getState().syncFromCloud(user.id);
     }
   }, [user, syncFromCloud]);
 
@@ -77,6 +101,11 @@ export default function RootLayout() {
         <Stack.Screen name="about" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="achievements" options={{ headerShown: false }} />
+        <Stack.Screen name="review" options={{ headerShown: false }} />
+        <Stack.Screen name="practice-mistakes" options={{ headerShown: false }} />
+        <Stack.Screen name="grammar" options={{ headerShown: false }} />
+        <Stack.Screen name="sentence-builder" options={{ headerShown: false }} />
+        <Stack.Screen name="listening" options={{ headerShown: false }} />
       </Stack>
     </NetworkProvider>
   );

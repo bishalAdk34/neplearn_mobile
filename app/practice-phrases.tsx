@@ -2,18 +2,35 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { phrases } from '../src/data/phrases';
+import { PHRASE_CATEGORIES, getPhrasesByCategory } from '../src/data/phrases';
 import { shuffle } from '../src/data/vocab';
 import { speak } from '../src/services/tts';
+import { ScreenHeader, ProgressBar } from '../src/components/ui';
+import { colors, shadows } from '../src/theme';
+import { hapticLight } from '../src/utils/haptics';
 
 const PracticePhrases = () => {
   const router = useRouter();
+  const [category, setCategory] = useState('all');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
-  const sessionPhrases = useMemo(() => shuffle(phrases).slice(0, 8), []);
+  const sessionPhrases = useMemo(
+    () => shuffle(getPhrasesByCategory(category)).slice(0, 8),
+    [category]
+  );
   const current = sessionPhrases[currentIndex];
+
+  const activeCategory = PHRASE_CATEGORIES.find(c => c.key === (current?.category ?? category));
+
+  const selectCategory = (key: string) => {
+    if (key === category) return;
+    hapticLight();
+    setCategory(key);
+    setCurrentIndex(0);
+    setIsComplete(false);
+  };
 
   const handlePlay = async () => {
     if (!current) return;
@@ -36,78 +53,119 @@ const PracticePhrases = () => {
 
   if (isComplete) {
     return (
-      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: colors.background }}>
         <Text className="text-6xl mb-4">🎉</Text>
-        <Text className="text-[#4A1942] text-2xl font-bold mb-2">Practice Complete!</Text>
-        <Text className="text-[#6B7280] text-base mb-6 text-center">You've reviewed all Dashain phrases. Great job!</Text>
+        <Text className="text-ink text-2xl font-bold mb-2">Practice Complete!</Text>
+        <Text style={{ color: colors.textSecondary }} className="text-base mb-6 text-center">
+          You've reviewed {sessionPhrases.length} phrases. Great job!
+        </Text>
         <TouchableOpacity
-          style={{ backgroundColor: '#800816', borderRadius: 12 }}
+          style={{ backgroundColor: colors.primary, borderRadius: 12 }}
+          className="px-8 py-4 w-full items-center mb-3"
+          onPress={() => {
+            setCurrentIndex(0);
+            setIsComplete(false);
+          }}
+        >
+          <Text className="text-white font-bold text-lg">Practice Again</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.primary, borderRadius: 12 }}
           className="px-8 py-4 w-full items-center"
           onPress={() => router.back()}
         >
-          <Text className="text-white font-bold text-lg">Back to Learn</Text>
+          <Text style={{ color: colors.primary }} className="font-bold text-lg">Back to Learn</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  if (!current) return null;
-
   return (
-    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
-      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={24} color="#6B7280" />
-        </TouchableOpacity>
-        <Text className="text-[#4A1942] text-lg font-bold">Practice Phrases</Text>
-        <View style={{ backgroundColor: '#FEF3C7' }} className="px-3 py-1 rounded-full">
-          <Text className="text-[#92400E] text-sm font-bold">{currentIndex + 1}/{sessionPhrases.length}</Text>
-        </View>
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+      <ScreenHeader
+        title="Practice Phrases"
+        backIcon="close"
+        centered
+        right={
+          <View style={{ backgroundColor: colors.warmSurface }} className="px-3 py-1 rounded-full">
+            <Text style={{ color: colors.warmInk }} className="text-sm font-bold">{currentIndex + 1}/{sessionPhrases.length}</Text>
+          </View>
+        }
+      />
+
+      {/* Category chips */}
+      <View className="mb-4">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+          {PHRASE_CATEGORIES.map(cat => {
+            const active = cat.key === category;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={{
+                  backgroundColor: active ? colors.primary : colors.surface,
+                  borderWidth: 1,
+                  borderColor: active ? colors.primary : colors.border,
+                }}
+                className="px-4 py-2 rounded-full flex-row items-center"
+                onPress={() => selectCategory(cat.key)}
+              >
+                <Text className="text-sm mr-1">{cat.emoji}</Text>
+                <Text style={{ color: active ? '#FFFFFF' : colors.textSecondary }} className="text-sm font-semibold">
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <View className="px-5 mb-4">
-        <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
-          <View style={{ width: `${((currentIndex) / sessionPhrases.length) * 100}%`, backgroundColor: '#800816' }} className="h-full rounded-full" />
-        </View>
+        <ProgressBar progress={sessionPhrases.length ? currentIndex / sessionPhrases.length : 0} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        <View className="px-5 mb-8 items-center">
-          <View style={{ backgroundColor: '#FEE2E2' }} className="self-start px-3 py-1 rounded-full mb-6">
-            <Text className="text-[#800816] text-xs font-bold uppercase">Dashain Greetings</Text>
-          </View>
+      {current ? (
+        <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+          <View className="px-5 mb-8 items-center">
+            <View style={{ backgroundColor: '#FEE2E2' }} className="self-start px-3 py-1 rounded-full mb-6">
+              <Text className="text-brand text-xs font-bold uppercase">
+                {activeCategory ? `${activeCategory.emoji} ${activeCategory.label}` : 'Phrases'}
+              </Text>
+            </View>
 
-          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 }} className="p-8 w-full items-center">
-            <TouchableOpacity
-              style={{ backgroundColor: isPlaying ? '#D1D5DB' : '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 10 }}
-              className="w-16 h-16 rounded-full items-center justify-center mb-6"
-              onPress={handlePlay}
-              disabled={isPlaying}
-            >
-              <Ionicons name={isPlaying ? 'pause' : 'volume-high'} size={28} color="#FFFFFF" />
-            </TouchableOpacity>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 24, ...shadows.card }} className="p-8 w-full items-center">
+              <TouchableOpacity
+                style={{ backgroundColor: isPlaying ? colors.disabled : colors.primary, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 10 }}
+                className="w-16 h-16 rounded-full items-center justify-center mb-6"
+                onPress={handlePlay}
+                disabled={isPlaying}
+              >
+                <Ionicons name={isPlaying ? 'pause' : 'volume-high'} size={28} color="#FFFFFF" />
+              </TouchableOpacity>
 
-            <Text className="text-[#800816] text-3xl font-bold mb-3 text-center">{current.nepali}</Text>
-            <Text className="text-[#6B7280] text-lg mb-6">{current.roman}</Text>
+              <Text className="text-brand text-3xl font-bold mb-3 text-center">{current.nepali}</Text>
+              <Text style={{ color: colors.textSecondary }} className="text-lg mb-6">{current.roman}</Text>
 
-            <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12 }} className="w-full p-4 items-center">
-              <Text className="text-[#4A1942] text-base font-semibold">"{current.english}"</Text>
+              <View style={{ backgroundColor: colors.mutedSurface, borderRadius: 12 }} className="w-full p-4 items-center">
+                <Text className="text-ink text-base font-semibold">"{current.english}"</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <View className="flex-1" />
+      )}
 
-      <View className="flex-row px-5 pb-8 pt-4 gap-3" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-row px-5 pb-8 pt-4 gap-3" style={{ backgroundColor: colors.background }}>
         <TouchableOpacity
-          style={{ backgroundColor: currentIndex === 0 ? '#E5D5D0' : '#FFFFFF', borderWidth: 2, borderColor: '#800816', opacity: currentIndex === 0 ? 0.5 : 1 }}
+          style={{ backgroundColor: currentIndex === 0 ? colors.border : colors.surface, borderWidth: 2, borderColor: colors.primary, opacity: currentIndex === 0 ? 0.5 : 1 }}
           className="flex-1 py-4 rounded-xl items-center"
           onPress={handlePrev}
           disabled={currentIndex === 0}
         >
-          <Text style={{ color: currentIndex === 0 ? '#9CA3AF' : '#800816' }} className="font-bold">Previous</Text>
+          <Text style={{ color: currentIndex === 0 ? colors.textTertiary : colors.primary }} className="font-bold">Previous</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ backgroundColor: '#800816' }}
+          style={{ backgroundColor: colors.primary }}
           className="flex-1 py-4 rounded-xl items-center"
           onPress={handleNext}
         >

@@ -1,95 +1,265 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
+import { ScreenHeader, ProgressBar } from '../src/components/ui';
+import { colors, shadows } from '../src/theme';
+import { stories, Story, LEVEL_LABELS } from '../src/data/stories';
+import { speak } from '../src/services/tts';
+import { hapticLight, hapticSuccess, hapticError } from '../src/utils/haptics';
 
-const Story = () => {
-  return (
-    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        {/* Hero Image */}
-        <View className="w-full h-64 mb-6">
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=800' }}
-            className="w-full h-full"
-            resizeMode="cover"
-          />
-          <View style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} className="absolute inset-0" />
+type Mode = 'list' | 'read' | 'quiz' | 'done';
+
+const StoryScreen = () => {
+  const [mode, setMode] = useState<Mode>('list');
+  const [story, setStory] = useState<Story | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [answered, setAnswered] = useState(false);
+  const [score, setScore] = useState(0);
+
+  const openStory = (s: Story) => {
+    hapticLight();
+    setStory(s);
+    setQuestionIndex(0);
+    setSelected(null);
+    setAnswered(false);
+    setScore(0);
+    setMode('read');
+  };
+
+  const handleSelect = (index: number) => {
+    if (answered || !story) return;
+    const correct = index === story.questions[questionIndex].answerIndex;
+    setSelected(index);
+    setAnswered(true);
+    if (correct) {
+      setScore(prev => prev + 1);
+      hapticSuccess();
+    } else {
+      hapticError();
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (!story) return;
+    if (questionIndex + 1 >= story.questions.length) {
+      setMode('done');
+    } else {
+      setQuestionIndex(prev => prev + 1);
+      setSelected(null);
+      setAnswered(false);
+    }
+  };
+
+  // ---- Story list (picker) ----
+  if (mode === 'list' || !story) {
+    return (
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
+        <ScreenHeader title="Stories" backIcon="back" />
+        <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+          <View className="px-5">
+            <Text style={{ color: colors.textSecondary }} className="text-base mb-5">
+              Read short stories in Nepali with romanization and translation, then test your understanding.
+            </Text>
+            {stories.map(s => (
+              <TouchableOpacity
+                key={s.id}
+                style={{ backgroundColor: colors.surface, borderRadius: 20, ...shadows.card }}
+                className="p-5 mb-4 flex-row items-center"
+                onPress={() => openStory(s)}
+              >
+                <Text className="text-4xl mr-4">{s.emoji}</Text>
+                <View className="flex-1">
+                  <Text className="text-brand text-xs font-bold mb-1">{s.tag}</Text>
+                  <Text className="text-ink text-lg font-bold mb-1">{s.title}</Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm mb-2">{s.nepaliTitle}</Text>
+                  <View className="flex-row items-center">
+                    <View style={{ backgroundColor: colors.mutedSurface }} className="px-2 py-0.5 rounded-full mr-2">
+                      <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold">{LEVEL_LABELS[s.level]}</Text>
+                    </View>
+                    <Ionicons name="time-outline" size={13} color={colors.textTertiary} />
+                    <Text style={{ color: colors.textTertiary }} className="text-xs ml-1">{s.minutes} min</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+        <BottomNav activeTab="learn" />
+      </View>
+    );
+  }
+
+  // ---- Completion ----
+  if (mode === 'done') {
+    return (
+      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: colors.background }}>
+        <Text className="text-6xl mb-4">📖</Text>
+        <Text className="text-ink text-2xl font-bold mb-2">Story Complete!</Text>
+        <Text style={{ color: colors.textSecondary }} className="text-base mb-6 text-center">
+          You got {score} of {story.questions.length} questions right.
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: colors.primary, borderRadius: 12 }}
+          className="px-8 py-4 w-full items-center"
+          onPress={() => setMode('list')}
+        >
+          <Text className="text-white font-bold text-lg">Back to Stories</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // ---- Comprehension quiz ----
+  if (mode === 'quiz') {
+    const q = story.questions[questionIndex];
+    return (
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
+        <ScreenHeader
+          title="Check Understanding"
+          backIcon="close"
+          centered
+          right={
+            <View style={{ backgroundColor: colors.warmSurface }} className="px-3 py-1 rounded-full">
+              <Text style={{ color: colors.warmInk }} className="text-sm font-bold">{questionIndex + 1}/{story.questions.length}</Text>
+            </View>
+          }
+        />
+        <View className="px-5 mb-6">
+          <ProgressBar progress={questionIndex / story.questions.length} />
         </View>
 
-        {/* Content Container */}
-        <View className="px-5 -mt-10" style={{ backgroundColor: '#FBF9F4', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
-          {/* Tag & Title */}
-          <View className="mb-4">
-            <View style={{ backgroundColor: '#FEE2E2' }} className="self-start px-3 py-1 rounded-full mb-3">
-              <Text className="text-[#800816] text-xs font-bold">FOLKLORE</Text>
+        <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+          <View className="px-5">
+            <View style={{ backgroundColor: colors.surface, borderRadius: 20, ...shadows.card }} className="p-6 mb-6">
+              <Text className="text-ink text-xl font-bold text-center">{q.question}</Text>
             </View>
-            <Text className="text-[#4A1942] text-3xl font-bold mb-2">The Legend of the Yeti</Text>
-            <View className="flex-row items-center">
-              <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text className="text-[#6B7280] text-sm ml-1">10 min read • Level A2</Text>
-            </View>
-          </View>
 
-          {/* Audio Player */}
-          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 }} className="flex-row items-center p-4 mb-6">
-            <TouchableOpacity style={{ backgroundColor: '#800816' }} className="w-10 h-10 rounded-full items-center justify-center mr-4">
-              <Ionicons name="play" size={20} color="#FFFFFF" />
+            {q.options.map((option, index) => {
+              let borderColor: string = colors.border;
+              let bgColor: string = colors.surface;
+              if (answered) {
+                if (index === q.answerIndex) {
+                  borderColor = colors.success;
+                  bgColor = '#D1FAE5';
+                } else if (index === selected) {
+                  borderColor = colors.danger;
+                  bgColor = '#FEE2E2';
+                }
+              }
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={{ backgroundColor: bgColor, borderWidth: 2, borderColor, borderRadius: 16 }}
+                  className="p-4 mb-3"
+                  onPress={() => handleSelect(index)}
+                  disabled={answered}
+                >
+                  <Text className="text-ink text-base font-semibold">{option}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        {answered && (
+          <View className="px-5 pb-8 pt-4" style={{ backgroundColor: colors.background }}>
+            <TouchableOpacity
+              style={{ backgroundColor: colors.primary }}
+              className="py-4 rounded-xl items-center"
+              onPress={handleNextQuestion}
+            >
+              <Text className="text-white font-bold text-base">
+                {questionIndex + 1 >= story.questions.length ? 'Finish' : 'Next Question'}
+              </Text>
             </TouchableOpacity>
-            <View className="flex-1">
-              <Text className="text-[#4A1942] text-sm font-semibold mb-1">Listen to this Legend (Nepali)</Text>
-              <View style={{ backgroundColor: '#F3F4F6' }} className="h-1.5 rounded-full overflow-hidden">
-                <View style={{ width: '30%', backgroundColor: '#800816' }} className="h-full rounded-full" />
-              </View>
-            </View>
-            <Text className="text-[#6B7280] text-xs ml-3">03:42</Text>
           </View>
+        )}
+      </View>
+    );
+  }
 
-          {/* Story Text */}
-          <Text className="text-[#4A1942] text-base leading-7 mb-6">
-            High above the clouds, where the air grows thin and the wind whispers through the crags of Mount Everest, lives a creature spoken of in hushed tones around the warmth of a yak-butter fire. He is known as the <Text className="text-[#800816] font-bold underline">Him-manav</Text>.
-          </Text>
-
-          <Text className="text-[#4A1942] text-base leading-7 mb-6">
-            To the Sherpa people of the Khumbu region, the Yeti is not merely a myth but a guardian of the high passes. It is said to be a bipedal giant, covered in thick reddish-brown hair, roaming the vast <Text className="text-[#800816] font-bold underline">Himal</Text> during the quiet hours of the night.
-          </Text>
-
-          {/* Cultural Insight */}
-          <View style={{ backgroundColor: '#064E3B', borderRadius: 20 }} className="p-5 mb-6">
-            <View className="flex-row items-center mb-3">
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="w-8 h-8 rounded-full items-center justify-center mr-3">
-                <Ionicons name="bulb" size={18} color="#FFFFFF" />
-              </View>
-              <Text className="text-[#D1FAE5] text-xs font-bold tracking-wider">CULTURAL INSIGHT</Text>
-            </View>
-            <Text className="text-white text-lg font-bold mb-2">The Guardian of the Pass</Text>
-            <Text className="text-[#D1FAE5] text-sm leading-6">
-              In Sherpa tradition, seeing a Yeti is considered a powerful spiritual omen. Many monasteries in the region, such as Khumjung, even claim to possess relics like Yeti scalps, preserving a deep reverence for these mountain spirits.
-            </Text>
-          </View>
-
-          {/* More Text */}
-          <Text className="text-[#4A1942] text-base leading-7 mb-6">
-            Tales of the Yeti describe his feet as being backwards—a clever trick to confuse anyone attempting to track it. If you find a trail leading toward the peaks, it may actually be descending into the valley. This dual nature mirrors the mountains themselves: beautiful, but dangerous to those who do not respect the silence of the <Text className="text-[#800816] font-bold underline">Sagarmatha</Text>.
-          </Text>
-
-          {/* Footer Actions */}
+  // ---- Reader ----
+  return (
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+      <ScreenHeader title={story.title} backIcon="back" onBack={() => setMode('list')} />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <View className="px-5">
+          {/* Title block */}
           <View className="mb-6">
-            <TouchableOpacity style={{ backgroundColor: '#800816' }} className="py-4 rounded-xl items-center flex-row justify-center mb-3">
-              <Text className="text-white text-base font-bold mr-2">Next Chapter: The Tracks in Khumjung</Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5D5D0' }} className="py-4 rounded-xl items-center">
-              <Text className="text-[#4A1942] text-base font-semibold">Back to Folklore Map</Text>
-            </TouchableOpacity>
+            <View style={{ backgroundColor: '#FEE2E2' }} className="self-start px-3 py-1 rounded-full mb-3">
+              <Text className="text-brand text-xs font-bold">{story.tag}</Text>
+            </View>
+            <Text className="text-ink text-3xl font-bold mb-1">{story.nepaliTitle}</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-base mb-2">{story.title}</Text>
+            <View className="flex-row items-center">
+              <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+              <Text style={{ color: colors.textSecondary }} className="text-sm ml-1">
+                {story.minutes} min read • {LEVEL_LABELS[story.level]}
+              </Text>
+            </View>
           </View>
+
+          {/* Paragraphs */}
+          {story.paragraphs.map((p, index) => (
+            <View key={index} style={{ backgroundColor: colors.surface, borderRadius: 16, ...shadows.card }} className="p-5 mb-4">
+              <View className="flex-row items-start justify-between mb-2">
+                <Text className="text-ink text-lg leading-8 font-semibold flex-1 mr-3">{p.nepali}</Text>
+                <TouchableOpacity
+                  style={{ backgroundColor: colors.mutedSurface }}
+                  className="w-9 h-9 rounded-full items-center justify-center"
+                  onPress={() => {
+                    hapticLight();
+                    speak(p.nepali, 'ne-NP');
+                  }}
+                >
+                  <Ionicons name="volume-high" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={{ color: colors.textSecondary }} className="text-sm italic mb-2">{p.roman}</Text>
+              <Text style={{ color: colors.textSecondary }} className="text-base leading-6">{p.english}</Text>
+            </View>
+          ))}
+
+          {/* Cultural insight */}
+          {story.insight && (
+            <View style={{ backgroundColor: colors.successDark, borderRadius: 20 }} className="p-5 mb-6">
+              <View className="flex-row items-center mb-3">
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="w-8 h-8 rounded-full items-center justify-center mr-3">
+                  <Ionicons name="bulb" size={18} color="#FFFFFF" />
+                </View>
+                <Text className="text-xs font-bold tracking-wider" style={{ color: '#D1FAE5' }}>CULTURAL INSIGHT</Text>
+              </View>
+              <Text className="text-white text-lg font-bold mb-2">{story.insight.title}</Text>
+              <Text className="text-sm leading-6" style={{ color: '#D1FAE5' }}>{story.insight.text}</Text>
+            </View>
+          )}
+
+          {/* Quiz CTA */}
+          <TouchableOpacity
+            style={{ backgroundColor: colors.primary }}
+            className="py-4 rounded-xl items-center flex-row justify-center mb-3"
+            onPress={() => {
+              hapticLight();
+              setMode('quiz');
+            }}
+          >
+            <Text className="text-white text-base font-bold mr-2">Check Understanding</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            className="py-4 rounded-xl items-center mb-6"
+            onPress={() => setMode('list')}
+          >
+            <Text className="text-ink text-base font-semibold">Back to Stories</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      <BottomNav activeTab="learn" />
     </View>
   );
 };
 
-export default Story;
+export default StoryScreen;
