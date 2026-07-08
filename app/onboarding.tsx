@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useVocabStore, type LearningGoal, type LearningLevel } from '../src/data/vocab';
+import { colors } from '../src/theme';
 
 const GOALS: { id: LearningGoal; label: string; icon: string }[] = [
   { id: 'travel', label: 'Travel', icon: '✈️' },
@@ -15,19 +16,6 @@ const LEVELS: { id: LearningLevel; label: string; desc: string }[] = [
   { id: 'intermediate', label: 'Intermediate', desc: 'I can hold basic conversations' },
   { id: 'advanced', label: 'Advanced', desc: 'I want to master formal Nepali' },
 ];
-
-const COLORS = {
-  bg: '#FDF8F0',
-  primary: '#7B1E2E',
-  primaryLight: '#9B2D3E',
-  accent: '#8B5A2B',
-  text: '#2D1810',
-  textSecondary: '#6B4F3A',
-  card: '#FFFFFF',
-  cardBorder: '#E8DDD5',
-  cardSelected: '#7B1E2E',
-  cardSelectedBg: '#FDF5F0',
-};
 
 const FadeIn = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
   const opacity = React.useRef(new Animated.Value(0)).current;
@@ -63,7 +51,7 @@ export default function Onboarding() {
   const canStart = goal !== null && level !== null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* Mountain Image */}
         <FadeIn delay={100}>
@@ -79,10 +67,10 @@ export default function Onboarding() {
         {/* Title */}
         <FadeIn delay={200}>
           <View className="px-8 mt-4">
-            <Text style={{ fontFamily: 'serif', fontSize: 32, fontWeight: '600', color: COLORS.text, textAlign: 'center' }}>
+            <Text style={{ fontFamily: 'serif', fontSize: 32, fontWeight: '600', color: colors.ink, textAlign: 'center' }}>
               Namaste, Traveler
             </Text>
-            <Text style={{ fontSize: 16, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 24 }}>
+            <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 24 }}>
               Begin your journey into the heart of Nepal through its beautiful language.
             </Text>
           </View>
@@ -93,7 +81,7 @@ export default function Onboarding() {
           <View className="px-8 mt-8">
             <View className="flex-row items-center mb-4">
               <Text style={{ fontSize: 14 }}>🇳🇵</Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary, marginLeft: 8, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary, marginLeft: 8, letterSpacing: 1.5, textTransform: 'uppercase' }}>
                 Choose Your Learning Goal
               </Text>
             </View>
@@ -108,9 +96,9 @@ export default function Onboarding() {
                       width: '48%',
                       padding: 16,
                       borderRadius: 16,
-                      backgroundColor: isSelected ? COLORS.cardSelectedBg : COLORS.card,
+                      backgroundColor: isSelected ? colors.warmSurface : colors.surface,
                       borderWidth: isSelected ? 2 : 1,
-                      borderColor: isSelected ? COLORS.cardSelected : COLORS.cardBorder,
+                      borderColor: isSelected ? colors.primary : colors.border,
                       alignItems: 'center',
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 1 },
@@ -120,7 +108,7 @@ export default function Onboarding() {
                     }}
                   >
                     <Text style={{ fontSize: 24, marginBottom: 6 }}>{g.icon}</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: isSelected ? COLORS.primary : COLORS.text }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isSelected ? colors.primary : colors.ink }}>
                       {g.label}
                     </Text>
                   </TouchableOpacity>
@@ -135,7 +123,7 @@ export default function Onboarding() {
           <View className="px-8 mt-8">
             <View className="flex-row items-center mb-4">
               <Text style={{ fontSize: 14 }}>📊</Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary, marginLeft: 8, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary, marginLeft: 8, letterSpacing: 1.5, textTransform: 'uppercase' }}>
                 Select Your Level
               </Text>
             </View>
@@ -148,9 +136,9 @@ export default function Onboarding() {
                   style={{
                     padding: 16,
                     borderRadius: 16,
-                    backgroundColor: COLORS.card,
+                    backgroundColor: colors.surface,
                     borderWidth: 1,
-                    borderColor: isSelected ? COLORS.primary : COLORS.cardBorder,
+                    borderColor: isSelected ? colors.primary : colors.border,
                     marginBottom: 10,
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -162,10 +150,10 @@ export default function Onboarding() {
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>
                       {l.label}
                     </Text>
-                    <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginTop: 2 }}>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>
                       {l.desc}
                     </Text>
                   </View>
@@ -175,8 +163,8 @@ export default function Onboarding() {
                       height: 24,
                       borderRadius: 12,
                       borderWidth: 2,
-                      borderColor: isSelected ? COLORS.primary : COLORS.cardBorder,
-                      backgroundColor: isSelected ? COLORS.primary : 'transparent',
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      backgroundColor: isSelected ? colors.primary : 'transparent',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -200,7 +188,7 @@ export default function Onboarding() {
               style={{
                 paddingVertical: 18,
                 borderRadius: 32,
-                backgroundColor: canStart ? COLORS.primary : COLORS.cardBorder,
+                backgroundColor: canStart ? colors.primary : colors.disabled,
                 alignItems: 'center',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
@@ -217,7 +205,7 @@ export default function Onboarding() {
               onPress={() => router.replace('/signin')}
               className="mt-4 items-center"
             >
-              <Text style={{ fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, fontWeight: '500' }}>
                 I already have an account
               </Text>
             </TouchableOpacity>

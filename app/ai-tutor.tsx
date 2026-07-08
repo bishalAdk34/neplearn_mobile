@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Animated, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore } from '../src/data/vocab';
-import { sendMessage } from '../src/services/ai';
-import { saveChatMessage, fetchChatHistory, addXp, updateStreak } from '../src/services/db';
+import { sendMessage, isOffline } from '../src/services/ai';
+import { saveChatMessage, fetchChatHistory } from '../src/services/db';
+import { awardXp } from '../src/services/xp';
+import { GUEST_ID } from '../src/data/vocab';
+import { useNetworkState } from '../src/hooks/useNetworkState';
 import type { ChatMessage } from '../src/services/ai';
+import { colors } from '../src/theme';
 
 const QUICK_ACTIONS = [
   { label: 'Teach me greetings', icon: '👋' },
@@ -40,7 +45,7 @@ const TypingDots = () => {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#800816',
+    backgroundColor: colors.primary,
     marginHorizontal: 3,
     opacity: dot.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
   });
@@ -56,29 +61,37 @@ const TypingDots = () => {
 
 const AITutor = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
+  const { isOffline: networkOffline } = useNetworkState();
   const learnedByUser = useVocabStore(s => s.learnedByUser);
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [xpAwarded, setXpAwarded] = useState(false);
+  const sessionXpRef = useRef(0);
 
-  const uid = user?.id || '__guest__';
+  const uid = user?.id || GUEST_ID;
   const learnedIds = learnedByUser[uid] || [];
 
   useEffect(() => {
     (async () => {
-      const history = await fetchChatHistory(uid, 50);
-      setMessages(
-        history.map((m, i) => ({
-          id: `${i}`,
-          role: m.role as 'user' | 'assistant',
-          text: m.content,
-        }))
-      );
-      setHasLoaded(true);
+      try {
+        const history = await fetchChatHistory(uid, 50);
+        setMessages(
+          history.map((m, i) => ({
+            id: `${i}`,
+            role: m.role as 'user' | 'assistant',
+            text: m.content,
+          }))
+        );
+      } catch (e) {
+        console.warn('Failed to load chat history:', e);
+        setMessages([]);
+      } finally {
+        setHasLoaded(true);
+      }
     })();
   }, []);
 
@@ -113,14 +126,14 @@ const AITutor = () => {
     setMessages(prev => [...prev, aiMsg]);
     await saveChatMessage(uid, 'assistant', reply);
 
-    if (!xpAwarded && reply.length > 50) {
-      addXp(uid, 5, 'ai_tutor');
-      updateStreak(uid);
-      setXpAwarded(true);
+    // 5 XP per user message, capped at 25 XP per session
+    if (sessionXpRef.current < 25) {
+      sessionXpRef.current += 5;
+      awardXp(uid, 5, 'ai_tutor');
     }
 
     setIsLoading(false);
-  }, [messages, isLoading, uid, xpAwarded, learnedIds]);
+  }, [messages, isLoading, uid, learnedIds]);
 
   const handleQuickAction = useCallback((text: string) => {
     handleSend(text);
@@ -131,19 +144,19 @@ const AITutor = () => {
     return (
       <View className={`flex-row ${isUser ? 'justify-end' : 'justify-start'} mb-4 px-4`}>
         {!isUser && (
-          <View className="w-8 h-8 rounded-full items-center justify-center mr-2 mt-1" style={{ backgroundColor: '#E5D5D0' }}>
+          <View className="w-8 h-8 rounded-full items-center justify-center mr-2 mt-1" style={{ backgroundColor: colors.border }}>
             <Text className="text-sm">👩</Text>
           </View>
         )}
         <View
           className={`max-w-[80%] px-4 py-3 ${isUser ? 'rounded-2xl rounded-br-md' : 'rounded-2xl rounded-bl-md'}`}
           style={{
-            backgroundColor: isUser ? '#800816' : '#FFFFFF',
+            backgroundColor: isUser ? colors.primary : colors.surface,
             borderWidth: isUser ? 0 : 1,
-            borderColor: '#E5D5D0',
+            borderColor: colors.border,
           }}
         >
-          <Text className={`text-base leading-6 ${isUser ? 'text-white' : 'text-[#4A1942]'}`}>{text}</Text>
+          <Text className={`text-base leading-6 ${isUser ? 'text-white' : 'text-ink'}`}>{text}</Text>
         </View>
       </View>
     );
@@ -151,8 +164,8 @@ const AITutor = () => {
 
   if (!hasLoaded) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FBF9F4' }}>
-        <Text className="text-[#800816] text-lg">Loading Aama...</Text>
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <Text className="text-brand text-lg">Loading Aama...</Text>
       </View>
     );
   }
@@ -160,33 +173,46 @@ const AITutor = () => {
   return (
     <KeyboardAvoidingView
       className="flex-1"
-      style={{ backgroundColor: '#FBF9F4' }}
-      behavior="padding"
+      style={{ backgroundColor: colors.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+      <View
+        style={{ paddingTop: insets.top + 8 }}
+        className="flex-row items-center justify-between px-5 pb-4"
+      >
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#4A1942" />
+            <Ionicons name="arrow-back" size={24} color={colors.ink} />
           </TouchableOpacity>
           <View>
-            <Text className="text-[#4A1942] text-lg font-bold">AI Tutor</Text>
+            <Text className="text-ink text-lg font-bold">AI Tutor</Text>
             <View className="flex-row items-center">
-              <View className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#10B981' }} />
-              <Text className="text-xs" style={{ color: '#10B981' }}>Online</Text>
+              <View className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: networkOffline ? colors.danger : colors.success }} />
+              <Text className="text-xs" style={{ color: networkOffline ? colors.danger : colors.success }}>
+                {networkOffline ? 'Offline' : 'Online'}
+              </Text>
             </View>
           </View>
         </View>
         <View className="flex-row items-center">
           <View
             className="flex-row items-center px-3 py-1.5 rounded-full mr-3"
-            style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5D5D0' }}
+            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
           >
             <Text className="mr-1">🔥</Text>
-            <Text className="text-[#4A1942] text-sm font-bold">{learnedIds.length}</Text>
+            <Text className="text-ink text-sm font-bold">{learnedIds.length}</Text>
           </View>
         </View>
       </View>
+
+      {networkOffline && (
+        <View className="px-4 py-2" style={{ backgroundColor: colors.warmSurface }}>
+          <Text style={{ color: colors.warmInk }} className="text-sm text-center">
+            You're offline. Changes sync when back online.
+          </Text>
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
@@ -197,14 +223,14 @@ const AITutor = () => {
       >
         {messages.length === 0 ? (
           <View className="items-center px-5 pt-4">
-            <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: '#E5D5D0' }}>
+            <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: colors.border }}>
               <Text className="text-3xl">👩</Text>
             </View>
-            <Text className="text-[#4A1942] text-2xl font-bold mb-1">Aama</Text>
-            <Text className="text-[#6B7280] text-sm mb-6">Native Speaker & Language Expert</Text>
+            <Text className="text-ink text-2xl font-bold mb-1">Aama</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-sm mb-6">Native Speaker & Language Expert</Text>
 
-            <View className="w-full mb-6 p-4 rounded-2xl rounded-bl-md" style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5D5D0' }}>
-              <Text className="text-[#4A1942] text-base mb-2">
+            <View className="w-full mb-6 p-4 rounded-2xl rounded-bl-md" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <Text className="text-ink text-base mb-2">
                 Namaste! 🙏 I'm Aama, your Nepali language tutor. Tell me what you'd like to learn today, or try one of these:
               </Text>
             </View>
@@ -215,10 +241,10 @@ const AITutor = () => {
                   key={action.label}
                   onPress={() => handleQuickAction(action.label)}
                   className="flex-row items-center mr-2 mb-2 px-4 py-3 rounded-full"
-                  style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5D5D0' }}
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                 >
                   <Text className="mr-2">{action.icon}</Text>
-                  <Text className="text-[#4A1942] text-sm font-medium">{action.label}</Text>
+                  <Text className="text-ink text-sm font-medium">{action.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -232,13 +258,13 @@ const AITutor = () => {
 
       <View
         className="flex-row items-center px-4 py-3"
-        style={{ backgroundColor: '#FFFFFF', borderTopWidth: 1, borderColor: '#E5D5D0' }}
+        style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border }}
       >
         <TextInput
           className="flex-1 h-11 px-4 rounded-full text-base"
-          style={{ backgroundColor: '#F3F0EE', color: '#4A1942' }}
+          style={{ backgroundColor: colors.mutedSurface, color: colors.ink }}
           placeholder="Ask Aama anything..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.textTertiary}
           value={inputText}
           onChangeText={setInputText}
           onSubmitEditing={() => handleSend(inputText)}
@@ -247,9 +273,9 @@ const AITutor = () => {
         />
         <TouchableOpacity
           onPress={() => handleSend(inputText)}
-          disabled={!inputText.trim() || isLoading}
+          disabled={!inputText.trim() || isLoading || networkOffline}
           className="ml-3 w-11 h-11 rounded-full items-center justify-center"
-          style={{ backgroundColor: inputText.trim() && !isLoading ? '#800816' : '#D4D4D8' }}
+          style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline ? colors.primary : colors.disabled }}
         >
           <Ionicons name="send" size={18} color="#FFFFFF" />
         </TouchableOpacity>

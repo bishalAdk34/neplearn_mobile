@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { useSettingsStore, TtsSpeed } from '../src/stores/settings';
 import { supabase } from '../src/services/supabase';
 import {
   getPrefs,
@@ -14,6 +15,20 @@ import {
   cancelDailyReminder,
   sendTestNotification,
 } from '../src/services/notifications';
+import { colors } from '../src/theme';
+import { ScreenHeader } from '../src/components/ui';
+
+const SPEED_OPTIONS: { label: string; value: TtsSpeed }[] = [
+  { label: 'Slow', value: 'slow' },
+  { label: 'Normal', value: 'normal' },
+  { label: 'Fast', value: 'fast' },
+];
+
+const GOAL_OPTIONS = [
+  { label: 'Casual — 25 XP / day', value: 25 },
+  { label: 'Regular — 50 XP / day', value: 50 },
+  { label: 'Serious — 100 XP / day', value: 100 },
+];
 
 const TIME_OPTIONS = [
   { label: '8:00 AM', hour: 8, minute: 0 },
@@ -35,6 +50,14 @@ const Settings = () => {
   const [reminderHour, setReminderHour] = useState(17);
   const [reminderMinute, setReminderMinute] = useState(35);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [speedPickerVisible, setSpeedPickerVisible] = useState(false);
+  const [goalPickerVisible, setGoalPickerVisible] = useState(false);
+  const ttsSpeed = useSettingsStore(s => s.ttsSpeed);
+  const setTtsSpeed = useSettingsStore(s => s.setTtsSpeed);
+  const dailyGoalXp = useSettingsStore(s => s.dailyGoalXp);
+  const setDailyGoalXp = useSettingsStore(s => s.setDailyGoalXp);
+
+  const currentStreak = useVocabStore.getState().getLocalStreak(uid).current;
 
   useEffect(() => {
     getPrefs().then(prefs => {
@@ -55,7 +78,7 @@ const Settings = () => {
         Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive practice reminders.');
         return;
       }
-      await scheduleDailyReminder(reminderHour, reminderMinute);
+      await scheduleDailyReminder(reminderHour, reminderMinute, currentStreak);
     } else {
       await cancelDailyReminder();
     }
@@ -69,51 +92,58 @@ const Settings = () => {
     setTimePickerVisible(false);
     await savePrefs({ enabled: notificationsEnabled, reminderHour: hour, reminderMinute: minute });
     if (notificationsEnabled) {
-      await scheduleDailyReminder(hour, minute);
+      await scheduleDailyReminder(hour, minute, currentStreak);
     }
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
-      <View className="px-5 pt-12 pb-4 flex-row items-center">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
-          <Ionicons name="arrow-back" size={24} color="#800816" />
-        </TouchableOpacity>
-        <Text className="text-[#4A1942] text-xl font-bold">Settings</Text>
-      </View>
+    <View className="flex-1 bg-cream">
+      <ScreenHeader title="Settings" backIcon="back" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
-        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16 }} className="overflow-hidden mb-6">
-          <TouchableOpacity className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}>
-            <Text className="text-[#4A1942] text-base">Text-to-Speech Speed</Text>
-            <Text className="text-[#6B7280] text-base">Normal</Text>
+        <View className="bg-white overflow-hidden mb-6" style={{ borderRadius: 16 }}>
+          <TouchableOpacity
+            className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}
+            onPress={() => setSpeedPickerVisible(true)}
+          >
+            <Text className="text-ink text-base">Text-to-Speech Speed</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-base">
+              {SPEED_OPTIONS.find(o => o.value === ttsSpeed)?.label || 'Normal'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}
+            onPress={() => setGoalPickerVisible(true)}
+          >
+            <Text className="text-ink text-base">Daily XP Goal</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-base">{dailyGoalXp} XP</Text>
           </TouchableOpacity>
           <View className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}>
-            <Text className="text-[#4A1942] text-base">Notifications</Text>
+            <Text className="text-ink text-base">Notifications</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={toggleNotifications}
-              trackColor={{ false: '#D1D5DB', true: '#800816' }}
-              thumbColor="#FFFFFF"
+              trackColor={{ false: colors.disabled, true: colors.primary }}
+              thumbColor={colors.surface}
             />
           </View>
           <TouchableOpacity
             className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}
             onPress={() => setTimePickerVisible(true)}
           >
-            <Text className="text-[#4A1942] text-base">Daily Reminder</Text>
-            <Text className="text-[#6B7280] text-base">{notificationsEnabled ? timeLabel : 'Off'}</Text>
+            <Text className="text-ink text-base">Daily Reminder</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-base">{notificationsEnabled ? timeLabel : 'Off'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="px-4 py-4 flex-row justify-between items-center"
             onPress={sendTestNotification}
           >
-            <Text className="text-[#4A1942] text-base">Send Test Notification</Text>
-            <Text className="text-[#800816] text-base">Send</Text>
+            <Text className="text-ink text-base">Send Test Notification</Text>
+            <Text className="text-brand text-base">Send</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16 }} className="overflow-hidden mb-6">
+        <View className="bg-white overflow-hidden mb-6" style={{ borderRadius: 16 }}>
           <TouchableOpacity
             className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}
             onPress={() => {
@@ -143,8 +173,8 @@ const Settings = () => {
               );
             }}
           >
-            <Text className="text-[#4A1942] text-base">Clear Learned Words</Text>
-            <Text className="text-[#DC2626] text-base">Reset</Text>
+            <Text className="text-ink text-base">Clear Learned Words</Text>
+            <Text style={{ color: colors.danger }} className="text-base">Reset</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="px-4 py-4 flex-row justify-between items-center"
@@ -156,14 +186,14 @@ const Settings = () => {
               }
             }}
           >
-            <Text className="text-[#4A1942] text-base">Account</Text>
-            <Text className="text-[#6B7280] text-base">{user ? user.name || 'Signed In' : 'Sign In'}</Text>
+            <Text className="text-ink text-base">Account</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-base">{user ? user.name || 'Signed In' : 'Sign In'}</Text>
           </TouchableOpacity>
         </View>
         {user && (
           <TouchableOpacity
-            style={{ backgroundColor: '#FFFFFF', borderRadius: 16 }}
-            className="overflow-hidden mb-6"
+            className="bg-white overflow-hidden mb-6"
+            style={{ borderRadius: 16 }}
             onPress={() => {
               Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
                 { text: 'Cancel', style: 'cancel' },
@@ -179,7 +209,7 @@ const Settings = () => {
             }}
           >
             <View className="px-4 py-4 items-center">
-              <Text className="text-[#DC2626] text-base font-semibold">Sign Out</Text>
+              <Text style={{ color: colors.danger }} className="text-base font-semibold">Sign Out</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -187,8 +217,8 @@ const Settings = () => {
 
       <Modal visible={timePickerVisible} transparent animationType="slide" onRequestClose={() => setTimePickerVisible(false)}>
         <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setTimePickerVisible(false)}>
-          <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24 }} className="pt-6 pb-10 px-5">
-            <Text className="text-[#4A1942] text-lg font-bold mb-4 text-center">Reminder Time</Text>
+          <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <Text className="text-ink text-lg font-bold mb-4 text-center">Reminder Time</Text>
             {TIME_OPTIONS.map(opt => {
               const selected = opt.hour === reminderHour && opt.minute === reminderMinute;
               return (
@@ -197,8 +227,56 @@ const Settings = () => {
                   className="py-4 px-4 flex-row items-center justify-between border-b" style={{ borderColor: '#E5E7EB' }}
                   onPress={() => selectTime(opt.hour, opt.minute)}
                 >
-                  <Text className={`text-base ${selected ? 'text-[#800816] font-bold' : 'text-[#4A1942]'}`}>{opt.label}</Text>
-                  {selected && <Text className="text-[#800816] text-lg">✓</Text>}
+                  <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>{opt.label}</Text>
+                  {selected && <Text className="text-brand text-lg">✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={speedPickerVisible} transparent animationType="slide" onRequestClose={() => setSpeedPickerVisible(false)}>
+        <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setSpeedPickerVisible(false)}>
+          <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <Text className="text-ink text-lg font-bold mb-4 text-center">Text-to-Speech Speed</Text>
+            {SPEED_OPTIONS.map(opt => {
+              const selected = opt.value === ttsSpeed;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  className="py-4 px-4 flex-row items-center justify-between border-b" style={{ borderColor: '#E5E7EB' }}
+                  onPress={() => {
+                    setTtsSpeed(opt.value);
+                    setSpeedPickerVisible(false);
+                  }}
+                >
+                  <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>{opt.label}</Text>
+                  {selected && <Text className="text-brand text-lg">✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={goalPickerVisible} transparent animationType="slide" onRequestClose={() => setGoalPickerVisible(false)}>
+        <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setGoalPickerVisible(false)}>
+          <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <Text className="text-ink text-lg font-bold mb-4 text-center">Daily XP Goal</Text>
+            {GOAL_OPTIONS.map(opt => {
+              const selected = opt.value === dailyGoalXp;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  className="py-4 px-4 flex-row items-center justify-between border-b" style={{ borderColor: '#E5E7EB' }}
+                  onPress={() => {
+                    setDailyGoalXp(opt.value);
+                    setGoalPickerVisible(false);
+                  }}
+                >
+                  <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>{opt.label}</Text>
+                  {selected && <Text className="text-brand text-lg">✓</Text>}
                 </TouchableOpacity>
               );
             })}

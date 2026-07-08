@@ -51,7 +51,11 @@ NativeWind (Tailwind CSS for RN) — `className` prop, `global.css` imported in 
 ### Services
 - **TTS** (`src/services/tts.ts`): tries `expo-speech` for `ne-NP` voice, falls back to Google Translate TTS URL via `expo-av`
 - **Images** (`src/services/image.ts`): fetches Wikipedia page summary thumbnails, in-memory `Map` cache, falls back to first word of compound queries (e.g. "How are you?" → "How")
-- **DB** (`src/services/db.ts`): Supabase CRUD — syncs learned words, journal entries, XP, streaks to cloud for authenticated users; guest users skip cloud ops
+- **DB** (`src/services/db.ts`): Supabase CRUD — syncs learned words, journal entries, XP, streaks to cloud for authenticated users; guest users skip cloud ops; queues writes when offline
+- **AI** (`src/services/ai.ts`): Gemini 2.0 Flash integration, "Aama" tutor persona, offline-aware
+- **Network** (`src/services/network.ts`): NetInfo wrapper with listener pattern for connectivity state
+- **OfflineQueue** (`src/services/offlineQueue.ts`): AsyncStorage-backed queue for failed writes
+- **SyncManager** (`src/services/syncManager.ts`): FIFO queue processor, 3 retries, auto-triggers on reconnect
 
 ### Backend (Supabase)
 Tables: `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_entries`, `ai_chat_history`
@@ -62,6 +66,14 @@ Tables: `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_en
 - Guest mode: all features work locally, no cloud sync
 - `get_total_xp` RPC for efficient XP sum
 - Auth: Supabase session with Google OAuth via `@react-native-google-signin`
+
+### Offline-First Architecture
+- `NetworkProvider` wraps app in `_layout.tsx`, initialized on mount
+- Write ops (learn/unlearn word, add XP, save chat) queue to AsyncStorage when offline
+- Queue key: `nepali-offline-queue`
+- `SyncManager` processes queue FIFO on reconnect, max 3 retries per op
+- AI Tutor shows offline banner, disables send button when disconnected
+- `useNetworkState()` hook for components needing connectivity state
 
 ### Quiz
 - Caps at 10 questions per session (`shuffle(getWordsByCategory(category)).slice(0, 10)`)
@@ -80,29 +92,29 @@ Tables: `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_en
 - `/story` exists as a file but is **NOT registered** in `_layout.tsx` Stack — will 404 when tapped from `/learn`
 
 ### Non-Functional UI Elements (no handlers)
-- **Home**: Notifications bell icon does nothing
-- **Learn**: Search bar has no search logic; theme filter chips don't filter content; "Start Exploring", "Practice Phrases", "Start Simulation" buttons have no `onPress`
-- **Profile**: "View Heatmap", "View All Badges", "Continue Journey" do nothing
+- **Learn**: Search bar has no search logic; theme filter chips don't filter content
+- **Profile**: "View Heatmap" does nothing
 - **Story**: Audio player play button has no handler; "Next Chapter" and "Back to Folklore Map" do nothing
-- **Settings**: TTS Speed, Notifications, Daily Reminder items are non-functional
 
 ### Incomplete Features
-- **AI Tutor** (`app/ai-tutor.tsx`): Static mock UI only — no actual AI/LLM integration
-- **Echo Practice** (`app/echo-practice.tsx`): Plays audio but has no speech recognition to compare user's pronunciation
-- **Achievements**: Profile shows static array of 3 hardcoded achievements
-- **Notifications**: No `expo-notifications` dependency; bell icon and daily reminder settings do nothing
+- **Story**: Audio play button, "Next Chapter", "Back to Folklore Map" have no handlers
 
 ### Code Defects
 - `resetOnboarding` declared 12 times in `VocabState` type (`src/data/vocab.ts`) — dead code
 - Quiz speaks **English** instead of Nepali (`speak(q.english, 'en-US')` in `app/quiz/[category].tsx:91`)
 - Duplicate category metadata across `app/index.tsx` and `app/progress.tsx`
 
-### Missing Dependencies
+### Installed Dependencies (previously missing)
+| Feature | Package |
+|---|---|
+| Speech recognition | `@dev-amirzubair/react-native-voice` |
+| AI/LLM | Gemini API (fetch-based) |
+| Push notifications | `expo-notifications` |
+| Network detection | `@react-native-community/netinfo` |
+
+### Still Missing
 | Needed For | Package |
 |---|---|
-| Speech recognition (Echo Practice) | `@react-native-voice/voice` or similar |
-| AI/LLM integration (AI Tutor) | API client (OpenAI, Gemini, etc.) |
-| Push notifications | `expo-notifications` |
 | Heatmap visualization | Charting library or custom SVG |
 
 ### Quality

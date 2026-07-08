@@ -7,7 +7,7 @@
 ## Project Context
 A React Native / Expo app (iOS/Android/Web) for learning Nepali vocabulary. Uses Supabase for auth and backend, Zustand + AsyncStorage for local state, NativeWind for styling.
 
-## Current State (June 30, 2026)
+## Current State (July 2, 2026)
 
 ### What's Done
 1. **Supabase OAuth** — Google Sign-In via `@react-native-google-signin` → `supabase.auth.signInWithIdToken`. Session managed by Supabase. Guest mode still works without auth.
@@ -21,22 +21,29 @@ A React Native / Expo app (iOS/Android/Web) for learning Nepali vocabulary. Uses
 9. **Notifications** — `expo-notifications` installed, service layer (`src/services/notifications.ts`) handles permissions/scheduling/removal. Settings has toggle + time picker + test notification.
 10. **Achievements** — 14 achievements with real unlock logic (words learned, categories mastered, streaks, XP). Dedicated screen + profile integration.
 11. **Echo Practice Speech Recognition** — `@dev-amirzubair/react-native-voice` integrated. `useSpeechRecognition` hook (`src/hooks/useSpeechRecognition.ts`) wraps the Voice API. After audio plays, mic auto-starts listening in `ne-NP`. Recognized text compared against Nepali script via fuzzy matching (Levenshtein threshold 0.7). Correct → green +10 XP bonus per word. Wrong → red + retry/skip. 5s timeout fallback. Completion: +30 + (correctCount × 10) XP.
+12. **AI Tutor** — Real Gemini 2.0 Flash integration via `src/services/ai.ts`. "Aama" persona teaches Nepali conversationally. Chat history persisted to Supabase `ai_chat_history` table.
+13. **Offline-First Architecture** — Network detection + queue + auto-sync:
+    - `src/services/network.ts` — NetInfo wrapper with listener pattern
+    - `src/services/offlineQueue.ts` — AsyncStorage queue for failed writes (key: `nepali-offline-queue`)
+    - `src/services/syncManager.ts` — FIFO processor, 3 retries max, auto-triggers on reconnect
+    - `src/contexts/NetworkContext.tsx` + `src/hooks/useNetworkState.ts` — React context/hook for components
+    - `db.ts` write ops queue on failure: LEARN_WORD, UNLEARN_WORD, ADD_XP, SAVE_CHAT_MESSAGE
+    - AI Tutor shows offline banner, disables send when disconnected
+    - Guest users unaffected (already local-only)
 
 ### SQL Migration ✅ RUN
 Tables `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_entries`, `ai_chat_history` + RPC `get_total_xp` are created.
 
 ### What's Next (Priority Order)
 1. **Enable Google Auth** in Supabase dashboard (Authentication → Providers → Google) and add the redirect URI to Google Cloud Console
-2. AI Tutor integration (Gemini/OpenAI)
-3. Wire up Story screen buttons (audio play, Next Chapter, Back to Folklore Map)
-4. Quality: remove `any` types, lint
+2. Wire up Story screen buttons (audio play, Next Chapter, Back to Folklore Map)
+3. Quality: remove `any` types, lint
 
 ### Known Issues
-- AI Tutor is still a static mock with no real LLM integration
 - Story audio play button has no handler
 - Story "Next Chapter" and "Back to Folklore Map" buttons have no `onPress`
-- `any` types scattered across codebase (13 occurrences)
-- Quiz English/Nepali speaking was fixed but verify on device
+- `any` types scattered across codebase
+- Pre-existing TS errors in achievements.tsx, learn.tsx, profile.tsx, QuickActionsModal.tsx (not from offline changes)
 
 ## Supabase Setup Checklist
 

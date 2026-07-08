@@ -1,32 +1,57 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import { networkManager } from './network';
+import { enqueue } from './offlineQueue';
 
 const AI_CHAT_STORAGE_KEY = 'nepali-ai-chat';
+const JOURNAL_STORAGE_KEY = 'nepali-journal';
 
 export async function upsertProfile(userId: string, name: string, email: string, avatarUrl?: string) {
   if (userId.startsWith('__guest__')) return;
-  const { error } = await supabase
-    .from('profiles')
-    .upsert({ id: userId, name, email, avatar_url: avatarUrl }, { onConflict: 'id' });
-  if (error) console.warn('upsertProfile failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, name, email, avatar_url: avatarUrl }, { onConflict: 'id' });
+    if (!error) return;
+    console.warn('upsertProfile failed, queueing:', error.message);
+  }
+
+  await enqueue(
+    {
+      type: 'UPSERT_PROFILE',
+      payload: { userId, profileName: name, profileEmail: email, profileAvatarUrl: avatarUrl },
+    },
+    `profile-${userId}`
+  );
 }
 
 export async function syncLearnWord(userId: string, wordId: number) {
   if (userId.startsWith('__guest__')) return;
-  const { error } = await supabase
-    .from('user_learned_words')
-    .upsert({ user_id: userId, word_id: wordId }, { onConflict: 'user_id,word_id' });
-  if (error) console.warn('syncLearnWord failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('user_learned_words')
+      .upsert({ user_id: userId, word_id: wordId }, { onConflict: 'user_id,word_id' });
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'LEARN_WORD', payload: { userId, wordId } });
 }
 
 export async function syncUnlearnWord(userId: string, wordId: number) {
   if (userId.startsWith('__guest__')) return;
-  const { error } = await supabase
-    .from('user_learned_words')
-    .delete()
-    .eq('user_id', userId)
-    .eq('word_id', wordId);
-  if (error) console.warn('syncUnlearnWord failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('user_learned_words')
+      .delete()
+      .eq('user_id', userId)
+      .eq('word_id', wordId);
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'UNLEARN_WORD', payload: { userId, wordId } });
 }
 
 export async function fetchLearnedWords(userId: string): Promise<number[]> {
@@ -42,40 +67,85 @@ export async function fetchLearnedWords(userId: string): Promise<number[]> {
   return data.map(r => r.word_id);
 }
 
+export interface StoredJournalEntry {
+  prompt_nepali: string;
+  prompt_roman: string;
+  prompt_english: string;
+  response_text: string;
+  created_at: string;
+}
+
+export type SaveJournalResult =
+  | { saved: true; queued?: false; guest?: boolean }
+  | { saved: true; queued: true };
+
 export async function saveJournalEntry(
   userId: string,
   promptNepali: string,
   promptRoman: string,
   promptEnglish: string,
   responseText: string,
-) {
+): Promise<SaveJournalResult> {
   if (userId.startsWith('__guest__')) {
-    return { guest: true };
-  }
-  const { data, error } = await supabase
-    .from('journal_entries')
-    .insert({
-      user_id: userId,
+    const key = `${JOURNAL_STORAGE_KEY}-${userId}`;
+    const raw = await AsyncStorage.getItem(key);
+    const entries: StoredJournalEntry[] = raw ? JSON.parse(raw) : [];
+    entries.push({
       prompt_nepali: promptNepali,
       prompt_roman: promptRoman,
       prompt_english: promptEnglish,
       response_text: responseText,
-    })
-    .select('id')
-    .single();
-  if (error) {
-    console.warn('saveJournalEntry failed:', error.message);
-    return null;
+      created_at: new Date().toISOString(),
+    });
+    await AsyncStorage.setItem(key, JSON.stringify(entries));
+    return { saved: true, guest: true };
   }
-  return data;
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('journal_entries')
+      .insert({
+        user_id: userId,
+        prompt_nepali: promptNepali,
+        prompt_roman: promptRoman,
+        prompt_english: promptEnglish,
+        response_text: responseText,
+      });
+    if (!error) return { saved: true };
+    console.warn('saveJournalEntry failed, queueing:', error.message);
+  }
+
+  await enqueue({
+    type: 'SAVE_JOURNAL',
+    payload: { userId, promptNepali, promptRoman, promptEnglish, responseText },
+  });
+  return { saved: true, queued: true };
 }
 
-export async function addXp(userId: string, amount: number, source: 'lesson' | 'quiz' | 'journal' | 'streak' | 'echo_practice' | 'ai_tutor') {
+export type XpSource =
+  | 'lesson'
+  | 'quiz'
+  | 'journal'
+  | 'streak'
+  | 'echo_practice'
+  | 'ai_tutor'
+  | 'review'
+  | 'mistakes'
+  | 'sentence'
+  | 'listening'
+  | 'grammar';
+
+export async function addXp(userId: string, amount: number, source: XpSource) {
   if (userId.startsWith('__guest__')) return;
-  const { error } = await supabase
-    .from('user_xp')
-    .insert({ user_id: userId, xp_amount: amount, source });
-  if (error) console.warn('addXp failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('user_xp')
+      .insert({ user_id: userId, xp_amount: amount, source });
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'ADD_XP', payload: { userId, xpAmount: amount, xpSource: source } });
 }
 
 export async function getTotalXp(userId: string): Promise<number> {
@@ -91,48 +161,6 @@ export async function getTotalXp(userId: string): Promise<number> {
     return fallback.reduce((sum, r) => sum + r.xp_amount, 0);
   }
   return data || 0;
-}
-
-export async function updateStreak(userId: string) {
-  if (userId.startsWith('__guest__')) return null;
-  const today = new Date().toISOString().split('T')[0];
-
-  const { data: existing } = await supabase
-    .from('user_streaks')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-
-  if (!existing) {
-    await supabase
-      .from('user_streaks')
-      .insert({ user_id: userId, current_streak: 1, longest_streak: 1, last_activity_date: today });
-    return { current_streak: 1, longest_streak: 1 };
-  }
-
-  const lastDate = existing.last_activity_date;
-  let newCurrent = existing.current_streak;
-  let newLongest = existing.longest_streak;
-
-  if (lastDate !== today) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-    if (lastDate === yesterdayStr) {
-      newCurrent += 1;
-    } else {
-      newCurrent = 1;
-    }
-    if (newCurrent > newLongest) newLongest = newCurrent;
-  }
-
-  await supabase
-    .from('user_streaks')
-    .update({ current_streak: newCurrent, longest_streak: newLongest, last_activity_date: today })
-    .eq('user_id', userId);
-
-  return { current_streak: newCurrent, longest_streak: newLongest };
 }
 
 export async function getStreak(userId: string): Promise<{ current_streak: number; longest_streak: number }> {
@@ -165,10 +193,15 @@ export async function saveChatMessage(
     await AsyncStorage.setItem(key, JSON.stringify(msgs));
     return;
   }
-  const { error } = await supabase
-    .from('ai_chat_history')
-    .insert({ user_id: userId, role, content });
-  if (error) console.warn('saveChatMessage failed:', error.message);
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('ai_chat_history')
+      .insert({ user_id: userId, role, content });
+    if (!error) return;
+  }
+
+  await enqueue({ type: 'SAVE_CHAT_MESSAGE', payload: { userId, chatRole: role, chatContent: content } });
 }
 
 export async function fetchChatHistory(

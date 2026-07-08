@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PersistStorage } from 'zustand/middleware';
 import { syncLearnWord, syncUnlearnWord, fetchLearnedWords } from '../services/db';
+import { useSrsStore } from '../stores/srs';
 
 const asyncStorage: PersistStorage<VocabState> = {
   getItem: async (name) => {
@@ -68,6 +69,7 @@ export const useVocabStore = create<VocabState>()(
         if (userLearned.includes(id)) return;
         set({ learnedByUser: { ...get().learnedByUser, [userId]: [...userLearned, id] } });
         syncLearnWord(userId, id);
+        useSrsStore.getState().seedWord(userId, id);
       },
       unlearnWord: (userId, id) => {
         const userLearned = get().learnedByUser[userId] || [];
@@ -83,6 +85,7 @@ export const useVocabStore = create<VocabState>()(
         } else {
           set({ learnedByUser: { ...get().learnedByUser, [userId]: [...userLearned, id] } });
           syncLearnWord(userId, id);
+          useSrsStore.getState().seedWord(userId, id);
         }
       },
       getLearned: (userId) => get().learnedByUser[userId] || [],

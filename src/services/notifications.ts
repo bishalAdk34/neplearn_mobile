@@ -2,7 +2,9 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'nepali-notifications';
+const LOG_KEY = 'nepali-notification-log';
 const DAILY_REMINDER_ID = 'daily-practice-reminder';
+const LOG_LIMIT = 50;
 
 let NotificationsModule: typeof import('expo-notifications') | null = null;
 
@@ -79,16 +81,42 @@ export async function requestPermissions(): Promise<boolean> {
   return true;
 }
 
-export async function scheduleDailyReminder(hour: number, minute: number): Promise<void> {
+function reminderContent(streakDays: number): { title: string; body: string } {
+  if (streakDays >= 30) {
+    return {
+      title: `🔥 ${streakDays}-day streak!`,
+      body: 'A month of dedication! A few minutes of Nepali today keeps the flame burning.',
+    };
+  }
+  if (streakDays >= 7) {
+    return {
+      title: `🔥 ${streakDays}-day streak — keep going!`,
+      body: `Do not break your ${streakDays}-day streak. A quick review is all it takes.`,
+    };
+  }
+  if (streakDays >= 2) {
+    return {
+      title: `You're on a ${streakDays}-day streak!`,
+      body: 'Practice your Nepali today and keep the momentum going.',
+    };
+  }
+  return {
+    title: 'Time to practice!',
+    body: 'Keep your streak alive — practice your Nepali vocabulary today.',
+  };
+}
+
+export async function scheduleDailyReminder(hour: number, minute: number, streakDays = 0): Promise<void> {
   const Notifications = await getNotifications();
   if (!Notifications) return;
 
   await cancelDailyReminder();
+  const content = reminderContent(streakDays);
   await Notifications.scheduleNotificationAsync({
     identifier: DAILY_REMINDER_ID,
     content: {
-      title: 'Time to practice!',
-      body: 'Keep your streak alive — practice your Nepali vocabulary today.',
+      title: content.title,
+      body: content.body,
       sound: true,
     },
     trigger: {
@@ -99,6 +127,79 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
       timezone: NEPAL_TIMEZONE,
     },
   });
+}
+
+/** Re-schedule the daily reminder (if enabled) with fresh streak-aware copy. */
+export async function refreshDailyReminder(streakDays: number): Promise<void> {
+  const prefs = await getPrefs();
+  if (!prefs.enabled) return;
+  await scheduleDailyReminder(prefs.reminderHour, prefs.reminderMinute, streakDays);
+}
+
+export type ScheduledReminder = {
+  identifier: string;
+  title: string;
+  body: string;
+  hour: number | null;
+  minute: number | null;
+};
+
+export async function getScheduledReminders(): Promise<ScheduledReminder[]> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return [];
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  return scheduled.map(n => {
+    const trigger = n.trigger as { hour?: number; minute?: number } | null;
+    return {
+      identifier: n.identifier,
+      title: n.content.title ?? 'Reminder',
+      body: n.content.body ?? '',
+      hour: trigger?.hour ?? null,
+      minute: trigger?.minute ?? null,
+    };
+  });
+}
+
+export type NotificationLogEntry = {
+  id: string;
+  title: string;
+  body: string;
+  receivedAt: string; // ISO
+};
+
+export async function getNotificationLog(): Promise<NotificationLogEntry[]> {
+  try {
+    const raw = await AsyncStorage.getItem(LOG_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+async function appendNotificationLog(entry: NotificationLogEntry): Promise<void> {
+  const log = await getNotificationLog();
+  const next = [entry, ...log].slice(0, LOG_LIMIT);
+  await AsyncStorage.setItem(LOG_KEY, JSON.stringify(next));
+}
+
+export async function clearNotificationLog(): Promise<void> {
+  await AsyncStorage.removeItem(LOG_KEY);
+}
+
+/** Listen for delivered notifications and log them. Returns an unsubscribe fn. */
+export async function initNotificationLogListener(): Promise<() => void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return () => {};
+
+  const sub = Notifications.addNotificationReceivedListener(notification => {
+    appendNotificationLog({
+      id: notification.request.identifier + '-' + Date.now(),
+      title: notification.request.content.title ?? 'Notification',
+      body: notification.request.content.body ?? '',
+      receivedAt: new Date().toISOString(),
+    }).catch(() => {});
+  });
+  return () => sub.remove();
 }
 
 export async function cancelDailyReminder(): Promise<void> {

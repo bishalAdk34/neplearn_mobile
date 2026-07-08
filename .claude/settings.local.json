@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(npx expo install expo-haptics)",
+      "Bash(node -e:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}

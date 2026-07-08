@@ -1,4 +1,5 @@
 import { GEMINI_API_KEY } from '../config';
+import { networkManager } from './network';
 
 const MODEL = 'gemini-2.5-flash';
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
@@ -42,11 +43,20 @@ async function fetchWithRetry(
   return res;
 }
 
+export function isOffline(): boolean {
+  return !networkManager.getIsConnected();
+}
+}
+
 export async function sendMessage(
   history: ChatMessage[],
   newMessage: string,
   context?: string,
 ): Promise<string> {
+  if (!networkManager.getIsConnected()) {
+    return 'You are currently offline. Aama needs an internet connection to respond. Please reconnect and try again. 🙏';
+  }
+
   const contents = history.map(msg => ({
     role: msg.role,
     parts: [{ text: msg.text }],

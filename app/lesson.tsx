@@ -4,8 +4,12 @@ import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
+import { useSrsStore } from '../src/stores/srs';
 import { speak } from '../src/services/tts';
-import { addXp, updateStreak } from '../src/services/db';
+import { awardXp } from '../src/services/xp';
+import { colors } from '../src/theme';
+import { ProgressBar } from '../src/components/ui';
+import { hapticSuccess, hapticError } from '../src/utils/haptics';
 
 const Lesson = () => {
   const router = useRouter();
@@ -43,10 +47,14 @@ const Lesson = () => {
     const correct = selectedOption === currentWord.id;
     setIsCorrect(correct);
     setIsAnswerChecked(true);
+    useSrsStore.getState().recordResult(uid, currentWord.id, correct, 'lesson');
     if (correct) {
+      hapticSuccess();
       if (!isLearned(uid, currentWord.id)) learnWord(uid, currentWord.id);
       setCorrectCount(prev => prev + 1);
       speak(currentWord.nepali, 'ne-NP');
+    } else {
+      hapticError();
     }
   };
 
@@ -70,26 +78,21 @@ const Lesson = () => {
   useEffect(() => {
     if (isLessonComplete && !xpAwarded) {
       setXpAwarded(true);
+      hapticSuccess();
       const earned = correctCount * 20;
-      if (uid === GUEST_ID) {
-        useVocabStore.getState().addLocalXp(uid, earned);
-        useVocabStore.getState().addLocalStreak(uid);
-      } else {
-        addXp(uid, earned, 'lesson');
-        updateStreak(uid);
-      }
+      awardXp(uid, earned, 'lesson');
     }
   }, [isLessonComplete]);
 
   if (isLessonComplete) {
     return (
-      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-1 items-center justify-center px-5 bg-cream">
         <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>🎉</Text>
-        <Text className="text-[#4A1942] text-2xl font-bold mb-2">Lesson Complete!</Text>
-        <Text className="text-[#6B7280] text-base mb-2">You got {correctCount}/{sessionWords.length} correct</Text>
-        <Text className="text-[#800816] text-sm font-semibold mb-6">+{correctCount * 20} XP earned</Text>
+        <Text className="text-ink text-2xl font-bold mb-2">Lesson Complete!</Text>
+        <Text style={{ color: colors.textSecondary }} className="text-base mb-2">You got {correctCount}/{sessionWords.length} correct</Text>
+        <Text className="text-brand text-sm font-semibold mb-6">+{correctCount * 20} XP earned</Text>
         <TouchableOpacity
-          style={{ backgroundColor: '#800816', borderRadius: 12 }}
+          style={{ backgroundColor: colors.primary, borderRadius: 12 }}
           className="px-8 py-4 w-full items-center"
           onPress={() => router.push('/')}
         >
@@ -102,41 +105,39 @@ const Lesson = () => {
   if (!currentWord) return null;
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#FBF9F4' }}>
+    <View className="flex-1 bg-cream">
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="close" size={24} color="#6B7280" />
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         <View className="flex-1 mx-4">
-          <View style={{ backgroundColor: '#E5D5D0' }} className="h-2 rounded-full overflow-hidden">
-            <View style={{ width: `${progress}%`, backgroundColor: '#800816' }} className="h-full rounded-full" />
-          </View>
+          <ProgressBar progress={progress / 100} height={8} color={colors.primary} trackColor={colors.border} />
         </View>
-        <View style={{ backgroundColor: '#FEF3C7' }} className="px-3 py-1 rounded-full">
-          <Text className="text-[#92400E] text-sm font-bold">{currentIndex + 1}/{sessionWords.length}</Text>
+        <View style={{ backgroundColor: colors.warmSurface }} className="px-3 py-1 rounded-full">
+          <Text style={{ color: colors.warmInk }} className="text-sm font-bold">{currentIndex + 1}/{sessionWords.length}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {/* Title */}
         <View className="px-5 mb-6 items-center">
-          <Text className="text-[#4A1942] text-xl font-bold mb-2">What does this mean?</Text>
+          <Text className="text-ink text-xl font-bold mb-2">What does this mean?</Text>
         </View>
 
         {/* Word Card */}
         <View className="px-5 mb-8 items-center">
-          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 2, borderColor: isAnswerChecked ? (isCorrect ? '#10B981' : '#EF4444') : '#E5D5D0' }} className="p-6 w-full items-center shadow-sm">
+          <View style={{ backgroundColor: colors.surface, borderRadius: 24, borderWidth: 2, borderColor: isAnswerChecked ? (isCorrect ? colors.success : colors.danger) : colors.border }} className="p-6 w-full items-center shadow-sm">
             {currentWord.image?.startsWith('http') ? (
               <Image source={{ uri: currentWord.image }} className="w-32 h-32 rounded-xl mb-4" />
             ) : (
               <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{currentWord.image || '📖'}</Text>
             )}
-            <Text className="text-[#800816] text-4xl font-bold mb-1">{currentWord.nepali}</Text>
-            <Text className="text-[#6B7280] text-lg">{currentWord.roman}</Text>
+            <Text className="text-brand text-4xl font-bold mb-1">{currentWord.nepali}</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-lg">{currentWord.roman}</Text>
             <TouchableOpacity className="mt-4" onPress={() => speak(currentWord.nepali, 'ne-NP')}>
               <View style={{ backgroundColor: '#FEE2E2' }} className="w-10 h-10 rounded-full items-center justify-center">
-                <Text className="text-[#800816]">🔊</Text>
+                <Text className="text-brand">🔊</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -147,19 +148,19 @@ const Lesson = () => {
           {options.map((opt) => {
             const isSelected = selectedOption === opt.id;
             const isCorrectOption = opt.id === currentWord.id;
-            let borderColor = '#E5D5D0';
-            let bgColor = '#FFFFFF';
+            let borderColor: string = colors.border;
+            let bgColor: string = colors.surface;
 
             if (isAnswerChecked) {
               if (isCorrectOption) {
-                borderColor = '#10B981';
+                borderColor = colors.success;
                 bgColor = '#D1FAE5';
               } else if (isSelected && !isCorrect) {
-                borderColor = '#EF4444';
+                borderColor = colors.danger;
                 bgColor = '#FEE2E2';
               }
             } else if (isSelected) {
-              borderColor = '#800816';
+              borderColor = colors.primary;
               bgColor = '#FEE2E2';
             }
 
@@ -171,9 +172,9 @@ const Lesson = () => {
                 className="p-4 mb-3 flex-row items-center"
                 onPress={() => setSelectedOption(opt.id)}
               >
-                <Text className="text-[#4A1942] text-base font-semibold flex-1">{opt.english}</Text>
-                {isAnswerChecked && isCorrectOption && <Text className="text-[#10B981] text-xl">✓</Text>}
-                {isAnswerChecked && isSelected && !isCorrect && <Text className="text-[#EF4444] text-xl">✕</Text>}
+                <Text className="text-ink text-base font-semibold flex-1">{opt.english}</Text>
+                {isAnswerChecked && isCorrectOption && <Text style={{ color: colors.success }} className="text-xl">✓</Text>}
+                {isAnswerChecked && isSelected && !isCorrect && <Text style={{ color: colors.danger }} className="text-xl">✕</Text>}
               </TouchableOpacity>
             );
           })}
@@ -181,18 +182,18 @@ const Lesson = () => {
       </ScrollView>
 
       {/* Bottom Buttons */}
-      <View className="flex-row px-5 pb-8 pt-4 gap-3" style={{ backgroundColor: '#FBF9F4' }}>
+      <View className="flex-row px-5 pb-8 pt-4 gap-3 bg-cream">
         {!isAnswerChecked ? (
           <>
             <TouchableOpacity
-              style={{ backgroundColor: '#F3F4F6' }}
+              style={{ backgroundColor: colors.mutedSurface }}
               className="flex-1 py-4 rounded-xl items-center"
               onPress={handleSkip}
             >
-              <Text className="text-[#6B7280] font-bold">SKIP</Text>
+              <Text style={{ color: colors.textSecondary }} className="font-bold">SKIP</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={{ backgroundColor: selectedOption !== null ? '#800816' : '#D1D5DB' }}
+              style={{ backgroundColor: selectedOption !== null ? colors.primary : colors.disabled }}
               className="flex-1 py-4 rounded-xl items-center"
               disabled={selectedOption === null}
               onPress={handleCheck}
@@ -202,7 +203,7 @@ const Lesson = () => {
           </>
         ) : (
           <TouchableOpacity
-            style={{ backgroundColor: isCorrect ? '#10B981' : '#800816' }}
+            style={{ backgroundColor: isCorrect ? colors.success : colors.primary }}
             className="flex-1 py-4 rounded-xl items-center"
             onPress={handleNext}
           >
