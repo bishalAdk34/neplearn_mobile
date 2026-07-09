@@ -33,7 +33,7 @@ export type LearningLevel = 'beginner' | 'intermediate' | 'advanced';
 type VocabState = {
   learnedByUser: Record<string, number[]>;
   localXp: Record<string, number>;
-  localStreak: Record<string, { current: number; longest: number; lastDate: string }>;
+  localStreak: Record<string, { current: number; longest: number; lastDate: string; freezeWeek?: string }>;
   learningGoal: LearningGoal | null;
   learningLevel: LearningLevel | null;
   onboardingDone: boolean;
@@ -50,7 +50,18 @@ type VocabState = {
   getLocalXp: (userId: string) => number;
   addLocalStreak: (userId: string) => void;
   getLocalStreak: (userId: string) => { current: number; longest: number };
+  getFreezeAvailable: (userId: string) => boolean;
 };
+
+/** ISO week string like '2026-W28' — one streak freeze allowed per week. */
+export function isoWeekOf(date: Date): string {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
 
 export const useVocabStore = create<VocabState>()(
   persist(
@@ -111,13 +122,32 @@ export const useVocabStore = create<VocabState>()(
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = yesterday.toISOString().split('T')[0];
-        let newCurrent = existing.lastDate === yesterdayStr ? existing.current + 1 : 1;
+        const dayBefore = new Date();
+        dayBefore.setDate(dayBefore.getDate() - 2);
+        const dayBeforeStr = dayBefore.toISOString().split('T')[0];
+        const thisWeek = isoWeekOf(new Date());
+
+        let newCurrent: number;
+        let newFreezeWeek = existing.freezeWeek;
+        if (existing.lastDate === yesterdayStr) {
+          newCurrent = existing.current + 1;
+        } else if (existing.lastDate === dayBeforeStr && existing.freezeWeek !== thisWeek) {
+          // Missed exactly one day and this week's freeze is unused: consume it.
+          newCurrent = existing.current + 1;
+          newFreezeWeek = thisWeek;
+        } else {
+          newCurrent = 1;
+        }
         const newLongest = Math.max(newCurrent, existing.longest);
-        set({ localStreak: { ...get().localStreak, [userId]: { current: newCurrent, longest: newLongest, lastDate: today } } });
+        set({ localStreak: { ...get().localStreak, [userId]: { current: newCurrent, longest: newLongest, lastDate: today, freezeWeek: newFreezeWeek } } });
       },
       getLocalStreak: (userId) => {
         const s = get().localStreak[userId];
         return s ? { current: s.current, longest: s.longest } : { current: 0, longest: 0 };
+      },
+      getFreezeAvailable: (userId) => {
+        const s = get().localStreak[userId];
+        return !s || s.freezeWeek !== isoWeekOf(new Date());
       },
     }),
     {
@@ -132,7 +162,7 @@ export const GUEST_ID = '__guest__';
 export const categories = [
   'greetings', 'numbers', 'colors', 'family', 'food',
   'directions', 'days', 'time', 'adjectives', 'places',
-  'verbs', 'questions', 'body', 'animals',
+  'verbs', 'questions', 'body', 'animals', 'months',
 ] as const;
 
 export type Category = (typeof categories)[number];
@@ -152,6 +182,7 @@ export const CATEGORY_META: Record<Category, { emoji: string; color: string }> =
   questions: { emoji: '❓', color: '#F59E0B' },
   body: { emoji: '🫁', color: '#14B8A6' },
   animals: { emoji: '🐾', color: '#F97316' },
+  months: { emoji: '🗓️', color: '#84CC16' },
 };
 
 export const vocab: Word[] = [
@@ -354,6 +385,40 @@ export const vocab: Word[] = [
   { id: 170, english: 'Rabbit', nepali: 'खरायो', roman: 'Kharaayo', category: 'animals', image: '🐇' },
   { id: 171, english: 'Goat', nepali: 'बाख्रा', roman: 'Bakhraa', category: 'animals', image: '🐐' },
   { id: 172, english: 'Elephant', nepali: 'हात्ती', roman: 'Haatti', category: 'animals', image: '🐘' },
+
+  // Numbers 11-20 and tens (new ids 173+; never renumber existing ids)
+  { id: 173, english: 'Eleven', nepali: 'एघार', roman: 'Eghaara', category: 'numbers', image: '1️⃣1️⃣' },
+  { id: 174, english: 'Twelve', nepali: 'बाह्र', roman: 'Baahra', category: 'numbers', image: '1️⃣2️⃣' },
+  { id: 175, english: 'Thirteen', nepali: 'तेह्र', roman: 'Tehra', category: 'numbers', image: '1️⃣3️⃣' },
+  { id: 176, english: 'Fourteen', nepali: 'चौध', roman: 'Chaudha', category: 'numbers', image: '1️⃣4️⃣' },
+  { id: 177, english: 'Fifteen', nepali: 'पन्ध्र', roman: 'Pandhra', category: 'numbers', image: '1️⃣5️⃣' },
+  { id: 178, english: 'Sixteen', nepali: 'सोह्र', roman: 'Sohra', category: 'numbers', image: '1️⃣6️⃣' },
+  { id: 179, english: 'Seventeen', nepali: 'सत्र', roman: 'Satra', category: 'numbers', image: '1️⃣7️⃣' },
+  { id: 180, english: 'Eighteen', nepali: 'अठार', roman: 'Athaara', category: 'numbers', image: '1️⃣8️⃣' },
+  { id: 181, english: 'Nineteen', nepali: 'उन्नाइस', roman: 'Unnaais', category: 'numbers', image: '1️⃣9️⃣' },
+  { id: 182, english: 'Twenty', nepali: 'बीस', roman: 'Bees', category: 'numbers', image: '2️⃣0️⃣' },
+  { id: 183, english: 'Thirty', nepali: 'तीस', roman: 'Tees', category: 'numbers', image: '3️⃣0️⃣' },
+  { id: 184, english: 'Forty', nepali: 'चालीस', roman: 'Chaalis', category: 'numbers', image: '4️⃣0️⃣' },
+  { id: 185, english: 'Fifty', nepali: 'पचास', roman: 'Pachaas', category: 'numbers', image: '5️⃣0️⃣' },
+  { id: 186, english: 'Sixty', nepali: 'साठी', roman: 'Saathi', category: 'numbers', image: '6️⃣0️⃣' },
+  { id: 187, english: 'Seventy', nepali: 'सत्तरी', roman: 'Sattari', category: 'numbers', image: '7️⃣0️⃣' },
+  { id: 188, english: 'Eighty', nepali: 'असी', roman: 'Asi', category: 'numbers', image: '8️⃣0️⃣' },
+  { id: 189, english: 'Ninety', nepali: 'नब्बे', roman: 'Nabbe', category: 'numbers', image: '9️⃣0️⃣' },
+  { id: 190, english: 'Hundred', nepali: 'सय', roman: 'Saya', category: 'numbers', image: '💯' },
+
+  // Nepali calendar months (Bikram Sambat)
+  { id: 191, english: 'Baishakh (Apr-May)', nepali: 'वैशाख', roman: 'Baishakh', category: 'months', image: '🌸' },
+  { id: 192, english: 'Jestha (May-Jun)', nepali: 'जेठ', roman: 'Jeth', category: 'months', image: '☀️' },
+  { id: 193, english: 'Ashadh (Jun-Jul)', nepali: 'असार', roman: 'Asaar', category: 'months', image: '🌧️' },
+  { id: 194, english: 'Shrawan (Jul-Aug)', nepali: 'साउन', roman: 'Saaun', category: 'months', image: '💚' },
+  { id: 195, english: 'Bhadra (Aug-Sep)', nepali: 'भदौ', roman: 'Bhadau', category: 'months', image: '🌾' },
+  { id: 196, english: 'Ashwin (Sep-Oct)', nepali: 'असोज', roman: 'Asoj', category: 'months', image: '🎉' },
+  { id: 197, english: 'Kartik (Oct-Nov)', nepali: 'कात्तिक', roman: 'Kaattik', category: 'months', image: '🪔' },
+  { id: 198, english: 'Mangsir (Nov-Dec)', nepali: 'मंसिर', roman: 'Mangsir', category: 'months', image: '🌾' },
+  { id: 199, english: 'Poush (Dec-Jan)', nepali: 'पुस', roman: 'Pus', category: 'months', image: '❄️' },
+  { id: 200, english: 'Magh (Jan-Feb)', nepali: 'माघ', roman: 'Maagh', category: 'months', image: '🧣' },
+  { id: 201, english: 'Falgun (Feb-Mar)', nepali: 'फागुन', roman: 'Phaagun', category: 'months', image: '🌈' },
+  { id: 202, english: 'Chaitra (Mar-Apr)', nepali: 'चैत', roman: 'Chait', category: 'months', image: '🌱' },
 ];
 
 export function getWordsByCategory(cat: string): Word[] {

@@ -66,8 +66,34 @@ const Progress = () => {
         </View>
       </View>
 
+      {/* Weekly Leaderboard entry */}
+      <View className="px-5 mt-4 mb-1">
+        <Link href="/leaderboard" asChild>
+          <TouchableOpacity
+            className="bg-white p-4 flex-row items-center"
+            style={{
+              borderRadius: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.06,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+          >
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#FEF3C7' }}>
+              <Text className="text-xl">🏆</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-base font-bold text-[#1A1A2E]">Weekly Leaderboard</Text>
+              <Text className="text-sm" style={{ color: '#64748B' }}>See how your XP ranks this week</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+          </TouchableOpacity>
+        </Link>
+      </View>
+
       {/* Stats */}
-      <View className="px-5 -mt-4">
+      <View className="px-5 mt-3">
         {stats.map((s) => {
           const meta = CATEGORY_META[s.cat];
           const color = meta.color;

@@ -12,6 +12,8 @@ export interface UserStats {
   listeningSessions: number;
   /** Grammar tip ids that have been read. */
   grammarRead: number[];
+  /** Culture card ids that have been read. */
+  cultureRead: number[];
   /** Dates (YYYY-MM-DD) where the daily XP goal was hit. */
   goalDays: string[];
 }
@@ -21,6 +23,7 @@ const EMPTY_STATS: UserStats = {
   sentencesCompleted: 0,
   listeningSessions: 0,
   grammarRead: [],
+  cultureRead: [],
   goalDays: [],
 };
 
@@ -31,6 +34,7 @@ type StatsState = {
   incrementSentences: (userId: string, count?: number) => void;
   incrementListening: (userId: string) => void;
   markGrammarRead: (userId: string, tipId: number) => boolean;
+  markCultureRead: (userId: string, cardId: number) => boolean;
   recordGoalDay: (userId: string, date: string) => void;
 };
 
@@ -76,6 +80,13 @@ export const useStatsStore = create<StatsState>()(
           const s = get().statsByUser[userId] || EMPTY_STATS;
           if (s.grammarRead.includes(tipId)) return false;
           update(userId, { grammarRead: [...s.grammarRead, tipId] });
+          return true;
+        },
+        markCultureRead: (userId, cardId) => {
+          const s = get().statsByUser[userId] || EMPTY_STATS;
+          const read = s.cultureRead || [];
+          if (read.includes(cardId)) return false;
+          update(userId, { cultureRead: [...read, cardId] });
           return true;
         },
         recordGoalDay: (userId, date) => {

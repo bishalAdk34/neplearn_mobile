@@ -1,9 +1,11 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { vocab } from '../data/vocab';
 
 const STORAGE_KEY = 'nepali-notifications';
 const LOG_KEY = 'nepali-notification-log';
 const DAILY_REMINDER_ID = 'daily-practice-reminder';
+const WORD_OF_DAY_ID = 'word-of-day';
 const LOG_LIMIT = 50;
 
 let NotificationsModule: typeof import('expo-notifications') | null = null;
@@ -23,6 +25,8 @@ export type NotificationPrefs = {
   enabled: boolean;
   reminderHour: number;
   reminderMinute: number;
+  wordOfDayEnabled: boolean;
+  wordOfDayHour: number;
 };
 
 const NEPAL_TIMEZONE = 'Asia/Kathmandu';
@@ -31,6 +35,8 @@ const defaultPrefs: NotificationPrefs = {
   enabled: false,
   reminderHour: 17,
   reminderMinute: 35,
+  wordOfDayEnabled: false,
+  wordOfDayHour: 9,
 };
 
 export async function getPrefs(): Promise<NotificationPrefs> {
@@ -134,6 +140,59 @@ export async function refreshDailyReminder(streakDays: number): Promise<void> {
   const prefs = await getPrefs();
   if (!prefs.enabled) return;
   await scheduleDailyReminder(prefs.reminderHour, prefs.reminderMinute, streakDays);
+}
+
+/** Deterministic word for a given date: dayOfYear % vocab.length. */
+function wordOfDayFor(date: Date): { english: string; nepali: string; roman: string } {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - start.getTime()) / 86400000);
+  return vocab[dayOfYear % vocab.length];
+}
+
+export async function scheduleWordOfDay(hour: number): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
+  await cancelWordOfDay();
+
+  // Bake tomorrow's word if today's slot already passed, else today's.
+  const now = new Date();
+  const target = new Date(now);
+  if (now.getHours() >= hour) target.setDate(target.getDate() + 1);
+  const word = wordOfDayFor(target);
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: WORD_OF_DAY_ID,
+    content: {
+      title: `📖 Word of the day: ${word.english}`,
+      body: `${word.nepali} (${word.roman}) — open NepLearn to practice it!`,
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+      hour,
+      minute: 0,
+      repeats: true,
+      timezone: NEPAL_TIMEZONE,
+    },
+  });
+}
+
+export async function cancelWordOfDay(): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  if (scheduled.some(n => n.identifier === WORD_OF_DAY_ID)) {
+    await Notifications.cancelScheduledNotificationAsync(WORD_OF_DAY_ID);
+  }
+}
+
+/** Re-bake word-of-day content (if enabled) so the repeating trigger carries a fresh word. */
+export async function refreshWordOfDay(): Promise<void> {
+  const prefs = await getPrefs();
+  if (!prefs.wordOfDayEnabled) return;
+  await scheduleWordOfDay(prefs.wordOfDayHour);
 }
 
 export type ScheduledReminder = {

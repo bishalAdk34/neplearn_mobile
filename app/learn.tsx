@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { categories, vocab, CATEGORY_META, GUEST_ID, getWordsByCategory } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
+import { getPrioritizedCategories } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
 import { useMistakesStore } from '../src/stores/mistakes';
 import { ScreenHeader, ProgressBar } from '../src/components/ui';
@@ -13,7 +14,8 @@ import { colors, shadows } from '../src/theme';
 const Learn = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
-  const { isLearned } = useVocabStore();
+  const { isLearned, learningGoal, learningLevel } = useVocabStore();
+  const learnedByUser = useVocabStore(s => s.learnedByUser);
   const uid = user?.id || GUEST_ID;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -40,12 +42,14 @@ const Learn = () => {
   const mistakesByUser = useMistakesStore(s => s.mistakesByUser);
   const mistakeCount = Object.values(mistakesByUser[uid] || {}).filter(m => !m.resolved).length;
 
-  const categoryStats = categories.map(cat => {
-    const words = getWordsByCategory(cat);
-    const learned = words.filter(w => isLearned(uid, w.id)).length;
-    const meta = CATEGORY_META[cat];
-    return { cat, learned, total: words.length, emoji: meta.emoji, color: meta.color };
-  });
+  const categoryStats = useMemo(() =>
+    getPrioritizedCategories(learningGoal, learningLevel).map(cat => {
+      const words = getWordsByCategory(cat);
+      const learned = words.filter(w => isLearned(uid, w.id)).length;
+      const meta = CATEGORY_META[cat];
+      return { cat, learned, total: words.length, emoji: meta.emoji, color: meta.color };
+    }),
+  [learningGoal, learningLevel, uid, learnedByUser]);
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -160,6 +164,10 @@ const Learn = () => {
                 { href: '/sentence-builder', emoji: '🧩', label: 'Sentences', sub: 'Build & fill' },
                 { href: '/listening', emoji: '🎧', label: 'Listening', sub: 'Train your ear' },
                 { href: '/practice-mistakes', emoji: '🎯', label: 'Mistakes', sub: mistakeCount > 0 ? `${mistakeCount} to fix` : 'None to fix' },
+                { href: '/story', emoji: '📖', label: 'Stories', sub: 'Read & understand' },
+                { href: '/culture', emoji: '🪔', label: 'Culture', sub: 'Customs & festivals' },
+                { href: '/roleplay', emoji: '🎭', label: 'Roleplay', sub: 'Practice scenarios' },
+                { href: '/photo-vocab', emoji: '📷', label: 'Photo Vocab', sub: 'Snap & learn' },
               ].map(item => (
                 <Link key={item.href} href={item.href as any} asChild>
                   <TouchableOpacity
@@ -175,7 +183,7 @@ const Learn = () => {
             </View>
 
             <Text className="text-ink text-base font-semibold mb-3">Browse by Category</Text>
-            {categoryStats.map((s) => (
+            {categoryStats.map((s, index) => (
               <View
                 key={s.cat}
                 style={{ backgroundColor: colors.surface, borderRadius: 16, ...shadows.card }}
@@ -186,7 +194,14 @@ const Learn = () => {
                     <Text className="text-2xl">{s.emoji}</Text>
                   </View>
                   <View className="flex-1">
-                    <Text className="text-ink text-lg font-bold capitalize">{s.cat}</Text>
+                    <View className="flex-row items-center">
+                      <Text className="text-ink text-lg font-bold capitalize">{s.cat}</Text>
+                      {learningGoal !== null && index < 3 && (
+                        <View style={{ backgroundColor: colors.primary + '15' }} className="px-2 py-0.5 rounded-full ml-2">
+                          <Text style={{ color: colors.primary }} className="text-xs font-semibold">Recommended</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={{ color: colors.textSecondary }} className="text-sm">{s.learned}/{s.total} words learned</Text>
                   </View>
                   <Text className="text-lg font-bold" style={{ color: s.color }}>{Math.round((s.learned / s.total) * 100)}%</Text>
@@ -201,6 +216,11 @@ const Learn = () => {
                   <Link href={`/quiz/${s.cat}`} asChild style={{ flex: 1 }}>
                     <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#EEF2FF' }}>
                       <Text className="text-sm font-semibold" style={{ color: colors.accent }}>✍️ Quiz</Text>
+                    </TouchableOpacity>
+                  </Link>
+                  <Link href={`/quiz/${s.cat}?mode=reverse`} asChild style={{ flex: 1 }}>
+                    <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#FEF3C7' }}>
+                      <Text className="text-sm font-semibold" style={{ color: colors.warmInk }}>🔁 Reverse</Text>
                     </TouchableOpacity>
                   </Link>
                 </View>

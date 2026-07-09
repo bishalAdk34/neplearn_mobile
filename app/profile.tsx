@@ -45,6 +45,7 @@ const Profile = () => {
   const firstName = userName.split(' ')[0];
 
   const preferences: { label: string; icon: string; route: string | null; onPress?: () => void }[] = [
+    { label: 'View Heatmap', icon: 'grid-outline', route: '/heatmap' },
     { label: 'Notifications', icon: 'notifications-outline', route: '/settings' },
     { label: 'App Settings', icon: 'settings-outline', route: '/settings' },
     { label: 'Help Center', icon: 'help-circle-outline', route: null },

@@ -23,11 +23,13 @@ export interface QueuedOperationPayload {
   streakCurrent?: number;
   streakLongest?: number;
   streakLastDate?: string;
+  streakFreezeWeek?: string;
   // SAVE_JOURNAL
   promptNepali?: string;
   promptRoman?: string;
   promptEnglish?: string;
   responseText?: string;
+  feedbackText?: string;
   // UPSERT_PROFILE
   profileName?: string;
   profileEmail?: string;

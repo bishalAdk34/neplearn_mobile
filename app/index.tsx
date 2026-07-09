@@ -3,8 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Alert } from 'r
 import { Link, useRouter } from 'expo-router';
 import BottomNav from '../src/components/BottomNav';
 import { Ionicons } from '@expo/vector-icons';
-import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
+import { categories, getWordsByCategory, CATEGORY_META, GUEST_ID } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
+import { getContinueCategory } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
 import { useSrsStore } from '../src/stores/srs';
 import { useMistakesStore } from '../src/stores/mistakes';
@@ -20,7 +21,7 @@ const Home = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
   const clearUser = useAuthStore(s => s.clearUser);
-  const { isLearned } = useVocabStore();
+  const { isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
   const [menuVisible, setMenuVisible] = useState(false);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
@@ -48,6 +49,7 @@ const Home = () => {
   const totalWords = categories.reduce((sum, cat) => sum + getWordsByCategory(cat).length, 0);
   const localXp = useVocabStore.getState().getLocalXp(uid);
   const localStreak = useVocabStore.getState().getLocalStreak(uid);
+  const freezeAvailable = useVocabStore.getState().getFreezeAvailable(uid);
   const xp = isGuest ? localXp : (cloudXp ?? 0);
   const xpToNext = 1500;
   const level = Math.floor((xp) / 500) + 1;
@@ -70,6 +72,11 @@ const Home = () => {
   }, [srsByUser, uid]);
   const mistakesByUser = useMistakesStore(s => s.mistakesByUser);
   const mistakeCount = Object.values(mistakesByUser[uid] || {}).filter(m => !m.resolved).length;
+
+  const continueRec = useMemo(
+    () => getContinueCategory(learningGoal, learningLevel, id => isLearned(uid, id)),
+    [learningGoal, learningLevel, uid, totalLearned]
+  );
 
   return (
     <View className="flex-1 bg-cream">
@@ -135,8 +142,15 @@ const Home = () => {
           <View className="bg-brand px-5 py-5" style={{ borderRadius: 24 }}>
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-white/80 text-sm font-semibold tracking-wider">DAILY STREAK</Text>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} className="w-12 h-12 rounded-full items-center justify-center">
-                <Text className="text-2xl">🔥</Text>
+              <View className="flex-row items-center">
+                {freezeAvailable && (
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} className="px-3 py-1.5 rounded-full mr-2">
+                    <Text className="text-white text-xs font-bold">🧊 Freeze ready</Text>
+                  </View>
+                )}
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} className="w-12 h-12 rounded-full items-center justify-center">
+                  <Text className="text-2xl">🔥</Text>
+                </View>
               </View>
             </View>
             <Text className="text-white text-4xl font-bold mb-4">{streak} Days</Text>
@@ -204,19 +218,36 @@ const Home = () => {
         {/* Continue Learning */}
         <View className="px-5 mb-6">
           <Text className="text-ink text-base font-semibold mb-3">CONTINUE LEARNING</Text>
-          <Link href="/lesson" asChild>
-            <TouchableOpacity className="bg-white border border-line p-4 flex-row items-center" style={{ borderRadius: 20 }}>
-              <View className="bg-brand w-20 h-20 rounded-xl items-center justify-center mr-4">
-                <Text className="text-3xl">▶️</Text>
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.textSecondary }} className="text-xs mb-1">Basics of Devanagari</Text>
-                <Text className="text-ink text-sm font-semibold mb-2">Lesson 4: Vowel Markers (Matras)</Text>
-                <Text style={{ color: colors.warmInk }} className="text-sm font-semibold">8 mins left</Text>
-              </View>
-              <Text className="text-brand text-xl">→</Text>
-            </TouchableOpacity>
-          </Link>
+          {continueRec ? (
+            <Link href={{ pathname: '/lesson', params: { category: continueRec.cat } }} asChild>
+              <TouchableOpacity className="bg-white border border-line p-4 flex-row items-center" style={{ borderRadius: 20 }}>
+                <View style={{ backgroundColor: CATEGORY_META[continueRec.cat].color }} className="w-20 h-20 rounded-xl items-center justify-center mr-4">
+                  <Text className="text-3xl">{CATEGORY_META[continueRec.cat].emoji}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text style={{ color: colors.textSecondary }} className="text-xs mb-1">
+                    {learningGoal ? `Recommended for your ${learningGoal} goal` : 'Keep learning'}
+                  </Text>
+                  <Text className="text-ink text-sm font-semibold mb-2 capitalize">{continueRec.cat}</Text>
+                  <Text style={{ color: colors.warmInk }} className="text-sm font-semibold">{continueRec.learned}/{continueRec.total} words learned</Text>
+                </View>
+                <Text className="text-brand text-xl">→</Text>
+              </TouchableOpacity>
+            </Link>
+          ) : (
+            <Link href="/review" asChild>
+              <TouchableOpacity className="bg-white border border-line p-4 flex-row items-center" style={{ borderRadius: 20 }}>
+                <View className="bg-brand w-20 h-20 rounded-xl items-center justify-center mr-4">
+                  <Text className="text-3xl">🧠</Text>
+                </View>
+                <View className="flex-1">
+                  <Text style={{ color: colors.textSecondary }} className="text-xs mb-1">All categories complete!</Text>
+                  <Text className="text-ink text-sm font-semibold mb-2">Review what you've learned</Text>
+                </View>
+                <Text className="text-brand text-xl">→</Text>
+              </TouchableOpacity>
+            </Link>
+          )}
         </View>
 
         {/* Daily Challenges */}
@@ -231,7 +262,7 @@ const Home = () => {
                 </View>
                 <View className="flex-1">
                   <Text className="text-ink text-sm font-semibold mb-1">Morning Vocab</Text>
-                  <Text style={{ color: colors.textSecondary }} className="text-xs">Review 5 new random terms</Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-xs">{learningGoal ? '5 terms picked for you' : 'Review 5 new random terms'}</Text>
                 </View>
                 <Text style={{ color: colors.successDark }} className="text-sm font-bold mr-2">+50 XP</Text>
                 <Text className="text-brand">›</Text>

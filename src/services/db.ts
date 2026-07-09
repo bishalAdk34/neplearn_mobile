@@ -72,6 +72,7 @@ export interface StoredJournalEntry {
   prompt_roman: string;
   prompt_english: string;
   response_text: string;
+  feedback_text?: string | null;
   created_at: string;
 }
 
@@ -85,6 +86,7 @@ export async function saveJournalEntry(
   promptRoman: string,
   promptEnglish: string,
   responseText: string,
+  feedbackText?: string,
 ): Promise<SaveJournalResult> {
   if (userId.startsWith('__guest__')) {
     const key = `${JOURNAL_STORAGE_KEY}-${userId}`;
@@ -95,6 +97,7 @@ export async function saveJournalEntry(
       prompt_roman: promptRoman,
       prompt_english: promptEnglish,
       response_text: responseText,
+      feedback_text: feedbackText ?? null,
       created_at: new Date().toISOString(),
     });
     await AsyncStorage.setItem(key, JSON.stringify(entries));
@@ -110,6 +113,7 @@ export async function saveJournalEntry(
         prompt_roman: promptRoman,
         prompt_english: promptEnglish,
         response_text: responseText,
+        feedback_text: feedbackText ?? null,
       });
     if (!error) return { saved: true };
     console.warn('saveJournalEntry failed, queueing:', error.message);
@@ -117,7 +121,7 @@ export async function saveJournalEntry(
 
   await enqueue({
     type: 'SAVE_JOURNAL',
-    payload: { userId, promptNepali, promptRoman, promptEnglish, responseText },
+    payload: { userId, promptNepali, promptRoman, promptEnglish, responseText, feedbackText },
   });
   return { saved: true, queued: true };
 }
@@ -161,6 +165,40 @@ export async function getTotalXp(userId: string): Promise<number> {
     return fallback.reduce((sum, r) => sum + r.xp_amount, 0);
   }
   return data || 0;
+}
+
+/** Daily XP totals from the cloud (for the heatmap). Returns 'YYYY-MM-DD' -> xp. */
+export async function fetchDailyXp(userId: string): Promise<Record<string, number>> {
+  if (userId.startsWith('__guest__')) return {};
+  const { data, error } = await supabase
+    .rpc('get_daily_xp', { p_user_id: userId });
+  if (error || !data) {
+    console.warn('fetchDailyXp failed:', error?.message);
+    return {};
+  }
+  const map: Record<string, number> = {};
+  for (const row of data as { day: string; xp: number }[]) {
+    map[row.day] = row.xp;
+  }
+  return map;
+}
+
+export interface LeaderboardRow {
+  name: string;
+  avatar_url: string | null;
+  weekly_xp: number;
+  rank: number;
+}
+
+/** Weekly leaderboard (signed-in only; RPC is security definer). */
+export async function fetchWeeklyLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
+  const { data, error } = await supabase
+    .rpc('get_weekly_leaderboard', { p_limit: limit });
+  if (error || !data) {
+    console.warn('fetchWeeklyLeaderboard failed:', error?.message);
+    return [];
+  }
+  return data as LeaderboardRow[];
 }
 
 export async function getStreak(userId: string): Promise<{ current_streak: number; longest_streak: number }> {
