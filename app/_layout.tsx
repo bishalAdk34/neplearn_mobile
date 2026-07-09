@@ -5,7 +5,7 @@ import SplashScreen from '../src/components/SplashScreen';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSrsStore } from '../src/stores/srs';
 import { useAuthStore } from '../src/stores/auth';
-import { initNotifications, initNotificationLogListener, refreshDailyReminder } from '../src/services/notifications';
+import { initNotifications, initNotificationLogListener, refreshDailyReminder, refreshWordOfDay } from '../src/services/notifications';
 import { networkManager } from '../src/services/network';
 import { syncManager } from '../src/services/syncManager';
 import { NetworkProvider } from '../src/contexts/NetworkContext';
@@ -37,6 +37,7 @@ export default function RootLayout() {
       const uid = useAuthStore.getState().user?.id || GUEST_ID;
       const streak = useVocabStore.getState().getLocalStreak(uid).current;
       refreshDailyReminder(streak).catch(() => {});
+      refreshWordOfDay().catch(() => {});
     };
     refreshReminder();
     const appStateSub = AppState.addEventListener('change', state => {
@@ -106,6 +107,11 @@ export default function RootLayout() {
         <Stack.Screen name="grammar" options={{ headerShown: false }} />
         <Stack.Screen name="sentence-builder" options={{ headerShown: false }} />
         <Stack.Screen name="listening" options={{ headerShown: false }} />
+        <Stack.Screen name="heatmap" options={{ headerShown: false }} />
+        <Stack.Screen name="culture" options={{ headerShown: false }} />
+        <Stack.Screen name="roleplay" options={{ headerShown: false }} />
+        <Stack.Screen name="photo-vocab" options={{ headerShown: false }} />
+        <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
       </Stack>
     </NetworkProvider>
   );

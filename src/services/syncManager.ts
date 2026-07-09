@@ -108,7 +108,7 @@ class SyncManager {
           }
           const { data: remote } = await supabase
             .from('user_streaks')
-            .select('current_streak, longest_streak, last_activity_date')
+            .select('current_streak, longest_streak, last_activity_date, freeze_week')
             .eq('user_id', payload.userId)
             .maybeSingle();
 
@@ -117,6 +117,7 @@ class SyncManager {
               current: payload.streakCurrent,
               longest: payload.streakLongest,
               lastDate: payload.streakLastDate,
+              freezeWeek: payload.streakFreezeWeek,
             },
             remote
           );
@@ -127,6 +128,7 @@ class SyncManager {
               current_streak: merged.current,
               longest_streak: merged.longest,
               last_activity_date: merged.lastDate,
+              freeze_week: merged.freezeWeek ?? null,
             },
             { onConflict: 'user_id' }
           );
@@ -153,6 +155,7 @@ class SyncManager {
               prompt_roman: payload.promptRoman,
               prompt_english: payload.promptEnglish,
               response_text: payload.responseText,
+              feedback_text: payload.feedbackText ?? null,
             });
           return !error;
         }

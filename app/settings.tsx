@@ -13,6 +13,8 @@ import {
   requestPermissions,
   scheduleDailyReminder,
   cancelDailyReminder,
+  scheduleWordOfDay,
+  cancelWordOfDay,
   sendTestNotification,
 } from '../src/services/notifications';
 import { colors } from '../src/theme';
@@ -41,6 +43,16 @@ const TIME_OPTIONS = [
   { label: '8:00 PM', hour: 20, minute: 0 },
 ];
 
+const WOD_HOUR_OPTIONS = [
+  { label: '7:00 AM', hour: 7 },
+  { label: '8:00 AM', hour: 8 },
+  { label: '9:00 AM', hour: 9 },
+  { label: '10:00 AM', hour: 10 },
+  { label: '12:00 PM', hour: 12 },
+  { label: '6:00 PM', hour: 18 },
+  { label: '8:00 PM', hour: 20 },
+];
+
 const Settings = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
@@ -49,7 +61,10 @@ const Settings = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(17);
   const [reminderMinute, setReminderMinute] = useState(35);
+  const [wordOfDayEnabled, setWordOfDayEnabled] = useState(false);
+  const [wordOfDayHour, setWordOfDayHour] = useState(9);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [wodPickerVisible, setWodPickerVisible] = useState(false);
   const [speedPickerVisible, setSpeedPickerVisible] = useState(false);
   const [goalPickerVisible, setGoalPickerVisible] = useState(false);
   const ttsSpeed = useSettingsStore(s => s.ttsSpeed);
@@ -64,6 +79,8 @@ const Settings = () => {
       setNotificationsEnabled(prefs.enabled);
       setReminderHour(prefs.reminderHour);
       setReminderMinute(prefs.reminderMinute);
+      setWordOfDayEnabled(prefs.wordOfDayEnabled);
+      setWordOfDayHour(prefs.wordOfDayHour);
     });
   }, []);
 
@@ -85,7 +102,7 @@ const Settings = () => {
       await cancelDailyReminder();
     }
     setNotificationsEnabled(value);
-    await savePrefs({ enabled: value, reminderHour, reminderMinute });
+    await savePrefs({ enabled: value, reminderHour, reminderMinute, wordOfDayEnabled, wordOfDayHour });
   };
 
   const selectTtsSpeed = async (speed: TtsSpeed) => {
@@ -97,9 +114,33 @@ const Settings = () => {
     setReminderHour(hour);
     setReminderMinute(minute);
     setTimePickerVisible(false);
-    await savePrefs({ enabled: notificationsEnabled, reminderHour: hour, reminderMinute: minute });
+    await savePrefs({ enabled: notificationsEnabled, reminderHour: hour, reminderMinute: minute, wordOfDayEnabled, wordOfDayHour });
     if (notificationsEnabled) {
       await scheduleDailyReminder(hour, minute, currentStreak);
+    }
+  };
+
+  const toggleWordOfDay = async (value: boolean) => {
+    if (value) {
+      const granted = await requestPermissions();
+      if (!granted) {
+        Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive the word of the day.');
+        return;
+      }
+      await scheduleWordOfDay(wordOfDayHour);
+    } else {
+      await cancelWordOfDay();
+    }
+    setWordOfDayEnabled(value);
+    await savePrefs({ enabled: notificationsEnabled, reminderHour, reminderMinute, wordOfDayEnabled: value, wordOfDayHour });
+  };
+
+  const selectWodHour = async (hour: number) => {
+    setWordOfDayHour(hour);
+    setWodPickerVisible(false);
+    await savePrefs({ enabled: notificationsEnabled, reminderHour, reminderMinute, wordOfDayEnabled, wordOfDayHour: hour });
+    if (wordOfDayEnabled) {
+      await scheduleWordOfDay(hour);
     }
   };
 
@@ -140,6 +181,26 @@ const Settings = () => {
           >
             <Text className="text-ink text-base">Daily Reminder</Text>
             <Text style={{ color: colors.textSecondary }} className="text-base">{notificationsEnabled ? timeLabel : 'Off'}</Text>
+          </TouchableOpacity>
+          <View className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}>
+            <Text className="text-ink text-base">Word of the Day</Text>
+            <Switch
+              value={wordOfDayEnabled}
+              onValueChange={toggleWordOfDay}
+              trackColor={{ false: colors.disabled, true: colors.primary }}
+              thumbColor={colors.surface}
+            />
+          </View>
+          <TouchableOpacity
+            className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}
+            onPress={() => setWodPickerVisible(true)}
+          >
+            <Text className="text-ink text-base">Word of the Day Time</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-base">
+              {wordOfDayEnabled
+                ? WOD_HOUR_OPTIONS.find(o => o.hour === wordOfDayHour)?.label || `${wordOfDayHour}:00`
+                : 'Off'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="px-4 py-4 flex-row justify-between items-center"
@@ -239,6 +300,27 @@ const Settings = () => {
                   key={opt.label}
                   className="py-4 px-4 flex-row items-center justify-between border-b" style={{ borderColor: '#E5E7EB' }}
                   onPress={() => selectTime(opt.hour, opt.minute)}
+                >
+                  <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>{opt.label}</Text>
+                  {selected && <Text className="text-brand text-lg">✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={wodPickerVisible} transparent animationType="slide" onRequestClose={() => setWodPickerVisible(false)}>
+        <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setWodPickerVisible(false)}>
+          <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <Text className="text-ink text-lg font-bold mb-4 text-center">Word of the Day Time</Text>
+            {WOD_HOUR_OPTIONS.map(opt => {
+              const selected = opt.hour === wordOfDayHour;
+              return (
+                <TouchableOpacity
+                  key={opt.label}
+                  className="py-4 px-4 flex-row items-center justify-between border-b" style={{ borderColor: '#E5E7EB' }}
+                  onPress={() => selectWodHour(opt.hour)}
                 >
                   <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>{opt.label}</Text>
                   {selected && <Text className="text-brand text-lg">✓</Text>}

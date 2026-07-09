@@ -7,6 +7,9 @@ import { colors, shadows } from '../src/theme';
 import { stories, Story, LEVEL_LABELS } from '../src/data/stories';
 import { speak } from '../src/services/tts';
 import { hapticLight, hapticSuccess, hapticError } from '../src/utils/haptics';
+import { GUEST_ID } from '../src/data/vocab';
+import { useAuthStore } from '../src/stores/auth';
+import { awardXp } from '../src/services/xp';
 
 type Mode = 'list' | 'read' | 'quiz' | 'done';
 
@@ -44,6 +47,8 @@ const StoryScreen = () => {
   const handleNextQuestion = () => {
     if (!story) return;
     if (questionIndex + 1 >= story.questions.length) {
+      const uid = useAuthStore.getState().user?.id || GUEST_ID;
+      awardXp(uid, 20, 'quiz');
       setMode('done');
     } else {
       setQuestionIndex(prev => prev + 1);

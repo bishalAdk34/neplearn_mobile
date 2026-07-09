@@ -133,4 +133,28 @@ export const grammarTips: GrammarTip[] = [
       { nepali: 'ऊ मेरो साथी हो', roman: 'U mero saathi ho', english: 'He is my friend' },
     ],
   },
+  {
+    id: 11,
+    title: 'Formality Tiers: when to use which "you"',
+    summary: 'ta = intimate/rude, timi = casual, tapaai = respectful.',
+    explanation:
+      'Choosing the wrong tier can offend. Use "tapaai" with strangers, elders, teachers, and in shops. Use "timi" with close friends, younger siblings, and children. "Ta" is only for very close same-age friends or small children — with anyone else it sounds insulting. Elders and in-laws often get the even higher "hajur".',
+    examples: [
+      { nepali: 'तपाईं आउनुहोस्', roman: 'Tapaai aaunuhos', english: 'Please come (respectful)' },
+      { nepali: 'तिमी आऊ', roman: 'Timi aau', english: 'Come (casual, friends)' },
+      { nepali: 'हजुर, भन्नुहोस्', roman: 'Hajur, bhannuhos', english: 'Yes sir/madam, please tell me (very respectful)' },
+    ],
+  },
+  {
+    id: 12,
+    title: 'Verb Endings Follow Formality',
+    summary: 'Same verb, different ending for ta / timi / tapaai.',
+    explanation:
+      'The verb ending must match the pronoun tier. For "go": tapaai jaanuhunchha (-nuhunchha), timi jaanchhau (-chhau), ta jaanchhas (-chhas). Commands change too: jaanuhos (polite), jaau (casual), jaa (blunt). If you use "tapaai" with a casual ending it sounds broken — keep pronoun and ending in the same tier.',
+    examples: [
+      { nepali: 'तपाईं खानुहुन्छ', roman: 'Tapaai khaanuhunchha', english: 'You eat (respectful)' },
+      { nepali: 'तिमी खान्छौ', roman: 'Timi khaanchhau', english: 'You eat (casual)' },
+      { nepali: 'तँ खान्छस्', roman: 'Ta khaanchhas', english: 'You eat (intimate/blunt)' },
+    ],
+  },
 ];

@@ -33,7 +33,14 @@
       "expo-router",
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NepLearn uses your photos to identify objects and teach you their Nepali names.",
+          "cameraPermission": "NepLearn uses your camera to identify objects and teach you their Nepali names."
+        }
+      ]
     ],
     "extra": {
       "router": {},

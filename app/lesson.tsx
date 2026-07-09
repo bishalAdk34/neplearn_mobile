@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-na
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { getRecommendedWords } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
 import { useSrsStore } from '../src/stores/srs';
 import { speak } from '../src/services/tts';
@@ -16,7 +17,7 @@ const Lesson = () => {
   const params = useGlobalSearchParams();
   const category = params.category as string | undefined;
   const user = useAuthStore(s => s.user);
-  const { learnWord, isLearned } = useVocabStore();
+  const { learnWord, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -27,8 +28,8 @@ const Lesson = () => {
   const [correctCount, setCorrectCount] = useState(0);
 
   const sessionWords = useMemo(() => {
-    const words = category ? getWordsByCategory(category) : vocab;
-    return shuffle(words).slice(0, 5);
+    const words = category ? getWordsByCategory(category) : getRecommendedWords(learningGoal, learningLevel, 5);
+    return category ? shuffle(words).slice(0, 5) : words;
   }, [category]);
 
   const currentWord = sessionWords[currentIndex];

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Animated, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,9 +11,11 @@ import { sendMessage, isOffline } from '../src/services/ai';
 import { saveChatMessage, fetchChatHistory } from '../src/services/db';
 import { awardXp } from '../src/services/xp';
 import { GUEST_ID } from '../src/data/vocab';
+import { buildLearnerProfileContext } from '../src/data/personalization';
 import { useNetworkState } from '../src/hooks/useNetworkState';
 import type { ChatMessage } from '../src/services/ai';
 import { colors } from '../src/theme';
+import { TypingDots, MessageBubble } from '../src/components/ChatView';
 
 const QUICK_ACTIONS = [
   { label: 'Teach me greetings', icon: '👋' },
@@ -22,50 +24,14 @@ const QUICK_ACTIONS = [
   { label: 'Daily conversation practice', icon: '💬' },
 ];
 
-const TypingDots = () => {
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const anim = (dot: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0, duration: 400, useNativeDriver: true }),
-        ])
-      );
-
-    const parallel = Animated.parallel([anim(dot1, 0), anim(dot2, 200), anim(dot3, 400)]);
-    parallel.start();
-    return () => parallel.stop();
-  }, []);
-
-  const dotStyle = (dot: Animated.Value) => ({
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginHorizontal: 3,
-    opacity: dot.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
-  });
-
-  return (
-    <View className="flex-row items-center px-4 py-3">
-      <Animated.View style={dotStyle(dot1)} />
-      <Animated.View style={dotStyle(dot2)} />
-      <Animated.View style={dotStyle(dot3)} />
-    </View>
-  );
-};
-
 const AITutor = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { isOffline: networkOffline } = useNetworkState();
   const learnedByUser = useVocabStore(s => s.learnedByUser);
+  const learningGoal = useVocabStore(s => s.learningGoal);
+  const learningLevel = useVocabStore(s => s.learningLevel);
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
   const [inputText, setInputText] = useState('');
@@ -118,11 +84,13 @@ const AITutor = () => {
       text: m.text,
     }));
 
+    const profileContext = buildLearnerProfileContext(learningGoal, learningLevel);
     const learnedContext = learnedIds.length > 0
       ? `The user already knows these word IDs: ${learnedIds.join(', ')}`
       : undefined;
+    const context = [profileContext, learnedContext].filter(Boolean).join('\n') || undefined;
 
-    const reply = await sendMessage(chatHistory, msg, learnedContext);
+    const reply = await sendMessage(chatHistory, msg, context);
 
     const aiMsg = { id: `a-${Date.now()}`, role: 'assistant' as const, text: reply };
     setMessages(prev => [...prev, aiMsg]);
@@ -135,34 +103,11 @@ const AITutor = () => {
     }
 
     setIsLoading(false);
-  }, [messages, isLoading, uid, learnedIds]);
+  }, [messages, isLoading, uid, learnedIds, learningGoal, learningLevel]);
 
   const handleQuickAction = useCallback((text: string) => {
     handleSend(text);
   }, [handleSend]);
-
-  const MessageBubble = ({ role, text }: { role: 'user' | 'assistant'; text: string }) => {
-    const isUser = role === 'user';
-    return (
-      <View className={`flex-row ${isUser ? 'justify-end' : 'justify-start'} mb-4 px-4`}>
-        {!isUser && (
-          <View className="w-8 h-8 rounded-full items-center justify-center mr-2 mt-1" style={{ backgroundColor: colors.border }}>
-            <Text className="text-sm">👩</Text>
-          </View>
-        )}
-        <View
-          className={`max-w-[80%] px-4 py-3 ${isUser ? 'rounded-2xl rounded-br-md' : 'rounded-2xl rounded-bl-md'}`}
-          style={{
-            backgroundColor: isUser ? colors.primary : colors.surface,
-            borderWidth: isUser ? 0 : 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Text className={`text-base leading-6 ${isUser ? 'text-white' : 'text-ink'}`}>{text}</Text>
-        </View>
-      </View>
-    );
-  };
 
   if (!hasLoaded) {
     return (

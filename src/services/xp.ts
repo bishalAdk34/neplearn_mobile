@@ -12,8 +12,11 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 
 type DailyXpState = {
   daily: Record<string, { date: string; xp: number }>;
+  /** Per-user map of 'YYYY-MM-DD' -> xp earned that day (local history for heatmap). */
+  history: Record<string, Record<string, number>>;
   addToday: (userId: string, amount: number) => void;
   getTodayXp: (userId: string) => number;
+  getHistory: (userId: string) => Record<string, number>;
 };
 
 const asyncStorage: PersistStorage<DailyXpState> = {
@@ -33,16 +36,25 @@ export const useDailyXpStore = create<DailyXpState>()(
   persist(
     (set, get) => ({
       daily: {},
+      history: {},
       addToday: (userId, amount) => {
         const today = todayStr();
         const entry = get().daily[userId];
         const xp = entry && entry.date === today ? entry.xp + amount : amount;
-        set({ daily: { ...get().daily, [userId]: { date: today, xp } } });
+        const userHistory = get().history[userId] || {};
+        set({
+          daily: { ...get().daily, [userId]: { date: today, xp } },
+          history: {
+            ...get().history,
+            [userId]: { ...userHistory, [today]: (userHistory[today] || 0) + amount },
+          },
+        });
       },
       getTodayXp: (userId) => {
         const entry = get().daily[userId];
         return entry && entry.date === todayStr() ? entry.xp : 0;
       },
+      getHistory: (userId) => get().history[userId] || {},
     }),
     {
       name: 'nepali-daily-xp',

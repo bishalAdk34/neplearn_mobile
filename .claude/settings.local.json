@@ -6,7 +6,9 @@
       "Bash(npm install:*)",
       "Bash(npx expo install expo-haptics)",
       "Bash(node -e:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(dir:*)",
+      "Bash(npx expo install:*)"
     ]
   }
 }

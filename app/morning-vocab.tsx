@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { vocab, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { getRecommendedWords } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
 import { useSrsStore } from '../src/stores/srs';
 import { speak } from '../src/services/tts';
@@ -14,7 +15,7 @@ import { hapticSuccess, hapticError } from '../src/utils/haptics';
 const MorningVocab = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
-  const { learnWord, isLearned } = useVocabStore();
+  const { learnWord, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -34,7 +35,7 @@ const MorningVocab = () => {
     }
   }, [isComplete]);
 
-  const words = useMemo(() => shuffle(vocab).slice(0, 5), []);
+  const words = useMemo(() => getRecommendedWords(learningGoal, learningLevel, 5), []);
   const currentWord = words[currentIndex];
 
   const options = useMemo(() => {

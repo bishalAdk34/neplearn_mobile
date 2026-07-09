@@ -11,7 +11,7 @@ import { useVocabStore } from '../../src/data/vocab';
 import { useAuthStore } from '../../src/stores/auth';
 import { useSrsStore } from '../../src/stores/srs';
 import { awardXp } from '../../src/services/xp';
-import { buildQuestions, type QuizQuestion } from '../../src/utils/quizBuilder';
+import { buildQuestions, buildEnglishOptionQuestions, type QuizQuestion } from '../../src/utils/quizBuilder';
 import { colors } from '../../src/theme';
 import { ProgressBar } from '../../src/components/ui';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
@@ -19,6 +19,7 @@ import { hapticSuccess, hapticError } from '../../src/utils/haptics';
 const Quiz = () => {
   const params = useGlobalSearchParams();
   const category = typeof params.category === 'string' ? params.category : '';
+  const reverse = params.mode === 'reverse';
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore(s => s.user);
@@ -34,8 +35,9 @@ const Quiz = () => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    setQuestions(buildQuestions(getWordsByCategory(category), 10));
-  }, [category]);
+    const words = getWordsByCategory(category);
+    setQuestions(reverse ? buildEnglishOptionQuestions(words, 10) : buildQuestions(words, 10));
+  }, [category, reverse]);
 
   useEffect(() => {
     setSelected(null);
@@ -44,8 +46,17 @@ const Quiz = () => {
 
   const q = questions[currentQ];
 
+  const answer = q ? (reverse ? q.english : q.nepali) : '';
+
+  // In reverse mode, speak the Nepali prompt when the question appears.
   useEffect(() => {
-    if (!q) return;
+    if (reverse && q) {
+      speak(q.nepali, 'ne-NP').catch(() => speak(q.roman, 'en-US'));
+    }
+  }, [reverse, q]);
+
+  useEffect(() => {
+    if (!q || reverse) return;
     let cancelled = false;
     if (q.image?.startsWith('http')) {
       setImgUrl(q.image);
@@ -74,7 +85,7 @@ const Quiz = () => {
     if (selected) return;
     setSelected(opt);
 
-    const correct = opt === q?.nepali;
+    const correct = opt === answer;
     if (q) useSrsStore.getState().recordResult(uid, q.id, correct, 'quiz');
     if (correct) {
       hapticSuccess();
@@ -104,7 +115,7 @@ const Quiz = () => {
   };
 
   const speakWord = () => {
-    if (q) speak(q.nepali, 'ne-NP');
+    if (q) speak(q.nepali, 'ne-NP').catch(() => speak(q.roman, 'en-US'));
   };
 
   if (!q) return (
@@ -114,8 +125,8 @@ const Quiz = () => {
   );
 
   const progress = ((currentQ) / questions.length) * 100;
-  const isCorrect = (opt: string) => selected && opt === q.nepali;
-  const isWrong = (opt: string) => selected && opt !== q.nepali && opt === selected;
+  const isCorrect = (opt: string) => selected && opt === answer;
+  const isWrong = (opt: string) => selected && opt !== answer && opt === selected;
 
   return (
     <View className="flex-1 bg-[#F8FAFC]">
@@ -143,17 +154,29 @@ const Quiz = () => {
           <Text className="text-sm uppercase tracking-widest text-[#94A3B8] font-semibold mb-2">
             What does this mean?
           </Text>
-          {loadingImg ? (
-            <ActivityIndicator size="large" color="#6366F1" style={{ height: 80 }} />
-          ) : imgUrl ? (
-            <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" />
+          {reverse ? (
+            <TouchableOpacity onPress={speakWord} className="items-center mb-6">
+              <View className="flex-row items-center">
+                <Text className="text-3xl font-bold text-[#0F172A] mr-2">{q.nepali}</Text>
+                <Text className="text-2xl">🔊</Text>
+              </View>
+              <Text className="text-base text-[#64748B] italic mt-1">{q.roman}</Text>
+            </TouchableOpacity>
           ) : (
-            <Text className="text-5xl mb-2 text-center" style={{ lineHeight: 56, paddingVertical: 4 }}>{q.image || '💡'}</Text>
+            <>
+              {loadingImg ? (
+                <ActivityIndicator size="large" color="#6366F1" style={{ height: 80 }} />
+              ) : imgUrl ? (
+                <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" />
+              ) : (
+                <Text className="text-5xl mb-2 text-center" style={{ lineHeight: 56, paddingVertical: 4 }}>{q.image || '💡'}</Text>
+              )}
+              <TouchableOpacity onPress={speakWord} className="flex-row items-center mb-6">
+                <Text className="text-3xl font-bold text-[#0F172A] mr-2">{q.english}</Text>
+                <Text className="text-2xl">🔊</Text>
+              </TouchableOpacity>
+            </>
           )}
-          <TouchableOpacity onPress={speakWord} className="flex-row items-center mb-6">
-            <Text className="text-3xl font-bold text-[#0F172A] mr-2">{q.english}</Text>
-            <Text className="text-2xl">🔊</Text>
-          </TouchableOpacity>
 
           <View className="w-full gap-3">
             {q.options.map((opt: string, i: number) => {
@@ -162,7 +185,7 @@ const Quiz = () => {
               let textColor = 'text-[#0F172A]';
 
               if (selected) {
-                if (opt === q.nepali) {
+                if (opt === answer) {
                   bgColor = 'bg-emerald-50';
                   borderColor = 'border-emerald-500';
                   textColor = 'text-emerald-700';
@@ -180,18 +203,18 @@ const Quiz = () => {
                   disabled={!!selected}
                   className={`${bgColor} ${borderColor} border-2 py-4 px-5 rounded-2xl flex-row items-center`}
                 >
-                  <View className={`w-8 h-8 rounded-full ${selected ? (opt === q.nepali ? 'bg-emerald-500' : opt === selected ? 'bg-red-400' : 'bg-[#E2E8F0]') : 'bg-[#E2E8F0]'} items-center justify-center mr-3`}>
+                  <View className={`w-8 h-8 rounded-full ${selected ? (opt === answer ? 'bg-emerald-500' : opt === selected ? 'bg-red-400' : 'bg-[#E2E8F0]') : 'bg-[#E2E8F0]'} items-center justify-center mr-3`}>
                     <Text className={`font-bold ${selected ? 'text-white' : 'text-[#64748B]'}`}>
-                      {opt === q.nepali && selected ? '✓' : opt === selected && selected ? '✗' : String.fromCharCode(65 + i)}
+                      {opt === answer && selected ? '✓' : opt === selected && selected ? '✗' : String.fromCharCode(65 + i)}
                     </Text>
                   </View>
-                  <Text className={`text-lg font-semibold flex-1 ${selected ? (opt === q.nepali ? 'text-emerald-700' : opt === selected ? 'text-red-600' : 'text-[#64748B]') : 'text-[#0F172A]'}`}>
+                  <Text className={`text-lg font-semibold flex-1 ${selected ? (opt === answer ? 'text-emerald-700' : opt === selected ? 'text-red-600' : 'text-[#64748B]') : 'text-[#0F172A]'}`}>
                     {opt}
                   </Text>
-                  {opt === q.nepali && selected && (
+                  {opt === answer && selected && (
                     <Text className="text-emerald-500 text-xl">✅</Text>
                   )}
-                  {opt === selected && selected !== q.nepali && (
+                  {opt === selected && selected !== answer && (
                     <Text className="text-red-400 text-xl">❌</Text>
                   )}
                 </TouchableOpacity>
@@ -202,7 +225,9 @@ const Quiz = () => {
 
         {!selected && (
           <View className="items-center mt-8">
-            <Text className="text-[#94A3B8] text-sm">Choose the correct Nepali translation</Text>
+            <Text className="text-[#94A3B8] text-sm">
+              {reverse ? 'Choose the correct English meaning' : 'Choose the correct Nepali translation'}
+            </Text>
           </View>
         )}
       </Animated.View>

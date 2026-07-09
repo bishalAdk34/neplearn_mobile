@@ -7,22 +7,26 @@ export interface StreakState {
   current: number;
   longest: number;
   lastDate: string;
+  freezeWeek?: string;
 }
 
 /**
  * Merge local streak state with remote row. Later lastDate wins for
- * current streak; longest is the max of both.
+ * current streak; longest is the max of both. Freeze consumption is
+ * sticky: the later ISO week string wins so a used freeze never reverts.
  */
 export function mergeStreaks(
   local: StreakState,
-  remote: { current_streak: number; longest_streak: number; last_activity_date: string } | null
+  remote: { current_streak: number; longest_streak: number; last_activity_date: string; freeze_week?: string | null } | null
 ): StreakState {
   if (!remote || !remote.last_activity_date) return local;
   const longest = Math.max(local.longest, remote.longest_streak || 0);
+  const weeks = [local.freezeWeek, remote.freeze_week || undefined].filter((w): w is string => !!w);
+  const freezeWeek = weeks.length ? weeks.sort()[weeks.length - 1] : undefined;
   if (remote.last_activity_date > local.lastDate) {
-    return { current: remote.current_streak, longest, lastDate: remote.last_activity_date };
+    return { current: remote.current_streak, longest, lastDate: remote.last_activity_date, freezeWeek };
   }
-  return { ...local, longest };
+  return { ...local, longest, freezeWeek };
 }
 
 /**
@@ -36,7 +40,7 @@ export async function pushStreak(userId: string, state: StreakState): Promise<vo
     try {
       const { data: remote } = await supabase
         .from('user_streaks')
-        .select('current_streak, longest_streak, last_activity_date')
+        .select('current_streak, longest_streak, last_activity_date, freeze_week')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -48,6 +52,7 @@ export async function pushStreak(userId: string, state: StreakState): Promise<vo
           current_streak: merged.current,
           longest_streak: merged.longest,
           last_activity_date: merged.lastDate,
+          freeze_week: merged.freezeWeek ?? null,
         },
         { onConflict: 'user_id' }
       );
@@ -65,6 +70,7 @@ export async function pushStreak(userId: string, state: StreakState): Promise<vo
         streakCurrent: state.current,
         streakLongest: state.longest,
         streakLastDate: state.lastDate,
+        streakFreezeWeek: state.freezeWeek,
       },
     },
     `streak-${userId}`
@@ -88,5 +94,6 @@ export async function recordActivity(userId: string): Promise<void> {
     current: local.current,
     longest: local.longest,
     lastDate: local.lastDate,
+    freezeWeek: local.freezeWeek,
   });
 }
