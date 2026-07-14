@@ -67,6 +67,8 @@ const Settings = () => {
     });
   }, []);
 
+  const ttsSpeedLabel = SPEED_OPTIONS.find(o => o.value === ttsSpeed)?.label || 'Normal';
+
   const timeLabel = TIME_OPTIONS.find(
     t => t.hour === reminderHour && t.minute === reminderMinute
   )?.label || `${reminderHour}:${String(reminderMinute).padStart(2, '0')}`;
@@ -84,6 +86,11 @@ const Settings = () => {
     }
     setNotificationsEnabled(value);
     await savePrefs({ enabled: value, reminderHour, reminderMinute });
+  };
+
+  const selectTtsSpeed = async (speed: TtsSpeed) => {
+    setTtsSpeed(speed);
+    setSpeedPickerVisible(false);
   };
 
   const selectTime = async (hour: number, minute: number) => {
@@ -136,7 +143,13 @@ const Settings = () => {
           </TouchableOpacity>
           <TouchableOpacity
             className="px-4 py-4 flex-row justify-between items-center"
-            onPress={sendTestNotification}
+            onPress={async () => {
+              try {
+                await sendTestNotification();
+              } catch (e: any) {
+                Alert.alert('Notification Error', e?.message || 'Failed to send test notification.');
+              }
+            }}
           >
             <Text className="text-ink text-base">Send Test Notification</Text>
             <Text className="text-brand text-base">Send</Text>

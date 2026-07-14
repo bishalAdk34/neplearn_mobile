@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-nativ
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
+import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 import { categories, vocab, CATEGORY_META, GUEST_ID, getWordsByCategory } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
@@ -17,6 +18,7 @@ const Learn = () => {
   const uid = user?.id || GUEST_ID;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
   const filteredWords = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -55,7 +57,6 @@ const Learn = () => {
           <Text style={{ color: colors.textSecondary }} className="text-sm">{vocab.length} words across {categories.length} categories</Text>
         </View>
 
-        {/* Search Bar */}
         <View className="px-5 mb-4">
           <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border }} className="flex-row items-center px-4 py-3">
             <Ionicons name="search" size={20} color={colors.textTertiary} style={{ marginRight: 8 }} />
@@ -74,7 +75,6 @@ const Learn = () => {
           </View>
         </View>
 
-        {/* Category Filter Chips */}
         <View className="px-5 mb-4">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row -mx-5 px-5">
             <TouchableOpacity
@@ -109,8 +109,10 @@ const Learn = () => {
             ))}
           </ScrollView>
         </View>
+      </ScrollView>
 
-        {/* Word List or Category Cards */}
+      {/* Scrollable Content */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
         {searchQuery || selectedCategory ? (
           /* Word List View */
           <View className="px-5">
@@ -211,7 +213,18 @@ const Learn = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <BottomNav activeTab="learn" />
+      <View>
+        <BottomNav activeTab="learn" />
+        <View style={{ position: 'absolute', top: -24, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
+          <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
+            <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
+              <Ionicons name="add" size={28} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
   );
 };

@@ -110,7 +110,7 @@ Tables: `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_en
 | Speech recognition | `@dev-amirzubair/react-native-voice` |
 | AI/LLM | Gemini API (fetch-based) |
 | Push notifications | `expo-notifications` |
-| Network detection | `@react-native-community/netinfo` |
+| Network detection | `expo-network` |
 
 ### Still Missing
 | Needed For | Package |
@@ -121,3 +121,8 @@ Tables: `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_en
 - No lint, typecheck, or test scripts in `package.json`
 - No TypeScript strict mode
 - Multiple `any` types (e.g., quiz `useState<any[]>([])`)
+
+## ⚠️ Push Reminder — GCP API Key Secret
+Before pushing to `main`, GitHub push protection will **block** the Gemini API key in `src/config.ts:18` (GCP API Key Bound to a Service Account).
+- To allow: https://github.com/bishalAdk34/neplearn_mobile/security/secret-scanning/unblock-secret/3FviE091wiQxjPQibXNI4NdAnkL
+- Or better: move the key to an env file and use `expo-constants` to read it

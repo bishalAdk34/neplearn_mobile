@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
+import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore } from '../src/data/vocab';
 import { sendMessage, isOffline } from '../src/services/ai';
@@ -71,6 +72,7 @@ const AITutor = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const sessionXpRef = useRef(0);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
   const uid = user?.id || GUEST_ID;
   const learnedIds = learnedByUser[uid] || [];
@@ -281,7 +283,18 @@ const AITutor = () => {
         </TouchableOpacity>
       </View>
 
-      <BottomNav activeTab="ai-tutor" />
+      <View>
+        <BottomNav activeTab="ai-tutor" />
+        <View style={{ position: 'absolute', top: -24, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
+          <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
+            <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
+              <Ionicons name="add" size={28} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </KeyboardAvoidingView>
   );
 };

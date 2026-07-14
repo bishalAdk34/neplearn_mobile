@@ -45,6 +45,19 @@ Tables `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_ent
 - `any` types scattered across codebase
 - Pre-existing TS errors in achievements.tsx, learn.tsx, profile.tsx, QuickActionsModal.tsx (not from offline changes)
 
+## 🚫 Git Push Blocked — GCP API Key Secret Detection
+
+GitHub push protection **blocks pushes** containing the Gemini API key in `src/config.ts:18`.
+
+The key `YOUR_GEMINI_API_KEY` is flagged as a "GCP API Key Bound to a Service Account" secret.
+
+**To unblock:**
+- Option 1: Remove key from commits and use env vars instead
+- Option 2: Allow the secret at:
+  https://github.com/bishalAdk34/neplearn_mobile/security/secret-scanning/unblock-secret/3FviE091wiQxjPQibXNI4NdAnkL
+
+**Reminder**: Every time you start working, check this before pushing.
+
 ## Supabase Setup Checklist
 
 ### ✅ Done

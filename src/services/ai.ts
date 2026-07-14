@@ -46,7 +46,6 @@ async function fetchWithRetry(
 export function isOffline(): boolean {
   return !networkManager.getIsConnected();
 }
-}
 
 export async function sendMessage(
   history: ChatMessage[],

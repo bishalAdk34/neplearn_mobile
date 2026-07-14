@@ -1,27 +1,56 @@
-import NetInfo, { NetInfoState, NetInfoSubscription } from '@react-native-community/netinfo';
-
 type NetworkListener = (isConnected: boolean) => void;
+
+function getNativeNetwork(): {
+  getNetworkStateAsync: () => Promise<{ isConnected: boolean | null }>;
+  addNetworkStateListener: (l: (s: { isConnected: boolean | null }) => void) => { remove: () => void };
+} | null {
+  try {
+    return require('expo-network');
+  } catch {
+    return null;
+  }
+}
 
 class NetworkManager {
   private isConnected: boolean = true;
   private listeners: Set<NetworkListener> = new Set();
-  private subscription: NetInfoSubscription | null = null;
+  private cleanup: (() => void) | null = null;
 
   async init(): Promise<void> {
-    const state = await NetInfo.fetch();
-    this.isConnected = state.isConnected ?? true;
+    const native = getNativeNetwork();
+    if (native) {
+      try {
+        const state = await native.getNetworkStateAsync();
+        this.isConnected = state.isConnected ?? true;
+        const sub = native.addNetworkStateListener((s) => {
+          this.setConnected(s.isConnected ?? false);
+        });
+        this.cleanup = () => sub.remove();
+        return;
+      } catch {
+      }
+    }
 
-    this.subscription = NetInfo.addEventListener(this.handleNetworkChange);
+    if (typeof navigator !== 'undefined' && navigator.onLine !== undefined) {
+      this.isConnected = navigator.onLine;
+      const onLine = () => this.setConnected(true);
+      const offLine = () => this.setConnected(false);
+      window.addEventListener('online', onLine);
+      window.addEventListener('offline', offLine);
+      this.cleanup = () => {
+        window.removeEventListener('online', onLine);
+        window.removeEventListener('offline', offLine);
+      };
+      return;
+    }
   }
 
-  private handleNetworkChange = (state: NetInfoState): void => {
-    const wasConnected = this.isConnected;
-    this.isConnected = state.isConnected ?? false;
-
-    if (wasConnected !== this.isConnected) {
+  private setConnected(connected: boolean): void {
+    if (this.isConnected !== connected) {
+      this.isConnected = connected;
       this.notifyListeners();
     }
-  };
+  }
 
   private notifyListeners(): void {
     this.listeners.forEach((listener) => {
@@ -43,10 +72,7 @@ class NetworkManager {
   }
 
   destroy(): void {
-    if (this.subscription) {
-      this.subscription();
-      this.subscription = null;
-    }
+    this.cleanup?.();
     this.listeners.clear();
   }
 }

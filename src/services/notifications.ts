@@ -222,7 +222,14 @@ export async function getScheduledCount(): Promise<number> {
 
 export async function sendTestNotification(): Promise<void> {
   const Notifications = await getNotifications();
-  if (!Notifications) return;
+  if (!Notifications) {
+    throw new Error('expo-notifications is not available');
+  }
+
+  const granted = await requestPermissions();
+  if (!granted) {
+    throw new Error('Notification permission not granted');
+  }
 
   await Notifications.scheduleNotificationAsync({
     content: {

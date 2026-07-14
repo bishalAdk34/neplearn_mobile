@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
+import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore } from '../src/data/vocab';
 import { categories, getWordsByCategory, GUEST_ID } from '../src/data/vocab';
@@ -20,6 +21,7 @@ const Profile = () => {
   const [cloudXp, setCloudXp] = useState<number | null>(null);
   const [cloudStreak, setCloudStreak] = useState<{ current_streak: number; longest_streak: number } | null>(null);
   const [achievements, setAchievements] = useState<AchievementStatus[]>([]);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
   const totalLearned = categories.reduce((sum, cat) => {
     const words = getWordsByCategory(cat);
@@ -154,7 +156,18 @@ const Profile = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <BottomNav activeTab="profile" />
+      <View>
+        <BottomNav activeTab="profile" />
+        <View style={{ position: 'absolute', top: -24, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
+          <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
+            <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
+              <Ionicons name="add" size={28} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
   );
 };
