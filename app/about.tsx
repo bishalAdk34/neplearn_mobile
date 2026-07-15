@@ -24,9 +24,9 @@ const missionValues = [
 ];
 
 const stats = [
-  { value: '10k+', label: 'Learners' },
-  { value: '50+', label: 'Stories Preserved' },
-  { value: '100%', label: 'Community Led' },
+  { value: '320+', label: 'Words to Learn' },
+  { value: '21', label: 'Categories' },
+  { value: '100%', label: 'Free to Use' },
 ];
 
 const About = () => {

@@ -10,10 +10,10 @@ import {
 } from './vocab';
 
 export const GOAL_CATEGORY_PRIORITY: Record<LearningGoal, Category[]> = {
-  travel: ['greetings', 'directions', 'food', 'numbers', 'places', 'questions', 'time', 'days', 'months', 'verbs', 'adjectives', 'colors', 'body', 'family', 'animals'],
-  family: ['family', 'greetings', 'food', 'body', 'verbs', 'questions', 'time', 'days', 'months', 'adjectives', 'numbers', 'colors', 'places', 'directions', 'animals'],
-  business: ['greetings', 'numbers', 'days', 'months', 'time', 'questions', 'verbs', 'places', 'directions', 'adjectives', 'food', 'colors', 'family', 'body', 'animals'],
-  culture: ['greetings', 'places', 'food', 'family', 'animals', 'days', 'months', 'adjectives', 'verbs', 'questions', 'colors', 'time', 'numbers', 'directions', 'body'],
+  travel: ['greetings', 'directions', 'transport', 'food', 'numbers', 'shopping', 'places', 'questions', 'weather', 'time', 'health', 'days', 'months', 'emotions', 'verbs', 'adjectives', 'clothing', 'colors', 'body', 'family', 'animals'],
+  family: ['family', 'greetings', 'emotions', 'food', 'health', 'body', 'verbs', 'questions', 'time', 'days', 'clothing', 'months', 'adjectives', 'weather', 'numbers', 'shopping', 'colors', 'places', 'transport', 'directions', 'animals'],
+  business: ['greetings', 'numbers', 'days', 'months', 'time', 'questions', 'transport', 'shopping', 'verbs', 'places', 'directions', 'adjectives', 'health', 'emotions', 'weather', 'food', 'clothing', 'colors', 'family', 'body', 'animals'],
+  culture: ['greetings', 'places', 'food', 'family', 'clothing', 'animals', 'days', 'months', 'weather', 'adjectives', 'emotions', 'verbs', 'questions', 'shopping', 'colors', 'time', 'transport', 'numbers', 'health', 'directions', 'body'],
 };
 
 export const CATEGORY_DIFFICULTY: Record<Category, LearningLevel> = {
@@ -32,6 +32,12 @@ export const CATEGORY_DIFFICULTY: Record<Category, LearningLevel> = {
   adjectives: 'intermediate',
   verbs: 'advanced',
   questions: 'advanced',
+  weather: 'intermediate',
+  transport: 'beginner',
+  shopping: 'beginner',
+  health: 'intermediate',
+  emotions: 'beginner',
+  clothing: 'beginner',
 };
 
 const GOAL_PHRASES: Record<LearningGoal, string> = {

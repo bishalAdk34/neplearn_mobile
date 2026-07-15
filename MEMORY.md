@@ -7,6 +7,69 @@
 ## Project Context
 A React Native / Expo app (iOS/Android/Web) for learning Nepali vocabulary. Uses Supabase for auth and backend, Zustand + AsyncStorage for local state, NativeWind for styling.
 
+## App Features (snapshot July 15, 2026 — post vocab expansion)
+
+### Learning Core
+| Feature | Route | XP | Notes |
+|---|---|---|---|
+| Vocabulary lessons | `/lesson` | +20/correct | 5-word multiple-choice per category; auto-marks learned |
+| Category quiz | `/quiz/[category]` | +15/correct | 10 questions max; correct answers auto-learn via `learnWord` |
+| Flashcards | `/flashcards/[category]` | — | Flip cards, Wikipedia image fetch, toggle learned |
+| Browse/search vocab | `/learn` | — | Search English/Nepali/Roman; category filter chips |
+| SRS review | `/review` | +20/10 correct | Leitner boxes 1–5, intervals 1/3/7/14/30 days; due words only; cloud-synced |
+| Mistake practice | `/practice-mistakes` | — | Replays wrongly-answered words; AI quiz mode, offline fallback; resolved flag |
+| Morning vocab | `/morning-vocab` | +20/correct | 5 daily words aligned to learning goal |
+
+### Speaking / Listening / Writing
+| Feature | Route | XP | Notes |
+|---|---|---|---|
+| Echo practice | `/echo-practice` | +30 + 10/word | Listen + speak; speech recognition (`ne-NP`, Levenshtein 0.7); TTS speed setting |
+| Listening drills | `/listening` | +20 | Hear Nepali → pick English; 10 questions; slow/normal playback |
+| Journal | `/journal` | +25/save | Free Nepali writing, daily prompts, Gemini feedback; offline-queued |
+| Sentence builder | `/sentence-builder` | — | Word-order + fill-in-blank, 5-exercise sessions |
+
+### Conversation (Gemini)
+| Feature | Route | XP | Notes |
+|---|---|---|---|
+| AI tutor "Aama" | `/ai-tutor` | +20 after 3 exchanges | Persona chat, learner context (goal/level/learned words), history in `ai_chat_history` |
+| Roleplay scenarios | `/roleplay` | +20 after 3 exchanges | Market, doctor, bus, hotel etc.; ephemeral (no cloud save) |
+
+### Knowledge & Culture
+- `/grammar` — expandable tips (formality tiers, verb endings), +5 XP first read
+- `/culture` — expandable culture cards, +5 XP first read
+- `/story` — folklore stories + comprehension quiz, audio + images, +20 XP
+
+### Gamification & Progress
+- XP level = `floor(xp / 500) + 1`; daily goal configurable (25/50/100, default 50)
+- Streaks: auto-update on any XP activity, reset on missed day; one streak-freeze per ISO week
+- `/progress` per-category mastery %, `/achievements` (14 milestone unlocks), `/leaderboard` weekly XP ranking, `/heatmap` activity calendar
+
+### Vocabulary Data (`src/data/vocab.ts`)
+- 320 words, 21 categories: greetings, numbers, colors, family, food, directions, days, time, adjectives, places, verbs, questions, body, animals, months (BS calendar), weather, transport, shopping, health, emotions, clothing
+- Each word: Devanagari + roman + English + emoji/image URL; ids never reused after removal
+- New categories (ids 203–327) back roleplay scenarios + goal personalization; need native-speaker review before store release
+
+### Personalization
+- Onboarding: goal (travel/culture/business/family) + level (beginner/intermediate/advanced)
+- `GOAL_CATEGORY_PRIORITY` orders categories per goal; `CATEGORY_DIFFICULTY` reorders by level; drives recommendations, morning vocab, "Continue Learning"
+
+### Cross-Cutting
+- Offline-first: writes queue to AsyncStorage `nepali-offline-queue`; SyncManager replays FIFO on reconnect, max 3 retries; AI features skip/fallback offline
+- Guest mode: `GUEST_ID = '__guest__'`, all features local-only, cloud ops skipped
+- Auth: Google Sign-In idToken → Supabase; learned words sync bidirectionally
+- TTS: `expo-speech` `ne-NP`, fallback Google TTS URL via `expo-av`; speed 0.55/0.8/1.0
+- Images: Wikipedia thumbnails, in-memory Map cache; `Word.image` branches on `.startsWith('http')`
+- Notifications: daily reminder + word-of-day, configurable times
+- Quick-actions FAB (home/profile/learn/ai-tutor): echo, flashcards, Aama, daily quiz
+
+### Stores (Zustand + AsyncStorage)
+- `useVocabStore` (in `src/data/vocab.ts`) — learned words, local XP/streak, goal/level, onboarding flag
+- `stores/srs.ts` — Leitner state per word, strength decay when overdue
+- `stores/stats.ts` — review answers, sentences, listening sessions, grammar/culture read ids, goal days
+- `stores/mistakes.ts` — per-word mistake count, source, resolved flag
+- `stores/settings.ts` — TTS speed, daily XP goal
+- `stores/auth.ts` — session
+
 ## Current State (July 2, 2026)
 
 ### What's Done

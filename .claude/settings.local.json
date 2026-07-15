@@ -8,7 +8,13 @@
       "Bash(node -e:*)",
       "Bash(grep:*)",
       "Bash(dir:*)",
-      "Bash(npx expo install:*)"
+      "Bash(npx expo install:*)",
+      "Bash(npx eas-cli:*)",
+      "Bash(wc:*)",
+      "Bash(git -C \"C:\\\\Users\\\\DELL\\\\Peronal_projects\\\\neplearn_mobile\" log --oneline -10)",
+      "Bash(git -C \"C:\\\\Users\\\\DELL\\\\Peronal_projects\\\\neplearn_mobile\" check-ignore .env)",
+      "Bash(git -C \"C:\\\\Users\\\\DELL\\\\Peronal_projects\\\\neplearn_mobile\" log --all --oneline -S \"AIza\" -- .)",
+      "Bash(node scripts/check-vocab.js:*)"
     ]
   }
 }
