@@ -11,5 +11,5 @@ export const GOOGLE_IOS_CLIENT_ID = extra.googleIosClientId ?? '';
 export const SUPABASE_URL = extra.supabaseUrl ?? '';
 export const SUPABASE_ANON_KEY = extra.supabaseAnonKey ?? '';
 
-// Google Gemini
+// Google Gemini — get a free API key at https://aistudio.google.com/apikey
 export const GEMINI_API_KEY = extra.geminiApiKey ?? '';

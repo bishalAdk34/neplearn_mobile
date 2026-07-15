@@ -1,8 +1,8 @@
 import { GEMINI_API_KEY } from '../config';
 import { networkManager } from './network';
 
-const MODEL = 'gemini-2.0-flash';
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const MODEL = 'gemini-2.5-flash';
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -24,6 +24,24 @@ RULES:
 - Use natural conversational examples
 - Encourage practice and celebrate progress
 - NEVER comment on your own responses or say "I hope this helps"`;
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = MAX_RETRIES,
+): Promise<Response> {
+  const res = await fetch(url, options);
+  if (res.status === 429 && retries > 0) {
+    const delay = BASE_DELAY_MS * Math.pow(2, MAX_RETRIES - retries);
+    console.warn(`Gemini API rate limited, retrying in ${delay}ms...`);
+    await new Promise(r => setTimeout(r, delay));
+    return fetchWithRetry(url, options, retries - 1);
+  }
+  return res;
+}
 
 export function isOffline(): boolean {
   return !networkManager.getIsConnected();
@@ -49,9 +67,9 @@ export async function sendMessage(
   });
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithRetry(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
       body: JSON.stringify({
         contents,
         systemInstruction: {
