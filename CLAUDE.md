@@ -13,9 +13,11 @@ npm start          # expo dev server
 npm run android    # expo run:android
 npm run ios        # expo run:ios
 npm run web        # expo start --web
+npm test           # jest (jest-expo preset)
+npm run typecheck  # tsc --noEmit
 ```
 
-No lint, test, or typecheck scripts exist. For type checking use `npx tsc --noEmit`.
+No lint script exists. Tests live in `__tests__/`; `jest.setup.js` mocks AsyncStorage and the Supabase client (created at import time, needs env config).
 
 ## Architecture
 
@@ -61,15 +63,8 @@ NativeWind (Tailwind for RN) via `className`. Custom colors (`primary` #6366F1, 
 - XP: lesson +20/correct, quiz +15/correct, journal +25/save, echo practice +30/complete. Streak auto-updates on any XP-earning activity; resets on missed day.
 - Quiz caps at 10 questions per session; correct answers auto-mark words as learned via `learnWord`.
 - `Word.image` is either an emoji string or an HTTP URL — code branches on `.startsWith('http')`.
-- Category metadata (emoji, gradient colors) is duplicated between `app/index.tsx` (`CATEGORY_META`) and `app/progress.tsx` (`CATEGORY_COLORS`/`CATEGORY_EMOJIS`) — update both.
-
-## Known Gaps
-
-- `/story` route file exists but is not registered in the `_layout.tsx` Stack — 404s when navigated to.
-- Non-functional UI: Learn screen search bar and theme filter chips, Profile "View Heatmap", Story audio play / "Next Chapter" / "Back to Folklore Map".
-- Quiz speaks English instead of Nepali (`speak(q.english, 'en-US')` in `app/quiz/[category].tsx`).
-- No test infrastructure.
+- Category metadata (emoji, color) lives in `CATEGORY_META` in `src/data/vocab.ts`, shared by all screens.
 
 ## See Also
 
-`AGENTS.md` has more detailed specs. **Caveat:** its env/config section is outdated — it claims no env files are used and that the Gemini key is hardcoded in `src/config.ts`; current code reads all keys from `.env` via `app.config.js` → `expo-constants`.
+`AGENTS.md` has more detailed specs. **Caveats:** its env/config section is outdated — it claims no env files are used and that the Gemini key is hardcoded in `src/config.ts`; current code reads all keys from `.env` via `app.config.js` → `expo-constants`. Its category-metadata-duplication note is also outdated (now shared via `CATEGORY_META` in `src/data/vocab.ts`).

@@ -14,7 +14,10 @@
       "Bash(git -C \"C:\\\\Users\\\\DELL\\\\Peronal_projects\\\\neplearn_mobile\" log --oneline -10)",
       "Bash(git -C \"C:\\\\Users\\\\DELL\\\\Peronal_projects\\\\neplearn_mobile\" check-ignore .env)",
       "Bash(git -C \"C:\\\\Users\\\\DELL\\\\Peronal_projects\\\\neplearn_mobile\" log --all --oneline -S \"AIza\" -- .)",
-      "Bash(node scripts/check-vocab.js:*)"
+      "Bash(node scripts/check-vocab.js:*)",
+      "Bash(npm pkg delete:*)",
+      "Bash(npm pkg set:*)",
+      "Bash(npm test:*)"
     ]
   }
 }
