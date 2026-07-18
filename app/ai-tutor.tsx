@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,11 +63,19 @@ const AITutor = () => {
     })();
   }, []);
 
+  const [kbHeight, setKbHeight] = useState(0);
+
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages.length]);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const handleSend = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -118,12 +126,7 @@ const AITutor = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1"
-      style={{ backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <View
         style={{ paddingTop: insets.top + 8 }}
         className="flex-row items-center justify-between px-5 pb-4"
@@ -161,74 +164,80 @@ const AITutor = () => {
         </View>
       )}
 
-      <ScrollView
-        ref={scrollRef}
+      <KeyboardAvoidingView
         className="flex-1"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}
-        showsVerticalScrollIndicator={false}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {messages.length === 0 ? (
-          <View className="items-center px-5 pt-4">
-            <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: colors.border }}>
-              <Text className="text-3xl">👩</Text>
-            </View>
-            <Text className="text-ink text-2xl font-bold mb-1">Aama</Text>
-            <Text style={{ color: colors.textSecondary }} className="text-sm mb-6">Native Speaker & Language Expert</Text>
-
-            <View className="w-full mb-6 p-4 rounded-2xl rounded-bl-md" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              <Text className="text-ink text-base mb-2">
-                Namaste! 🙏 I'm Aama, your Nepali language tutor. Tell me what you'd like to learn today, or try one of these:
-              </Text>
-            </View>
-
-            <View className="w-full flex-row flex-wrap">
-              {QUICK_ACTIONS.map(action => (
-                <TouchableOpacity
-                  key={action.label}
-                  onPress={() => handleQuickAction(action.label)}
-                  className="flex-row items-center mr-2 mb-2 px-4 py-3 rounded-full"
-                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                >
-                  <Text className="mr-2">{action.icon}</Text>
-                  <Text className="text-ink text-sm font-medium">{action.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ) : (
-          messages.map(msg => <MessageBubble key={msg.id} role={msg.role} text={msg.text} />)
-        )}
-
-        {isLoading && <TypingDots />}
-      </ScrollView>
-
-      <View
-        className="flex-row items-center px-4 py-3"
-        style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border }}
-      >
-        <TextInput
-          className="flex-1 h-11 px-4 rounded-full text-base"
-          style={{ backgroundColor: colors.mutedSurface, color: colors.ink }}
-          placeholder="Ask Aama anything..."
-          placeholderTextColor={colors.textTertiary}
-          value={inputText}
-          onChangeText={setInputText}
-          onSubmitEditing={() => handleSend(inputText)}
-          returnKeyType="send"
-          editable={!isLoading}
-        />
-        <TouchableOpacity
-          onPress={() => handleSend(inputText)}
-          disabled={!inputText.trim() || isLoading || networkOffline}
-          className="ml-3 w-11 h-11 rounded-full items-center justify-center"
-          style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline ? colors.primary : colors.disabled }}
+        <ScrollView
+          ref={scrollRef}
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="send" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+          {messages.length === 0 ? (
+            <View className="items-center px-5 pt-4">
+              <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: colors.border }}>
+                <Text className="text-3xl">👩</Text>
+              </View>
+              <Text className="text-ink text-2xl font-bold mb-1">Aama</Text>
+              <Text style={{ color: colors.textSecondary }} className="text-sm mb-6">Native Speaker & Language Expert</Text>
 
-      <View>
+              <View className="w-full mb-6 p-4 rounded-2xl rounded-bl-md" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <Text className="text-ink text-base mb-2">
+                  Namaste! 🙏 I'm Aama, your Nepali language tutor. Tell me what you'd like to learn today, or try one of these:
+                </Text>
+              </View>
+
+              <View className="w-full flex-row flex-wrap">
+                {QUICK_ACTIONS.map(action => (
+                  <TouchableOpacity
+                    key={action.label}
+                    onPress={() => handleQuickAction(action.label)}
+                    className="flex-row items-center mr-2 mb-2 px-4 py-3 rounded-full"
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  >
+                    <Text className="mr-2">{action.icon}</Text>
+                    <Text className="text-ink text-sm font-medium">{action.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ) : (
+            messages.map(msg => <MessageBubble key={msg.id} role={msg.role} text={msg.text} />)
+          )}
+
+          {isLoading && <TypingDots />}
+        </ScrollView>
+
+        <View
+          className="flex-row items-center px-4 py-3"
+          style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border }}
+        >
+          <TextInput
+            className="flex-1 h-11 px-4 rounded-full text-base"
+            style={{ backgroundColor: colors.mutedSurface, color: colors.ink }}
+            placeholder="Ask Aama anything..."
+            placeholderTextColor={colors.textTertiary}
+            value={inputText}
+            onChangeText={setInputText}
+            onSubmitEditing={() => handleSend(inputText)}
+            returnKeyType="send"
+            editable={!isLoading}
+          />
+          <TouchableOpacity
+            onPress={() => handleSend(inputText)}
+            disabled={!inputText.trim() || isLoading || networkOffline}
+            className="ml-3 w-11 h-11 rounded-full items-center justify-center"
+            style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline ? colors.primary : colors.disabled }}
+          >
+            <Ionicons name="send" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      <View style={{ paddingBottom: kbHeight }}>
         <BottomNav activeTab="ai-tutor" />
         <View style={{ position: 'absolute', top: -24, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
           <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
@@ -240,7 +249,7 @@ const AITutor = () => {
       </View>
 
       <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 

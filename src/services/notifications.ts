@@ -65,26 +65,31 @@ export async function initNotifications() {
 }
 
 export async function requestPermissions(): Promise<boolean> {
-  const Notifications = await getNotifications();
-  if (!Notifications) return false;
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return false;
 
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let status = existing;
-  if (existing !== 'granted') {
-    const { status: s } = await Notifications.requestPermissionsAsync();
-    status = s;
-  }
-  if (status !== 'granted') return false;
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let status = existing;
+    if (existing !== 'granted') {
+      const { status: s } = await Notifications.requestPermissionsAsync();
+      status = s;
+    }
+    if (status !== 'granted') return false;
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Practice Reminders',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#800816',
-    });
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Practice Reminders',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#800816',
+      });
+    }
+    return true;
+  } catch (e) {
+    console.warn('requestPermissions failed:', e);
+    return false;
   }
-  return true;
 }
 
 function reminderContent(streakDays: number): { title: string; body: string } {
@@ -113,26 +118,30 @@ function reminderContent(streakDays: number): { title: string; body: string } {
 }
 
 export async function scheduleDailyReminder(hour: number, minute: number, streakDays = 0): Promise<void> {
-  const Notifications = await getNotifications();
-  if (!Notifications) return;
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
 
-  await cancelDailyReminder();
-  const content = reminderContent(streakDays);
-  await Notifications.scheduleNotificationAsync({
-    identifier: DAILY_REMINDER_ID,
-    content: {
-      title: content.title,
-      body: content.body,
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-      hour,
-      minute,
-      repeats: true,
-      timezone: NEPAL_TIMEZONE,
-    },
-  });
+    await cancelDailyReminder();
+    const content = reminderContent(streakDays);
+    await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_REMINDER_ID,
+      content: {
+        title: content.title,
+        body: content.body,
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+        hour,
+        minute,
+        repeats: true,
+        timezone: NEPAL_TIMEZONE,
+      },
+    });
+  } catch (e) {
+    console.warn('scheduleDailyReminder failed:', e);
+  }
 }
 
 /** Re-schedule the daily reminder (if enabled) with fresh streak-aware copy. */
@@ -150,41 +159,48 @@ function wordOfDayFor(date: Date): { english: string; nepali: string; roman: str
 }
 
 export async function scheduleWordOfDay(hour: number): Promise<void> {
-  const Notifications = await getNotifications();
-  if (!Notifications) return;
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
 
-  await cancelWordOfDay();
+    await cancelWordOfDay();
 
-  // Bake tomorrow's word if today's slot already passed, else today's.
-  const now = new Date();
-  const target = new Date(now);
-  if (now.getHours() >= hour) target.setDate(target.getDate() + 1);
-  const word = wordOfDayFor(target);
+    const now = new Date();
+    const target = new Date(now);
+    if (now.getHours() >= hour) target.setDate(target.getDate() + 1);
+    const word = wordOfDayFor(target);
 
-  await Notifications.scheduleNotificationAsync({
-    identifier: WORD_OF_DAY_ID,
-    content: {
-      title: `📖 Word of the day: ${word.english}`,
-      body: `${word.nepali} (${word.roman}) — open NepLearn to practice it!`,
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-      hour,
-      minute: 0,
-      repeats: true,
-      timezone: NEPAL_TIMEZONE,
-    },
-  });
+    await Notifications.scheduleNotificationAsync({
+      identifier: WORD_OF_DAY_ID,
+      content: {
+        title: `📖 Word of the day: ${word.english}`,
+        body: `${word.nepali} (${word.roman}) — open NepLearn to practice it!`,
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+        hour,
+        minute: 0,
+        repeats: true,
+        timezone: NEPAL_TIMEZONE,
+      },
+    });
+  } catch (e) {
+    console.warn('scheduleWordOfDay failed:', e);
+  }
 }
 
 export async function cancelWordOfDay(): Promise<void> {
-  const Notifications = await getNotifications();
-  if (!Notifications) return;
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
 
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  if (scheduled.some(n => n.identifier === WORD_OF_DAY_ID)) {
-    await Notifications.cancelScheduledNotificationAsync(WORD_OF_DAY_ID);
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    if (scheduled.some(n => n.identifier === WORD_OF_DAY_ID)) {
+      await Notifications.cancelScheduledNotificationAsync(WORD_OF_DAY_ID);
+    }
+  } catch (e) {
+    console.warn('cancelWordOfDay failed:', e);
   }
 }
 
@@ -262,12 +278,16 @@ export async function initNotificationLogListener(): Promise<() => void> {
 }
 
 export async function cancelDailyReminder(): Promise<void> {
-  const Notifications = await getNotifications();
-  if (!Notifications) return;
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
 
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  if (scheduled.some(n => n.identifier === DAILY_REMINDER_ID)) {
-    await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID);
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    if (scheduled.some(n => n.identifier === DAILY_REMINDER_ID)) {
+      await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID);
+    }
+  } catch (e) {
+    console.warn('cancelDailyReminder failed:', e);
   }
 }
 

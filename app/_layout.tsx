@@ -25,12 +25,12 @@ export default function RootLayout() {
   }, [splashDone, initializeAuth]);
 
   useEffect(() => {
-    initNotifications();
+    initNotifications().catch(() => {});
 
     let unsubscribeLog: (() => void) | undefined;
     initNotificationLogListener().then(unsub => {
       unsubscribeLog = unsub;
-    });
+    }).catch(() => {});
 
     // Keep the daily reminder copy streak-aware: refresh whenever the app foregrounds.
     const refreshReminder = () => {

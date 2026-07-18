@@ -11,6 +11,20 @@ function getNativeNetwork(): {
   }
 }
 
+async function verifyWithFetch(): Promise<boolean> {
+  try {
+    const res = await fetch('https://clients3.google.com/generate_204', { method: 'HEAD', cache: 'no-store' });
+    return res.ok;
+  } catch {
+    try {
+      const res = await fetch('https://httpbin.org/status/204', { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
 class NetworkManager {
   private isConnected: boolean = true;
   private _isInitialized: boolean = false;
@@ -23,9 +37,20 @@ class NetworkManager {
     if (native) {
       try {
         const state = await native.getNetworkStateAsync();
-        this.isConnected = state.isConnected ?? true;
+        let connected = state.isConnected ?? true;
+        if (!connected) {
+          connected = await verifyWithFetch();
+        }
+        this.isConnected = connected;
         const sub = native.addNetworkStateListener((s) => {
-          this.setConnected(s.isConnected ?? false);
+          const next = s.isConnected ?? false;
+          if (next) {
+            this.setConnected(true);
+          } else {
+            verifyWithFetch().then((verified) => {
+              this.setConnected(verified);
+            });
+          }
         });
         this.cleanup = () => sub.remove();
         this.setInitialized();
