@@ -118,15 +118,20 @@ const Home = () => {
               <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/settings'); }}>
                 <Text className="text-ink text-base font-semibold">⚙️ Settings</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); Alert.alert('Help & Support', 'Contact us at support@neplearn.com'); }}>
-                <Text className="text-ink text-base font-semibold">❓ Help & Support</Text>
+              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/help'); }}>
+                <Text className="text-ink text-base font-semibold">❓ Help</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); Alert.alert('About', 'NepLearn v1.0.0\nYour journey through the peaks of wisdom.'); }}>
+              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/support'); }}>
+                <Text className="text-ink text-base font-semibold">📧 Support</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/about'); }}>
                 <Text className="text-ink text-base font-semibold">ℹ️ About</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="px-4 py-3" onPress={() => { setMenuVisible(false); clearUser(); }}>
-                <Text style={{ color: colors.danger }} className="text-base font-semibold">🚪 Sign Out</Text>
-              </TouchableOpacity>
+              {user && (
+                <TouchableOpacity className="px-4 py-3" onPress={() => { setMenuVisible(false); clearUser(); }}>
+                  <Text style={{ color: colors.danger }} className="text-base font-semibold">🚪 Sign Out</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </TouchableOpacity>
         </Modal>

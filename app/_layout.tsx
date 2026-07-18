@@ -112,6 +112,8 @@ export default function RootLayout() {
         <Stack.Screen name="roleplay" options={{ headerShown: false }} />
         <Stack.Screen name="photo-vocab" options={{ headerShown: false }} />
         <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
+        <Stack.Screen name="help" options={{ headerShown: false }} />
+        <Stack.Screen name="support" options={{ headerShown: false }} />
       </Stack>
     </NetworkProvider>
   );

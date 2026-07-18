@@ -1,8 +1,8 @@
-import { GEMINI_API_KEY } from '../config';
+import { GROQ_API_KEY } from '../config';
 import { networkManager } from './network';
 
-const MODEL = 'gemini-2.5-flash';
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const MODEL = 'llama-3.3-70b-versatile';
+const BASE_URL = 'https://api.groq.com/openai/v1';
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -36,11 +36,43 @@ async function fetchWithRetry(
   const res = await fetch(url, options);
   if (res.status === 429 && retries > 0) {
     const delay = BASE_DELAY_MS * Math.pow(2, MAX_RETRIES - retries);
-    console.warn(`Gemini API rate limited, retrying in ${delay}ms...`);
+    console.warn(`Groq API rate limited, retrying in ${delay}ms...`);
     await new Promise(r => setTimeout(r, delay));
     return fetchWithRetry(url, options, retries - 1);
   }
   return res;
+}
+
+async function groqChat(
+  messages: { role: string; content: string }[],
+  systemPrompt: string,
+  jsonMode = false,
+): Promise<string | null> {
+  const allMessages = [{ role: 'system', content: systemPrompt }, ...messages];
+
+  try {
+    const res = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: allMessages,
+        ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.warn('Groq API error:', data.error?.message || res.status);
+      return null;
+    }
+
+    return data?.choices?.[0]?.message?.content ?? null;
+  } catch (e) {
+    console.warn('Groq API fetch failed:', e);
+    return null;
+  }
 }
 
 export function isOffline(): boolean {
@@ -56,77 +88,25 @@ export async function sendMessage(
     return 'You are currently offline. Aama needs an internet connection to respond. Please reconnect and try again. 🙏';
   }
 
-  const contents = history.map(msg => ({
-    role: msg.role,
-    parts: [{ text: msg.text }],
+  if (!GROQ_API_KEY) {
+    return 'Maaf garnuhos, Aama\'s brain hasn\'t been configured yet. The developer needs to set the GROQ_API_KEY environment variable. 🙏';
+  }
+
+  const messages = history.map(msg => ({
+    role: msg.role === 'model' ? 'assistant' : 'user',
+    content: msg.text,
   }));
 
-  contents.push({
-    role: 'user',
-    parts: [{ text: newMessage }],
-  });
+  messages.push({ role: 'user', content: newMessage });
 
-  try {
-    const res = await fetchWithRetry(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: {
-          parts: [{ text: context ? `${SYSTEM_PROMPT}\n\n${context}` : SYSTEM_PROMPT }],
-        },
-      }),
-    });
+  const systemPrompt = context ? `${SYSTEM_PROMPT}\n\n${context}` : SYSTEM_PROMPT;
+  const reply = await groqChat(messages, systemPrompt);
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.warn('Gemini API error:', data.error?.message || res.status);
-      return 'Maaf garnuhos, Aama is having trouble thinking right now. Please try again in a moment. 🙏';
-    }
-
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      return 'Aama is searching for the right words... could you repeat that?';
-    }
-
-    return text;
-  } catch (e) {
-    console.warn('Gemini API fetch failed:', e);
-    return 'Aama could not hear you. Check your connection and try again. 🙏';
+  if (!reply) {
+    return 'Maaf garnuhos, Aama is having trouble thinking right now. Please try again in a moment. 🙏';
   }
-}
 
-type GeminiPart = { text: string } | { inline_data: { mime_type: string; data: string } };
-
-/** One-shot JSON-mode request. Returns parsed JSON or null on any failure. */
-async function requestJson<T>(parts: GeminiPart[], systemPrompt: string): Promise<T | null> {
-  if (!networkManager.getIsConnected()) return null;
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      console.warn('Gemini JSON API error:', data.error?.message || res.status);
-      return null;
-    }
-
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return null;
-    return JSON.parse(text) as T;
-  } catch (e) {
-    console.warn('Gemini JSON request failed:', e);
-    return null;
-  }
+  return reply;
 }
 
 export interface JournalFeedback {
@@ -140,22 +120,28 @@ export async function getJournalFeedback(
   prompt: string,
   userText: string,
 ): Promise<JournalFeedback | null> {
-  const result = await requestJson<JournalFeedback>(
-    [{
-      text:
-        `Journal prompt (Nepali): ${prompt}\n` +
-        `Learner's answer: ${userText}\n\n` +
-        'Correct the learner\'s Nepali. Respond as JSON with keys: ' +
-        '"corrected" (the corrected Nepali text in Devanagari; if already correct, repeat it), ' +
-        '"roman" (romanization of the corrected text), ' +
-        '"explanation" (1-3 short English sentences explaining the main correction, or praise if correct).',
-    }],
-    'You are a Nepali language teacher correcting a beginner\'s journal entry. Be gentle and concise. Output only valid JSON.'
+  const content =
+    `Journal prompt (Nepali): ${prompt}\n` +
+    `Learner's answer: ${userText}\n\n` +
+    'Correct the learner\'s Nepali. Respond as JSON with keys: ' +
+    '"corrected" (the corrected Nepali text in Devanagari; if already correct, repeat it), ' +
+    '"roman" (romanization of the corrected text), ' +
+    '"explanation" (1-3 short English sentences explaining the main correction, or praise if correct).';
+
+  const result = await groqChat(
+    [{ role: 'user', content }],
+    'You are a Nepali language teacher correcting a beginner\'s journal entry. Be gentle and concise. Output only valid JSON.',
+    true,
   );
-  if (!result || typeof result.corrected !== 'string' || typeof result.explanation !== 'string') {
+
+  if (!result) return null;
+  try {
+    const parsed = JSON.parse(result) as JournalFeedback;
+    if (typeof parsed.corrected !== 'string' || typeof parsed.explanation !== 'string') return null;
+    return { corrected: parsed.corrected, roman: parsed.roman || '', explanation: parsed.explanation };
+  } catch {
     return null;
   }
-  return { corrected: result.corrected, roman: result.roman || '', explanation: result.explanation };
 }
 
 export interface AiQuizQuestion {
@@ -179,23 +165,32 @@ export async function generateMistakeQuiz(
     .map(w => `id=${w.id}: ${w.english} = ${w.nepali} (${w.roman})`)
     .join('\n');
 
-  const result = await requestJson<{ questions: AiQuizQuestion[] }>(
-    [{
-      text:
-        `Vocabulary the learner keeps getting wrong:\n${wordList}\n\n` +
-        'Create one multiple-choice question per word that tests it in a fresh way ' +
-        '(fill-in-the-blank sentence, usage context, or translation variation). ' +
-        'Respond as JSON: {"questions": [{"wordId": number (must be one of the ids above), ' +
-        '"question": string (English, may embed Nepali in Devanagari), ' +
-        '"options": [4 strings], "answerIndex": number (0-3)}]}',
-    }],
-    'You create short Nepali vocabulary quiz questions for a beginner. Output only valid JSON.'
+  const content =
+    `Vocabulary the learner keeps getting wrong:\n${wordList}\n\n` +
+    'Create one multiple-choice question per word that tests it in a fresh way ' +
+    '(fill-in-the-blank sentence, usage context, or translation variation). ' +
+    'Respond as JSON: {"questions": [{"wordId": number (must be one of the ids above), ' +
+    '"question": string (English, may embed Nepali in Devanagari), ' +
+    '"options": [4 strings], "answerIndex": number (0-3)}]}';
+
+  const result = await groqChat(
+    [{ role: 'user', content }],
+    'You create short Nepali vocabulary quiz questions for a beginner. Output only valid JSON.',
+    true,
   );
 
-  if (!result || !Array.isArray(result.questions)) return null;
+  if (!result) return null;
+  let parsed: { questions?: AiQuizQuestion[] };
+  try {
+    parsed = JSON.parse(result);
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(parsed?.questions)) return null;
 
   const validIds = new Set(words.map(w => w.id));
-  const valid = result.questions.filter(q =>
+  const valid = parsed.questions.filter(q =>
     q &&
     validIds.has(q.wordId) &&
     typeof q.question === 'string' &&
@@ -216,23 +211,8 @@ export interface IdentifiedObject {
 }
 
 /** Identify objects in a photo and name them in Nepali. Returns null offline or on failure. */
-export async function identifyObjects(base64: string): Promise<IdentifiedObject[] | null> {
-  const result = await requestJson<{ objects: IdentifiedObject[] }>(
-    [
-      { inline_data: { mime_type: 'image/jpeg', data: base64 } },
-      {
-        text:
-          'Identify up to 8 clearly visible everyday objects in this photo. ' +
-          'Respond as JSON: {"objects": [{"english": string (one or two words), ' +
-          '"nepali": string (Devanagari), "roman": string (romanized Nepali)}]}',
-      },
-    ],
-    'You label objects in photos with their Nepali names for a language learner. Output only valid JSON.'
-  );
-
-  if (!result || !Array.isArray(result.objects)) return null;
-  const valid = result.objects.filter(o =>
-    o && typeof o.english === 'string' && typeof o.nepali === 'string' && typeof o.roman === 'string'
-  );
-  return valid.length > 0 ? valid : null;
+export async function identifyObjects(_base64: string): Promise<IdentifiedObject[] | null> {
+  // Groq's free tier models are text-only — no vision/multimodal support
+  console.warn('Photo analysis is not available on the current AI provider (Groq free tier)');
+  return null;
 }

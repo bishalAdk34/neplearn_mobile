@@ -84,7 +84,7 @@ const Listening = () => {
   if (isComplete) {
     return (
       <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: colors.background }}>
-        <Text className="text-6xl mb-4">🎧</Text>
+        <Text style={{ fontSize: 72, lineHeight: 88 }} className="mb-6">🎧</Text>
         <Text className="text-ink text-2xl font-bold mb-2">Listening Complete!</Text>
         <Text style={{ color: colors.textSecondary }} className="text-base mb-2 text-center">
           You got {score} of {questions.length} correct.

@@ -1,4 +1,6 @@
-export default ({ config }) => ({
+require('dotenv').config();
+
+module.exports = ({ config }) => ({
   ...config,
   extra: {
     ...config.extra,
@@ -11,5 +13,6 @@ export default ({ config }) => ({
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
     // AI
     geminiApiKey: process.env.GEMINI_API_KEY,
+    groqApiKey: process.env.GROQ_API_KEY,
   },
 });

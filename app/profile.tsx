@@ -50,7 +50,7 @@ const Profile = () => {
     { label: 'View Heatmap', icon: 'grid-outline', route: '/heatmap' },
     { label: 'Notifications', icon: 'notifications-outline', route: '/settings' },
     { label: 'App Settings', icon: 'settings-outline', route: '/settings' },
-    { label: 'Help Center', icon: 'help-circle-outline', route: null, onPress: () => Alert.alert('Help & Support', 'Contact us at support@neplearn.com') },
+    { label: 'Help Center', icon: 'help-circle-outline', route: '/help' },
     { label: 'About NepLearn', icon: 'information-circle-outline', route: '/about' },
   ];
 
