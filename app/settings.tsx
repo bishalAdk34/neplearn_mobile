@@ -91,18 +91,22 @@ const Settings = () => {
   )?.label || `${reminderHour}:${String(reminderMinute).padStart(2, '0')}`;
 
   const toggleNotifications = async (value: boolean) => {
-    if (value) {
-      const granted = await requestPermissions();
-      if (!granted) {
-        Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive practice reminders.');
-        return;
+    try {
+      if (value) {
+        const granted = await requestPermissions();
+        if (!granted) {
+          Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive practice reminders.');
+          return;
+        }
+        await scheduleDailyReminder(reminderHour, reminderMinute, currentStreak);
+      } else {
+        await cancelDailyReminder();
       }
-      await scheduleDailyReminder(reminderHour, reminderMinute, currentStreak);
-    } else {
-      await cancelDailyReminder();
+      setNotificationsEnabled(value);
+      await savePrefs({ enabled: value, reminderHour, reminderMinute, wordOfDayEnabled, wordOfDayHour });
+    } catch (e: any) {
+      Alert.alert('Notification Error', e?.message || 'Failed to update notification settings.');
     }
-    setNotificationsEnabled(value);
-    await savePrefs({ enabled: value, reminderHour, reminderMinute, wordOfDayEnabled, wordOfDayHour });
   };
 
   const selectTtsSpeed = async (speed: TtsSpeed) => {
@@ -121,18 +125,22 @@ const Settings = () => {
   };
 
   const toggleWordOfDay = async (value: boolean) => {
-    if (value) {
-      const granted = await requestPermissions();
-      if (!granted) {
-        Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive the word of the day.');
-        return;
+    try {
+      if (value) {
+        const granted = await requestPermissions();
+        if (!granted) {
+          Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive the word of the day.');
+          return;
+        }
+        await scheduleWordOfDay(wordOfDayHour);
+      } else {
+        await cancelWordOfDay();
       }
-      await scheduleWordOfDay(wordOfDayHour);
-    } else {
-      await cancelWordOfDay();
+      setWordOfDayEnabled(value);
+      await savePrefs({ enabled: notificationsEnabled, reminderHour, reminderMinute, wordOfDayEnabled: value, wordOfDayHour });
+    } catch (e: any) {
+      Alert.alert('Notification Error', e?.message || 'Failed to update word of the day settings.');
     }
-    setWordOfDayEnabled(value);
-    await savePrefs({ enabled: notificationsEnabled, reminderHour, reminderMinute, wordOfDayEnabled: value, wordOfDayHour });
   };
 
   const selectWodHour = async (hour: number) => {

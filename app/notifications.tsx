@@ -154,7 +154,7 @@ export default function NotificationsScreen() {
         </ScrollView>
       )}
 
-      <BottomNav activeTab="home" />
+      <BottomNav />
     </View>
   );
 }

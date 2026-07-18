@@ -4,11 +4,13 @@ import { networkManager } from '../services/network';
 interface NetworkContextValue {
   isConnected: boolean;
   isOffline: boolean;
+  isInitialized: boolean;
 }
 
 export const NetworkContext = createContext<NetworkContextValue>({
   isConnected: true,
   isOffline: false,
+  isInitialized: false,
 });
 
 interface NetworkProviderProps {
@@ -17,22 +19,31 @@ interface NetworkProviderProps {
 
 export function NetworkProvider({ children }: NetworkProviderProps) {
   const [isConnected, setIsConnected] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(networkManager.isInitialized);
 
   useEffect(() => {
-    // Set initial state
     setIsConnected(networkManager.getIsConnected());
+    setIsInitialized(networkManager.isInitialized);
 
-    // Listen for changes
     const unsubscribe = networkManager.addListener((connected) => {
       setIsConnected(connected);
     });
 
-    return unsubscribe;
+    const unsubInit = networkManager.onInitialized(() => {
+      setIsInitialized(true);
+      setIsConnected(networkManager.getIsConnected());
+    });
+
+    return () => {
+      unsubscribe();
+      unsubInit();
+    };
   }, []);
 
   const value: NetworkContextValue = {
     isConnected,
-    isOffline: !isConnected,
+    isOffline: isInitialized ? !isConnected : false,
+    isInitialized,
   };
 
   return (

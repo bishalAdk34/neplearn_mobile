@@ -231,7 +231,7 @@ const EchoPractice = () => {
                 onPress={handlePlay}
                 disabled={isPlaying}
               >
-                <Text className="text-white text-3xl">🔊</Text>
+                <Ionicons name="volume-high" size={32} color="#FFFFFF" />
               </TouchableOpacity>
             ) : phase === 'listening' ? (
               <View className="items-center mb-4">
@@ -273,8 +273,8 @@ const EchoPractice = () => {
           </View>
 
           {!isAvailable && phase === 'idle' && (
-            <Text style={{ color: colors.warning }} className="text-sm mt-4 text-center">
-              Speech recognition not available. Tap the speaker button then manually advance.
+            <Text style={{ color: colors.warning }} className="text-sm mt-4 text-center px-6">
+              Speech recognition requires a development build. Using manual mode — tap speaker then tap NEXT.
             </Text>
           )}
           {error && phase === 'listening' && (

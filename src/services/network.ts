@@ -13,7 +13,9 @@ function getNativeNetwork(): {
 
 class NetworkManager {
   private isConnected: boolean = true;
+  private _isInitialized: boolean = false;
   private listeners: Set<NetworkListener> = new Set();
+  private initListeners: Set<() => void> = new Set();
   private cleanup: (() => void) | null = null;
 
   async init(): Promise<void> {
@@ -26,6 +28,7 @@ class NetworkManager {
           this.setConnected(s.isConnected ?? false);
         });
         this.cleanup = () => sub.remove();
+        this.setInitialized();
         return;
       } catch {
       }
@@ -41,8 +44,32 @@ class NetworkManager {
         window.removeEventListener('online', onLine);
         window.removeEventListener('offline', offLine);
       };
+      this.setInitialized();
       return;
     }
+
+    this.setInitialized();
+  }
+
+  private setInitialized(): void {
+    this._isInitialized = true;
+    this.initListeners.forEach((cb) => {
+      try { cb(); } catch {}
+    });
+    this.initListeners.clear();
+  }
+
+  get isInitialized(): boolean {
+    return this._isInitialized;
+  }
+
+  onInitialized(cb: () => void): () => void {
+    if (this._isInitialized) {
+      cb();
+      return () => {};
+    }
+    this.initListeners.add(cb);
+    return () => this.initListeners.delete(cb);
   }
 
   private setConnected(connected: boolean): void {
