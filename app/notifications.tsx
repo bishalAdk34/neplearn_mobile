@@ -75,84 +75,88 @@ export default function NotificationsScreen() {
         }
       />
 
-      {loading ? (
-        <View className="px-5">
-          <LoadingSkeleton height={80} style={{ marginBottom: 16 }} />
-          <LoadingSkeleton height={80} style={{ marginBottom: 16 }} />
-          <LoadingSkeleton height={80} />
-        </View>
-      ) : isEmpty ? (
-        <EmptyState
-          emoji="🔔"
-          title="No notifications yet"
-          message="Turn on daily reminders in Settings and your notifications will show up here."
-          actionLabel="Open Settings"
-          onAction={() => router.push('/settings')}
-        />
-      ) : (
-        <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-          {/* Scheduled reminders */}
-          {scheduled.length > 0 && (
-            <>
-              <View className="px-5 mb-3">
-                <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold tracking-wider">UPCOMING REMINDERS</Text>
-              </View>
-              <View className="px-5">
-                {scheduled.map(reminder => (
-                  <View
-                    key={reminder.identifier}
-                    className="bg-white border border-line p-4 flex-row items-start"
-                    style={{ borderRadius: 16, marginBottom: 16 }}
-                  >
-                    <View style={{ backgroundColor: '#FDE8E8' }} className="w-12 h-12 rounded-full items-center justify-center mr-3">
-                      <Ionicons name="alarm-outline" size={22} color={colors.primary} />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row items-center justify-between mb-1">
-                        <Text className="text-brand text-base font-bold flex-1 mr-2" numberOfLines={1}>{reminder.title}</Text>
-                        <Text style={{ color: colors.textTertiary }} className="text-xs">{formatTime(reminder.hour, reminder.minute)}</Text>
+      <View className="flex-1">
+        {loading ? (
+          <View className="px-5">
+            <LoadingSkeleton height={80} style={{ marginBottom: 16 }} />
+            <LoadingSkeleton height={80} style={{ marginBottom: 16 }} />
+            <LoadingSkeleton height={80} />
+          </View>
+        ) : isEmpty ? (
+          <View className="flex-1 items-center justify-center">
+            <EmptyState
+              emoji="🔔"
+              title="No notifications yet"
+              message="Turn on daily reminders in Settings and your notifications will show up here."
+              actionLabel="Open Settings"
+              onAction={() => router.push('/settings')}
+            />
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+            {/* Scheduled reminders */}
+            {scheduled.length > 0 && (
+              <>
+                <View className="px-5 mb-3">
+                  <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold tracking-wider">UPCOMING REMINDERS</Text>
+                </View>
+                <View className="px-5">
+                  {scheduled.map(reminder => (
+                    <View
+                      key={reminder.identifier}
+                      className="bg-white border border-line p-4 flex-row items-start"
+                      style={{ borderRadius: 16, marginBottom: 16 }}
+                    >
+                      <View style={{ backgroundColor: '#FDE8E8' }} className="w-12 h-12 rounded-full items-center justify-center mr-3">
+                        <Ionicons name="alarm-outline" size={22} color={colors.primary} />
                       </View>
-                      <Text className="text-ink text-sm">{reminder.body}</Text>
+                      <View className="flex-1">
+                        <View className="flex-row items-center justify-between mb-1">
+                          <Text className="text-brand text-base font-bold flex-1 mr-2" numberOfLines={1}>{reminder.title}</Text>
+                          <Text style={{ color: colors.textTertiary }} className="text-xs">{formatTime(reminder.hour, reminder.minute)}</Text>
+                        </View>
+                        <Text className="text-ink text-sm">{reminder.body}</Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
+                  ))}
+                </View>
+              </>
+            )}
 
-          {/* Delivered log */}
-          {log.length > 0 && (
-            <>
-              <View className="px-5 flex-row items-center justify-between mb-3">
-                <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold tracking-wider">RECENT ACTIVITY</Text>
-                <TouchableOpacity onPress={handleClearLog}>
-                  <Text className="text-brand text-sm font-semibold">Clear</Text>
-                </TouchableOpacity>
-              </View>
-              <View className="px-5">
-                {log.map(entry => (
-                  <View
-                    key={entry.id}
-                    className="bg-white border border-line p-4 flex-row items-start"
-                    style={{ borderRadius: 16, marginBottom: 16 }}
-                  >
-                    <View style={{ backgroundColor: '#D1FAE5' }} className="w-12 h-12 rounded-full items-center justify-center mr-3">
-                      <Ionicons name="notifications-outline" size={22} color={colors.successDark} />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row items-center justify-between mb-1">
-                        <Text className="text-brand text-base font-bold flex-1 mr-2" numberOfLines={1}>{entry.title}</Text>
-                        <Text style={{ color: colors.textTertiary }} className="text-xs">{timeAgo(entry.receivedAt)}</Text>
+            {/* Delivered log */}
+            {log.length > 0 && (
+              <>
+                <View className="px-5 flex-row items-center justify-between mb-3">
+                  <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold tracking-wider">RECENT ACTIVITY</Text>
+                  <TouchableOpacity onPress={handleClearLog}>
+                    <Text className="text-brand text-sm font-semibold">Clear</Text>
+                  </TouchableOpacity>
+                </View>
+                <View className="px-5">
+                  {log.map(entry => (
+                    <View
+                      key={entry.id}
+                      className="bg-white border border-line p-4 flex-row items-start"
+                      style={{ borderRadius: 16, marginBottom: 16 }}
+                    >
+                      <View style={{ backgroundColor: '#D1FAE5' }} className="w-12 h-12 rounded-full items-center justify-center mr-3">
+                        <Ionicons name="notifications-outline" size={22} color={colors.successDark} />
                       </View>
-                      <Text className="text-ink text-sm">{entry.body}</Text>
+                      <View className="flex-1">
+                        <View className="flex-row items-center justify-between mb-1">
+                          <Text className="text-brand text-base font-bold flex-1 mr-2" numberOfLines={1}>{entry.title}</Text>
+                          <Text style={{ color: colors.textTertiary }} className="text-xs">{timeAgo(entry.receivedAt)}</Text>
+                        </View>
+                        <Text className="text-ink text-sm">{entry.body}</Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-        </ScrollView>
-      )}
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
+        )}
+      </View>
 
       <BottomNav />
     </View>
