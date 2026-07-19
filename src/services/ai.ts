@@ -121,16 +121,16 @@ export async function getJournalFeedback(
   userText: string,
 ): Promise<JournalFeedback | null> {
   const content =
-    `Journal prompt (Nepali): ${prompt}\n` +
+    `Journal prompt: ${prompt}\n` +
     `Learner's answer: ${userText}\n\n` +
-    'Correct the learner\'s Nepali. Respond as JSON with keys: ' +
+    'Respond as JSON with keys: ' +
     '"corrected" (the corrected Nepali text in Devanagari; if already correct, repeat it), ' +
     '"roman" (romanization of the corrected text), ' +
-    '"explanation" (1-3 short English sentences explaining the main correction, or praise if correct).';
+    '"explanation" (1-4 short English sentences: first check if the answer logically responds to the prompt. If it\'s off-topic or doesn\'t make sense, gently point that out. Then note any language corrections, or praise if both content and grammar are good).';
 
   const result = await groqChat(
     [{ role: 'user', content }],
-    'You are a Nepali language teacher correcting a beginner\'s journal entry. Be gentle and concise. Output only valid JSON.',
+    'You are a Nepali language teacher correcting a beginner\'s journal entry. First evaluate whether the answer logically responds to the journal prompt. If it is unrelated or nonsensical, gently explain that. Then correct any Nepali grammar/spelling. Be gentle and concise. Output only valid JSON.',
     true,
   );
 

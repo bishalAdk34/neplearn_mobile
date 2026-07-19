@@ -23,7 +23,6 @@ export interface QueuedOperationPayload {
   streakCurrent?: number;
   streakLongest?: number;
   streakLastDate?: string;
-  streakFreezeWeek?: string;
   // SAVE_JOURNAL
   promptNepali?: string;
   promptRoman?: string;

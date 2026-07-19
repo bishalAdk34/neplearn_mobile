@@ -9,6 +9,7 @@ import { hapticSuccess, hapticError } from '../utils/haptics';
 import { useSrsStore } from '../stores/srs';
 import type { MistakeSource } from '../stores/mistakes';
 import { awardXp } from '../services/xp';
+import Confetti from './Confetti';
 import type { XpSource } from '../services/db';
 import { buildQuestions, type QuizQuestion } from '../utils/quizBuilder';
 import type { Word } from '../data/vocab';
@@ -78,6 +79,7 @@ export const QuizSession = ({
   if (isComplete) {
     return (
       <View className="flex-1 items-center justify-center px-5 bg-cream">
+        <Confetti active={true} />
         <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{completeEmoji}</Text>
         <Text className="text-ink text-2xl font-bold mb-2">{title} Complete!</Text>
         <Text style={{ color: colors.textSecondary }} className="text-base mb-2">You got {score}/{questions.length} correct</Text>

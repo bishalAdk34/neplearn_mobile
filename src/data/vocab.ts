@@ -33,7 +33,7 @@ export type LearningLevel = 'beginner' | 'intermediate' | 'advanced';
 type VocabState = {
   learnedByUser: Record<string, number[]>;
   localXp: Record<string, number>;
-  localStreak: Record<string, { current: number; longest: number; lastDate: string; freezeWeek?: string }>;
+  localStreak: Record<string, { current: number; longest: number; lastDate: string }>;
   learningGoal: LearningGoal | null;
   learningLevel: LearningLevel | null;
   onboardingDone: boolean;
@@ -50,18 +50,7 @@ type VocabState = {
   getLocalXp: (userId: string) => number;
   addLocalStreak: (userId: string) => void;
   getLocalStreak: (userId: string) => { current: number; longest: number };
-  getFreezeAvailable: (userId: string) => boolean;
 };
-
-/** ISO week string like '2026-W28' — one streak freeze allowed per week. */
-export function isoWeekOf(date: Date): string {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
 
 export const useVocabStore = create<VocabState>()(
   persist(
@@ -122,33 +111,16 @@ export const useVocabStore = create<VocabState>()(
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = yesterday.toISOString().split('T')[0];
-        const dayBefore = new Date();
-        dayBefore.setDate(dayBefore.getDate() - 2);
-        const dayBeforeStr = dayBefore.toISOString().split('T')[0];
-        const thisWeek = isoWeekOf(new Date());
 
-        let newCurrent: number;
-        let newFreezeWeek = existing.freezeWeek;
-        if (existing.lastDate === yesterdayStr) {
-          newCurrent = existing.current + 1;
-        } else if (existing.lastDate === dayBeforeStr && existing.freezeWeek !== thisWeek) {
-          // Missed exactly one day and this week's freeze is unused: consume it.
-          newCurrent = existing.current + 1;
-          newFreezeWeek = thisWeek;
-        } else {
-          newCurrent = 1;
-        }
+        const newCurrent = existing.lastDate === yesterdayStr ? existing.current + 1 : 1;
         const newLongest = Math.max(newCurrent, existing.longest);
-        set({ localStreak: { ...get().localStreak, [userId]: { current: newCurrent, longest: newLongest, lastDate: today, freezeWeek: newFreezeWeek } } });
+        set({ localStreak: { ...get().localStreak, [userId]: { current: newCurrent, longest: newLongest, lastDate: today } } });
       },
       getLocalStreak: (userId) => {
         const s = get().localStreak[userId];
         return s ? { current: s.current, longest: s.longest } : { current: 0, longest: 0 };
       },
-      getFreezeAvailable: (userId) => {
-        const s = get().localStreak[userId];
-        return !s || s.freezeWeek !== isoWeekOf(new Date());
-      },
+
     }),
     {
       name: 'nepali-vocab',

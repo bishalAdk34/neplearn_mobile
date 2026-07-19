@@ -49,7 +49,6 @@ const Home = () => {
   const totalWords = categories.reduce((sum, cat) => sum + getWordsByCategory(cat).length, 0);
   const localXp = useVocabStore.getState().getLocalXp(uid);
   const localStreak = useVocabStore.getState().getLocalStreak(uid);
-  const freezeAvailable = useVocabStore.getState().getFreezeAvailable(uid);
   const xp = isGuest ? localXp : (cloudXp ?? 0);
   const xpToNext = 1500;
   const level = Math.floor((xp) / 500) + 1;
@@ -148,11 +147,6 @@ const Home = () => {
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-white/80 text-sm font-semibold tracking-wider">DAILY STREAK</Text>
               <View className="flex-row items-center">
-                {freezeAvailable && (
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} className="px-3 py-1.5 rounded-full mr-2">
-                    <Text className="text-white text-xs font-bold">🧊 Freeze ready</Text>
-                  </View>
-                )}
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} className="w-12 h-12 rounded-full items-center justify-center">
                   <Text className="text-2xl">🔥</Text>
                 </View>

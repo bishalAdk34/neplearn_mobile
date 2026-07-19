@@ -10,6 +10,7 @@ import { useSpeechRecognition, isPronunciationMatch } from '../src/hooks/useSpee
 import { colors } from '../src/theme';
 import { ProgressBar } from '../src/components/ui';
 import { hapticSuccess, hapticError } from '../src/utils/haptics';
+import Confetti from '../src/components/Confetti';
 
 type Phase = 'idle' | 'playing' | 'listening' | 'correct' | 'incorrect';
 
@@ -165,6 +166,7 @@ const EchoPractice = () => {
     const totalXp = 30 + bonusXp;
     return (
       <View className="flex-1 items-center justify-center px-5 bg-cream">
+        <Confetti active={true} />
         <Text className="text-6xl mb-4">🗣️</Text>
         <Text className="text-ink text-2xl font-bold mb-2">Echo Practice Complete!</Text>
         <Text style={{ color: colors.textSecondary }} className="text-base mb-2">Great pronunciation practice!</Text>

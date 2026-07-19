@@ -13,9 +13,9 @@ npm start          # expo dev server
 npm run android    # start for Android
 npm run ios        # start for iOS
 npm run web        # start for web
+npm test           # jest
+npm run typecheck  # tsc --noEmit
 ```
-
-No lint, typecheck, or test scripts exist.
 
 ## Architecture
 
@@ -32,29 +32,29 @@ No lint, typecheck, or test scripts exist.
 NativeWind (Tailwind CSS for RN) — `className` prop, `global.css` imported in `_layout.tsx`
 
 ### State (Zustand)
-- `useVocabStore` — tracks learned words per user, persisted to AsyncStorage key `nepali-vocab`
-- `useAuthStore` — current user session, persisted to AsyncStorage key `nepali-auth`
+- `useVocabStore` — tracks learned words per user, XP, streaks, persisted to AsyncStorage key `nepali-vocab`
+- `useAuthStore` — Supabase auth session (no persist middleware; Supabase handles session persistence internally)
 - Guest mode: `GUEST_ID = '__guest__'` — all features work without auth
 - Import both stores from their source files (`src/data/vocab.ts` and `src/stores/auth.ts`)
 
 ### Data
-- 54 words across 10 categories in `src/data/vocab.ts`
+- 327 words across 21 categories in `src/data/vocab.ts`
 - `Word.image` can be an emoji string or an HTTP URL — code checks `.startsWith('http')` to decide
-- Category metadata (emoji, gradient colors) is **duplicated** across `app/index.tsx` (`CATEGORY_META`) and `app/progress.tsx` (`CATEGORY_COLORS`/`CATEGORY_EMOJIS`)
-- `getWordsByCategory(cat)` and `shuffle()` from `src/data/vocab.ts`
+- Category metadata (emoji, gradient colors) lives in `CATEGORY_META` map in `src/data/vocab.ts`, imported by screens that need it
+- `getWordsByCategory(cat)`, `shuffle()`, and `quizBuilder()` from `src/data/vocab.ts`
 
 ### Auth
-- Google OAuth via `expo-auth-session` — web client ID in `src/config.ts`
-- Android client ID is a placeholder (`YOUR_ANDROID_CLIENT_ID`)
-- Fetches user info from `googleapis.com/userinfo/v2/me`
+- Supabase auth (natively handles Google OAuth, session persistence via AsyncStorage adapter)
+- Google Sign-In via `@react-native-google-signin`
+- Client IDs loaded from `.env` → `app.config.js` → `Constants.expoConfig.extra` at runtime
 
 ### Services
 - **TTS** (`src/services/tts.ts`): tries `expo-speech` for `ne-NP` voice, falls back to Google Translate TTS URL via `expo-av`
 - **Images** (`src/services/image.ts`): fetches Wikipedia page summary thumbnails, in-memory `Map` cache, falls back to first word of compound queries (e.g. "How are you?" → "How")
 - **DB** (`src/services/db.ts`): Supabase CRUD — syncs learned words, journal entries, XP, streaks to cloud for authenticated users; guest users skip cloud ops; queues writes when offline
-- **AI** (`src/services/ai.ts`): Gemini 2.0 Flash integration, "Aama" tutor persona, offline-aware
-- **Network** (`src/services/network.ts`): NetInfo wrapper with listener pattern for connectivity state
-- **OfflineQueue** (`src/services/offlineQueue.ts`): AsyncStorage-backed queue for failed writes
+- **AI** (`src/services/ai.ts`): Groq API (llama-3.3-70b-versatile), "Aama" tutor persona, offline-aware. Supports chat, journal feedback, mistake quiz generation. Photo identification is stubbed (no vision model).
+- **Network** (`src/services/network.ts`): uses `expo-network` with fetch-based connectivity verification (`generate_204`)
+- **OfflineQueue** (`src/services/offlineQueue.ts`): AsyncStorage-backed queue for failed writes, dedup support
 - **SyncManager** (`src/services/syncManager.ts`): FIFO queue processor, 3 retries, auto-triggers on reconnect
 
 ### Backend (Supabase)
@@ -77,52 +77,35 @@ Tables: `profiles`, `user_learned_words`, `user_streaks`, `user_xp`, `journal_en
 
 ### Quiz
 - Caps at 10 questions per session (`shuffle(getWordsByCategory(category)).slice(0, 10)`)
+- Forward mode (Nepali→English) and reverse mode (English→Nepali via `?mode=reverse`)
 - Correct answers auto-mark word as learned via `learnWord`
+- SRS tracking, XP awards (15/correct), haptic & spring animations
 
-## Config notes
-- `app.json`: scheme `neplearn`, `newArchEnabled: true`, `edgeToEdgeEnabled: true` on Android
-- `tsconfig.json`: extends `expo/tsconfig.base`, path alias `@/*` → `./*`
+### SRS (Spaced Repetition)
+- `useSrsStore` tracks review schedules per word per user
+- Records results after each quiz answer
+- Persisted to AsyncStorage
+
+## Config
+- `app.config.js` reads `.env` via `dotenv` and injects values into `Constants.expoConfig.extra`
+- `app.json` remains as a static reference but is not used at runtime
+- `tsconfig.json`: extends `expo/tsconfig.base`, **strict mode enabled**, path alias `@/*` → `./*`
 - Tailwind: custom `primary` color palette (#6366F1), `surface`, `text-primary`, `text-secondary`
-- `.gitignore`: `.expo/`, `dist/`, `web-build/`, `expo-env.d.ts`, `/ios`, `/android`
-- Google OAuth config lives only in `src/config.ts` — no env files used
+- `.gitignore`: `.expo/`, `dist/`, `web-build/`, `expo-env.d.ts`, `/ios`, `/android`, `.env`
+- `.env` is in `.gitignore`; copy `.env.example` to `.env` and fill in values
 
-## Known Gaps & Missing Features
+## Known Issues
 
-### Broken/Missing Routes
-- `/story` exists as a file but is **NOT registered** in `_layout.tsx` Stack — will 404 when tapped from `/learn`
+### Missing Feature
+| Needed For | Package | Status |
+|---|---|---|
+| Heatmap visualization | `react-native-svg` | ✅ Installed, chart implementation pending |
 
-### Non-Functional UI Elements (no handlers)
-- **Learn**: Search bar has no search logic; theme filter chips don't filter content
-- **Profile**: "View Heatmap" does nothing
-- **Story**: Audio player play button has no handler; "Next Chapter" and "Back to Folklore Map" do nothing
+### Config Setup Required (manual)
+- `GOOGLE_IOS_CLIENT_ID` in `.env` is a placeholder — must be replaced with a real iOS OAuth client ID from the Google Cloud Console before iOS Google Sign-In will work
 
-### Incomplete Features
-- **Story**: Audio play button, "Next Chapter", "Back to Folklore Map" have no handlers
-
-### Code Defects
-- `resetOnboarding` declared 12 times in `VocabState` type (`src/data/vocab.ts`) — dead code
-- Quiz speaks **English** instead of Nepali (`speak(q.english, 'en-US')` in `app/quiz/[category].tsx:91`)
-- Duplicate category metadata across `app/index.tsx` and `app/progress.tsx`
-
-### Installed Dependencies (previously missing)
-| Feature | Package |
-|---|---|
-| Speech recognition | `@dev-amirzubair/react-native-voice` |
-| AI/LLM | Gemini API (fetch-based) |
-| Push notifications | `expo-notifications` |
-| Network detection | `expo-network` |
-
-### Still Missing
-| Needed For | Package |
-|---|---|
-| Heatmap visualization | Charting library or custom SVG |
+### Stubs
+- `identifyObjects()` in `src/services/ai.ts` returns `null` — Groq does not provide a vision model. Photo-vocab feature requires switching AI providers or adding a dedicated vision API.
 
 ### Quality
-- No lint, typecheck, or test scripts in `package.json`
-- No TypeScript strict mode
 - Multiple `any` types (e.g., quiz `useState<any[]>([])`)
-
-## ⚠️ Push Reminder — GCP API Key Secret
-Before pushing to `main`, GitHub push protection will **block** the Gemini API key in `src/config.ts:18` (GCP API Key Bound to a Service Account).
-- To allow: https://github.com/bishalAdk34/neplearn_mobile/security/secret-scanning/unblock-secret/3FviE091wiQxjPQibXNI4NdAnkL
-- Or better: move the key to an env file and use `expo-constants` to read it

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import {
   GoogleSignin,
   isErrorWithCode,
@@ -110,12 +111,12 @@ export default function SignIn() {
   return (
     <View className="flex-1 bg-[#F8FAFC] justify-center items-center px-8">
       <TouchableOpacity onPress={goHome} className="absolute top-16 left-6 p-2">
-        <Text className="text-2xl text-[#64748B]">←</Text>
+        <Ionicons name="arrow-back" size={24} color="#64748B" />
       </TouchableOpacity>
 
       <View className="items-center mb-4">
-        <View className="w-20 h-20 bg-indigo-100 rounded-2xl items-center justify-center mb-4">
-          <Text className="text-4xl">🇳🇵</Text>
+        <View className="w-36 h-36 bg-indigo-100 rounded-2xl items-center justify-center mb-4 overflow-hidden">
+          <Image source={require('../assets/icon.png')} className="w-full h-full" resizeMode="contain" />
         </View>
         <Text className="text-3xl font-bold text-[#4F46E5] tracking-wide">NepLearn</Text>
         <Text className="text-sm text-[#64748B] mt-1">Learn Nepali, one word at a time</Text>

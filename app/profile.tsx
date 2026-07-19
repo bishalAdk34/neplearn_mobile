@@ -146,14 +146,7 @@ const Profile = () => {
             ))}
           </View>
         </View>
-
-        {/* Footer */}
-        <View className="items-center py-6">
-          <View style={{ backgroundColor: '#D4C4B7' }} className="w-20 h-20 rounded-lg items-center justify-center mb-3">
-            <Text className="text-2xl">️</Text>
-          </View>
-          <Text className="text-[#9CA3AF] text-xs">Version 1.0.0 • NepLearn</Text>
-        </View>
+       
       </ScrollView>
 
       {/* Bottom Navigation */}

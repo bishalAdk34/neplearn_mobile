@@ -13,6 +13,7 @@ import { networkManager } from '../src/services/network';
 import { ScreenHeader, ProgressBar } from '../src/components/ui';
 import { colors, shadows } from '../src/theme';
 import { hapticLight, hapticSuccess, hapticError } from '../src/utils/haptics';
+import Confetti from '../src/components/Confetti';
 
 const SESSION_SIZE = 10;
 const SLOW_RATE = 0.5;
@@ -84,6 +85,7 @@ const Listening = () => {
   if (isComplete) {
     return (
       <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: colors.background }}>
+        <Confetti active={true} />
         <Text style={{ fontSize: 72, lineHeight: 88 }} className="mb-6">🎧</Text>
         <Text className="text-ink text-2xl font-bold mb-2">Listening Complete!</Text>
         <Text style={{ color: colors.textSecondary }} className="text-base mb-2 text-center">

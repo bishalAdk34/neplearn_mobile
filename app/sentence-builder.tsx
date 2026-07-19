@@ -11,6 +11,7 @@ import { awardXp } from '../src/services/xp';
 import { colors } from '../src/theme';
 import { ProgressBar } from '../src/components/ui';
 import { hapticSuccess, hapticError, hapticLight } from '../src/utils/haptics';
+import Confetti from '../src/components/Confetti';
 
 type SessionItem =
   | { type: 'order'; ex: SentenceExercise }
@@ -105,6 +106,7 @@ const SentenceBuilder = () => {
   if (isComplete) {
     return (
       <View className="flex-1 items-center justify-center px-5 bg-cream">
+        <Confetti active={true} />
         <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>🧩</Text>
         <Text className="text-ink text-2xl font-bold mb-2">Sentences Complete!</Text>
         <Text style={{ color: colors.textSecondary }} className="text-base mb-2">You got {score}/{session.length} correct</Text>

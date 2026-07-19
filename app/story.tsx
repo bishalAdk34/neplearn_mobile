@@ -8,6 +8,7 @@ import { stories, Story, LEVEL_LABELS } from '../src/data/stories';
 import { speak } from '../src/services/tts';
 import { hapticLight, hapticSuccess, hapticError } from '../src/utils/haptics';
 import { GUEST_ID } from '../src/data/vocab';
+import Confetti from '../src/components/Confetti';
 import { useAuthStore } from '../src/stores/auth';
 import { awardXp } from '../src/services/xp';
 
@@ -101,6 +102,7 @@ const StoryScreen = () => {
   if (mode === 'done') {
     return (
       <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: colors.background }}>
+        <Confetti active={true} />
         <Text className="text-6xl mb-4">📖</Text>
         <Text className="text-ink text-2xl font-bold mb-2">Story Complete!</Text>
         <Text style={{ color: colors.textSecondary }} className="text-base mb-6 text-center">
