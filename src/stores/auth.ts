@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   setSession: (session) => set({ session }),
 
   clearUser: async () => {
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     set({ user: null, session: null });
   },
 
@@ -46,23 +46,27 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   initialize: async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        set({
-          session,
-          user: {
-            id: session.user.id,
-            name: session.user.user_metadata?.name || 'User',
-            email: session.user.email || '',
-            photo: session.user.user_metadata?.picture || undefined,
-          },
-        });
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          set({
+            session,
+            user: {
+              id: session.user.id,
+              name: session.user.user_metadata?.name || 'User',
+              email: session.user.email || '',
+              photo: session.user.user_metadata?.picture || undefined,
+            },
+          });
+        }
       }
     } catch (e) {
       console.warn('Supabase session restore failed:', e);
     } finally {
       set({ isLoading: false });
     }
+
+    if (!supabase) return;
 
     // Clean up existing subscription before creating new one
     if (authSubscription) {

@@ -66,6 +66,8 @@ class SyncManager {
   private async processOperation(op: QueuedOperation): Promise<boolean> {
     const { type, payload } = op;
 
+    if (!supabase) return true;
+
     try {
       switch (type) {
         case 'LEARN_WORD': {
