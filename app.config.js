@@ -1,9 +1,13 @@
 require('dotenv').config();
 
+const isDev =
+  process.env.EAS_BUILD_PROFILE?.startsWith('dev') ||
+  process.env.APP_ENV === 'development';
+
 module.exports = {
   expo: {
-    scheme: 'neplearn',
-    name: 'NepLearn',
+    scheme: isDev ? 'neplearn-dev' : 'neplearn',
+    name: isDev ? 'NepLearn (Dev)' : 'NepLearn',
     slug: 'NepLearn',
     version: '1.0.0',
     orientation: 'portrait',
@@ -17,11 +21,11 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.neplearn.app',
+      bundleIdentifier: isDev ? 'com.neplearn.app.dev' : 'com.neplearn.app',
     },
     android: {
       googleServicesFile: './google-services.json',
-      package: 'com.neplearn.app',
+      package: isDev ? 'com.neplearn.app.dev' : 'com.neplearn.app',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
