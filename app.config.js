@@ -15,7 +15,6 @@ module.exports = {
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     splash: {
-      image: null,
       resizeMode: 'contain',
       backgroundColor: '#4F46E5',
     },
