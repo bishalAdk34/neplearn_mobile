@@ -15,7 +15,7 @@ module.exports = {
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     splash: {
-      image: './assets/splash-icon.png',
+      image: null,
       resizeMode: 'contain',
       backgroundColor: '#4F46E5',
     },
@@ -24,7 +24,7 @@ module.exports = {
       bundleIdentifier: isDev ? 'com.neplearn.app.dev' : 'com.neplearn.app',
     },
     android: {
-      googleServicesFile: './google-services.json',
+      googleServicesFile: isDev ? './google-services-dev.json' : './google-services.json',
       package: isDev ? 'com.neplearn.app.dev' : 'com.neplearn.app',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
@@ -52,9 +52,15 @@ module.exports = {
       ],
     ],
     extra: {
-      googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID ?? '',
-      googleIosClientId: process.env.GOOGLE_IOS_CLIENT_ID ?? '',
+      googleClientId: isDev
+        ? (process.env.GOOGLE_CLIENT_ID_DEV ?? '')
+        : (process.env.GOOGLE_CLIENT_ID ?? ''),
+      googleAndroidClientId: isDev
+        ? (process.env.GOOGLE_ANDROID_CLIENT_ID_DEV ?? '')
+        : (process.env.GOOGLE_ANDROID_CLIENT_ID ?? ''),
+      googleIosClientId: isDev
+        ? (process.env.GOOGLE_IOS_CLIENT_ID_DEV ?? '')
+        : (process.env.GOOGLE_IOS_CLIENT_ID ?? ''),
       supabaseUrl: process.env.SUPABASE_URL ?? '',
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? '',
       geminiApiKey: process.env.GEMINI_API_KEY ?? '',
