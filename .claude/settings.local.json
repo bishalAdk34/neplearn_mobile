@@ -17,7 +17,8 @@
       "Bash(node scripts/check-vocab.js:*)",
       "Bash(npm pkg delete:*)",
       "Bash(npm pkg set:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npm run typecheck:*)"
     ]
   }
 }

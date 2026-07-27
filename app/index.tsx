@@ -11,7 +11,6 @@ import { useSrsStore } from '../src/stores/srs';
 import { useMistakesStore } from '../src/stores/mistakes';
 import { useSettingsStore } from '../src/stores/settings';
 import { useDailyXpStore } from '../src/services/xp';
-import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 import { getPrefs } from '../src/services/notifications';
 import { getTotalXp, getStreak } from '../src/services/db';
 import { colors } from '../src/theme';
@@ -24,7 +23,6 @@ const Home = () => {
   const { isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
   const [menuVisible, setMenuVisible] = useState(false);
-  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(false);
   const [cloudXp, setCloudXp] = useState<number | null>(null);
   const [cloudStreak, setCloudStreak] = useState<{ current_streak: number; longest_streak: number } | null>(null);
@@ -302,18 +300,7 @@ const Home = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View>
-        <BottomNav activeTab="home" />
-        <View style={{ position: 'absolute', top: -24, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
-          <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
-            <View className="bg-brand w-14 h-14 rounded-full items-center justify-center" style={{ shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}>
-              <Ionicons name="add" size={28} color={colors.surface} />
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
+      <BottomNav activeTab="home" />
     </View>
   );
 };
