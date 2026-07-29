@@ -34,6 +34,7 @@ type VocabState = {
   learnedByUser: Record<string, number[]>;
   localXp: Record<string, number>;
   localStreak: Record<string, { current: number; longest: number; lastDate: string }>;
+  completedLessons: Record<string, number>;
   learningGoal: LearningGoal | null;
   learningLevel: LearningLevel | null;
   onboardingDone: boolean;
@@ -50,6 +51,8 @@ type VocabState = {
   getLocalXp: (userId: string) => number;
   addLocalStreak: (userId: string) => void;
   getLocalStreak: (userId: string) => { current: number; longest: number };
+  incrementCompletedLessons: (userId: string) => void;
+  getCompletedLessons: (userId: string) => number;
 };
 
 export const useVocabStore = create<VocabState>()(
@@ -58,6 +61,7 @@ export const useVocabStore = create<VocabState>()(
       learnedByUser: {},
       localXp: {},
       localStreak: {},
+      completedLessons: {},
       learningGoal: null,
       learningLevel: null,
       onboardingDone: false,
@@ -120,6 +124,11 @@ export const useVocabStore = create<VocabState>()(
         const s = get().localStreak[userId];
         return s ? { current: s.current, longest: s.longest } : { current: 0, longest: 0 };
       },
+      incrementCompletedLessons: (userId) => {
+        const current = get().completedLessons[userId] || 0;
+        set({ completedLessons: { ...get().completedLessons, [userId]: current + 1 } });
+      },
+      getCompletedLessons: (userId) => get().completedLessons[userId] || 0,
 
     }),
     {
