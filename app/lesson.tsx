@@ -12,6 +12,8 @@ import { colors } from '../src/theme';
 import { ProgressBar } from '../src/components/ui';
 import { hapticSuccess, hapticError } from '../src/utils/haptics';
 import Confetti from '../src/components/Confetti';
+import { useSettingsStore } from '../src/stores/settings';
+import { getDirectionFields, getOptionLabel } from '../src/utils/direction';
 
 const Lesson = () => {
   const router = useRouter();
@@ -20,6 +22,7 @@ const Lesson = () => {
   const user = useAuthStore(s => s.user);
   const { learnWord, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
+  const direction = useSettingsStore(s => s.learningDirection);
 
   useEffect(() => {
     if (!category) return;
@@ -43,6 +46,7 @@ const Lesson = () => {
   }, [category]);
 
   const currentWord = sessionWords[currentIndex];
+  const df = currentWord ? getDirectionFields(currentWord, direction) : null;
 
   const options = useMemo(() => {
     if (!currentWord) return [];
@@ -63,7 +67,7 @@ const Lesson = () => {
       hapticSuccess();
       if (!isLearned(uid, currentWord.id)) learnWord(uid, currentWord.id);
       setCorrectCount(prev => prev + 1);
-      speak(currentWord.nepali, 'ne-NP');
+      speak(df!.ttsText, df!.ttsLang);
     } else {
       hapticError();
     }
@@ -134,7 +138,7 @@ const Lesson = () => {
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {/* Title */}
         <View className="px-5 mb-6 items-center">
-          <Text className="text-ink text-xl font-bold mb-2">What does this mean?</Text>
+          <Text className="text-ink text-xl font-bold mb-2">{df!.promptLabel}</Text>
         </View>
 
         {/* Word Card */}
@@ -145,9 +149,9 @@ const Lesson = () => {
             ) : (
               <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{currentWord.image || '📖'}</Text>
             )}
-            <Text className="text-brand text-4xl font-bold mb-1">{currentWord.nepali}</Text>
-            <Text style={{ color: colors.textSecondary }} className="text-lg">{currentWord.roman}</Text>
-            <TouchableOpacity className="mt-4" onPress={() => speak(currentWord.nepali, 'ne-NP')}>
+            <Text className="text-brand text-4xl font-bold mb-1">{df!.promptText}</Text>
+            {df!.promptRoman && <Text style={{ color: colors.textSecondary }} className="text-lg">{df!.promptRoman}</Text>}
+            <TouchableOpacity className="mt-4" onPress={() => speak(df!.ttsText, df!.ttsLang)}>
               <View style={{ backgroundColor: '#FEE2E2' }} className="w-10 h-10 rounded-full items-center justify-center">
                 <Text className="text-brand">🔊</Text>
               </View>
@@ -184,7 +188,7 @@ const Lesson = () => {
                 className="p-4 mb-3 flex-row items-center"
                 onPress={() => setSelectedOption(opt.id)}
               >
-                <Text className="text-ink text-base font-semibold flex-1">{opt.english}</Text>
+                <Text className="text-ink text-base font-semibold flex-1">{getOptionLabel(opt, direction)}</Text>
                 {isAnswerChecked && isCorrectOption && <Text style={{ color: colors.success }} className="text-xl">✓</Text>}
                 {isAnswerChecked && isSelected && !isCorrect && <Text style={{ color: colors.danger }} className="text-xl">✕</Text>}
               </TouchableOpacity>

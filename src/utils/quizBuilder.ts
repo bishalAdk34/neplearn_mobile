@@ -1,4 +1,5 @@
 import { vocab, shuffle, type Word } from '../data/vocab';
+import type { LearningDirection } from '../stores/settings';
 
 export interface QuizQuestion extends Word {
   /** Nepali answer options (1 correct + 3 distractors), shuffled. */
@@ -30,4 +31,13 @@ export function buildEnglishOptionQuestions(words: Word[], count = words.length)
       const wrong = shuffle([...new Set(allEnglish)]).slice(0, 3);
       return { ...word, options: shuffle([word.english, ...wrong]) };
     });
+}
+
+/** Builds direction-aware questions: en-to-ne shows English/picks Nepali, ne-to-en shows Nepali/picks English. */
+export function buildDirectionQuestions(
+  words: Word[],
+  count: number,
+  direction: LearningDirection
+): QuizQuestion[] | EnglishQuizQuestion[] {
+  return direction === 'ne-to-en' ? buildEnglishOptionQuestions(words, count) : buildQuestions(words, count);
 }

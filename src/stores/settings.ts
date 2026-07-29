@@ -5,6 +5,8 @@ import type { PersistStorage } from 'zustand/middleware';
 
 export type TtsSpeed = 'slow' | 'normal' | 'fast';
 
+export type LearningDirection = 'en-to-ne' | 'ne-to-en';
+
 export const TTS_RATES: Record<TtsSpeed, number> = {
   slow: 0.55,
   normal: 0.8,
@@ -14,8 +16,10 @@ export const TTS_RATES: Record<TtsSpeed, number> = {
 type SettingsState = {
   ttsSpeed: TtsSpeed;
   dailyGoalXp: number;
+  learningDirection: LearningDirection;
   setTtsSpeed: (speed: TtsSpeed) => void;
   setDailyGoalXp: (xp: number) => void;
+  setLearningDirection: (direction: LearningDirection) => void;
 };
 
 const asyncStorage: PersistStorage<SettingsState> = {
@@ -36,8 +40,10 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       ttsSpeed: 'normal',
       dailyGoalXp: 50,
+      learningDirection: 'en-to-ne',
       setTtsSpeed: (speed) => set({ ttsSpeed: speed }),
       setDailyGoalXp: (xp) => set({ dailyGoalXp: xp }),
+      setLearningDirection: (direction) => set({ learningDirection: direction }),
     }),
     {
       name: 'nepali-settings',

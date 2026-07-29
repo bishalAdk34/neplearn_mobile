@@ -11,8 +11,10 @@ import type { MistakeSource } from '../stores/mistakes';
 import { awardXp } from '../services/xp';
 import Confetti from './Confetti';
 import type { XpSource } from '../services/db';
-import { buildQuestions, type QuizQuestion } from '../utils/quizBuilder';
+import { buildDirectionQuestions, type QuizQuestion } from '../utils/quizBuilder';
 import type { Word } from '../data/vocab';
+import { useSettingsStore } from '../stores/settings';
+import { getDirectionFields, getOptionLabel, targetLangName } from '../utils/direction';
 
 type Props = {
   uid: string;
@@ -40,7 +42,8 @@ export const QuizSession = ({
   xpSource,
 }: Props) => {
   const router = useRouter();
-  const [questions] = useState<QuizQuestion[]>(() => buildQuestions(words, count));
+  const direction = useSettingsStore(s => s.learningDirection);
+  const [questions] = useState<QuizQuestion[]>(() => buildDirectionQuestions(words, count, direction) as QuizQuestion[]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState(0);
@@ -48,16 +51,17 @@ export const QuizSession = ({
   const [xpAwarded, setXpAwarded] = useState(false);
 
   const q = questions[currentIndex];
+  const df = q ? getDirectionFields(q, direction) : null;
 
   const selectAnswer = (opt: string) => {
     if (selected || !q) return;
     setSelected(opt);
-    const correct = opt === q.nepali;
+    const correct = opt === getOptionLabel(q, direction);
     useSrsStore.getState().recordResult(uid, q.id, correct, srsSource);
     if (correct) {
       hapticSuccess();
       setScore((s) => s + 1);
-      speak(q.nepali, 'ne-NP');
+      speak(df!.ttsText, df!.ttsLang);
     } else {
       hapticError();
     }
@@ -116,20 +120,21 @@ export const QuizSession = ({
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <View className="px-5 mb-6 items-center">
           <Text className="text-ink text-xl font-bold mb-2">{title}</Text>
-          <Text style={{ color: colors.textSecondary }} className="text-sm text-center">Choose the correct Nepali translation</Text>
+          <Text style={{ color: colors.textSecondary }} className="text-sm text-center">Choose the correct {targetLangName(direction)} translation</Text>
         </View>
 
         <View className="px-5 mb-8 items-center">
           <View style={{ backgroundColor: colors.surface, borderRadius: 24, borderWidth: 2, borderColor: colors.border }} className="p-6 w-full items-center shadow-sm">
             <Text className="text-5xl mb-4 text-center" style={{ lineHeight: 60, paddingVertical: 4 }}>{q.image?.startsWith('http') ? '💡' : q.image || '💡'}</Text>
-            <Text className="text-ink text-3xl font-bold mb-1">{q.english}</Text>
+            <Text className="text-ink text-3xl font-bold mb-1">{df!.promptText}</Text>
+            {df!.promptRoman && <Text style={{ color: colors.textSecondary }} className="text-lg">{df!.promptRoman}</Text>}
           </View>
         </View>
 
         <View className="px-5 mb-6">
           {q.options.map((opt) => {
             const isSelected = selected === opt;
-            const isCorrectOption = opt === q.nepali;
+            const isCorrectOption = opt === getOptionLabel(q, direction);
             let borderColor: string = colors.border;
             let bgColor: string = colors.surface;
 
@@ -158,7 +163,7 @@ export const QuizSession = ({
       <View className="flex-row px-5 pb-8 pt-4 gap-3 bg-cream">
         {selected ? (
           <TouchableOpacity
-            style={{ backgroundColor: selected === q.nepali ? colors.success : colors.primary }}
+            style={{ backgroundColor: selected === getOptionLabel(q, direction) ? colors.success : colors.primary }}
             className="flex-1 py-4 rounded-xl items-center"
             onPress={handleNext}
           >
