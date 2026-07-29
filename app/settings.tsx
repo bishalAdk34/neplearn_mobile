@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
-import { useSettingsStore, TtsSpeed } from '../src/stores/settings';
+import { useSettingsStore, TtsSpeed, LearningDirection } from '../src/stores/settings';
+import { DIRECTION_OPTIONS } from '../src/utils/direction';
 import { supabase } from '../src/services/supabase';
 import {
   getPrefs,
@@ -67,10 +68,13 @@ const Settings = () => {
   const [wodPickerVisible, setWodPickerVisible] = useState(false);
   const [speedPickerVisible, setSpeedPickerVisible] = useState(false);
   const [goalPickerVisible, setGoalPickerVisible] = useState(false);
+  const [directionPickerVisible, setDirectionPickerVisible] = useState(false);
   const ttsSpeed = useSettingsStore(s => s.ttsSpeed);
   const setTtsSpeed = useSettingsStore(s => s.setTtsSpeed);
   const dailyGoalXp = useSettingsStore(s => s.dailyGoalXp);
   const setDailyGoalXp = useSettingsStore(s => s.setDailyGoalXp);
+  const learningDirection = useSettingsStore(s => s.learningDirection);
+  const setLearningDirection = useSettingsStore(s => s.setLearningDirection);
 
   const currentStreak = useVocabStore.getState().getLocalStreak(uid).current;
 
@@ -173,6 +177,15 @@ const Settings = () => {
           >
             <Text className="text-ink text-base">Daily XP Goal</Text>
             <Text style={{ color: colors.textSecondary }} className="text-base">{dailyGoalXp} XP</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}
+            onPress={() => setDirectionPickerVisible(true)}
+          >
+            <Text className="text-ink text-base">Learning Direction</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-base">
+              {DIRECTION_OPTIONS.find(o => o.value === learningDirection)?.label || 'English → Nepali'}
+            </Text>
           </TouchableOpacity>
           <View className="px-4 py-4 flex-row justify-between items-center border-b" style={{ borderColor: '#E5E7EB' }}>
             <Text className="text-ink text-base">Notifications</Text>
@@ -379,6 +392,33 @@ const Settings = () => {
                   }}
                 >
                   <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>{opt.label}</Text>
+                  {selected && <Text className="text-brand text-lg">✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={directionPickerVisible} transparent animationType="slide" onRequestClose={() => setDirectionPickerVisible(false)}>
+        <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setDirectionPickerVisible(false)}>
+          <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <Text className="text-ink text-lg font-bold mb-4 text-center">Learning Direction</Text>
+            {DIRECTION_OPTIONS.map(opt => {
+              const selected = opt.value === learningDirection;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  className="py-4 px-4 flex-row items-center justify-between border-b" style={{ borderColor: '#E5E7EB' }}
+                  onPress={() => {
+                    setLearningDirection(opt.value as LearningDirection);
+                    setDirectionPickerVisible(false);
+                  }}
+                >
+                  <View>
+                    <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>{opt.label}</Text>
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>{opt.description}</Text>
+                  </View>
                   {selected && <Text className="text-brand text-lg">✓</Text>}
                 </TouchableOpacity>
               );

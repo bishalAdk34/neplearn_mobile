@@ -18,27 +18,17 @@ const TABS: { name: TabName; label: string; icon: IoniconName; activeIcon: Ionic
 const NAVBAR_HEIGHT = 72;
 const FAB_SIZE = 60;
 const FAB_RADIUS = FAB_SIZE / 2;
-const NOTCH_RADIUS = 36;
-const NOTCH_DEPTH = 28;
 const CORNER_RADIUS = 22;
-const FAB_OVERLAP = 35;
+const FAB_OVERLAP = 30;
 
-function buildNotchPath(width: number): string {
+function buildBarPath(width: number): string {
   const h = NAVBAR_HEIGHT;
-  const cx = width / 2;
-  const nr = NOTCH_RADIUS;
-  const nd = NOTCH_DEPTH;
   const cr = CORNER_RADIUS;
-  const flatStart = cx - nr - 32;
-  const flatEnd = cx + nr + 32;
 
   return [
     `M 0 ${h}`,
     `L 0 ${cr}`,
     `Q 0 0 ${cr} 0`,
-    `L ${flatStart} 0`,
-    `C ${flatStart + 16} 0, ${cx - nr} ${nd}, ${cx} ${nd}`,
-    `C ${cx + nr} ${nd}, ${flatEnd - 16} 0, ${flatEnd} 0`,
     `L ${width - cr} 0`,
     `Q ${width} 0 ${width} ${cr}`,
     `L ${width} ${h}`,
@@ -53,7 +43,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) {
   const { width: screenWidth } = Dimensions.get('window');
-  const notchPath = buildNotchPath(screenWidth);
+  const barPath = buildBarPath(screenWidth);
 
   const leftTabs = TABS.slice(0, 2);
   const rightTabs = TABS.slice(2);
@@ -62,7 +52,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
     <View style={{ height: NAVBAR_HEIGHT + FAB_OVERLAP }}>
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: NAVBAR_HEIGHT }}>
         <Svg width={screenWidth} height={NAVBAR_HEIGHT} viewBox={`0 0 ${screenWidth} ${NAVBAR_HEIGHT}`}>
-          <Path d={notchPath} fill={colors.surface} />
+          <Path d={barPath} fill={colors.surface} />
         </Svg>
         <View
           style={{
@@ -80,7 +70,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
         <View
           style={{
             position: 'absolute',
-            bottom: NAVBAR_HEIGHT - FAB_SIZE * 0.42,
+            bottom: NAVBAR_HEIGHT - FAB_RADIUS,
             left: 0,
             right: 0,
             alignItems: 'center',

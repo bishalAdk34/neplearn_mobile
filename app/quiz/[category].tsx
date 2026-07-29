@@ -16,11 +16,13 @@ import { getCategoryLockMap } from '../../src/data/personalization';
 import { colors } from '../../src/theme';
 import { ProgressBar } from '../../src/components/ui';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
+import { useSettingsStore } from '../../src/stores/settings';
 
 const Quiz = () => {
   const params = useGlobalSearchParams();
   const category = typeof params.category === 'string' ? params.category : '';
-  const reverse = params.mode === 'reverse';
+  const direction = useSettingsStore(s => s.learningDirection);
+  const reverse = params.mode === 'reverse' ? true : params.mode === 'forward' ? false : direction === 'ne-to-en';
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore(s => s.user);

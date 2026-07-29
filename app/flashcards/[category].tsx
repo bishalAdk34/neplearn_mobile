@@ -14,10 +14,13 @@ import { getCategoryLockMap } from '../../src/data/personalization';
 import { colors } from '../../src/theme';
 import { ProgressBar } from '../../src/components/ui';
 import { hapticLight } from '../../src/utils/haptics';
+import { useSettingsStore } from '../../src/stores/settings';
+import { getDirectionFields } from '../../src/utils/direction';
 
 const Flashcards = () => {
   const params = useGlobalSearchParams();
   const category = typeof params.category === 'string' ? params.category : '';
+  const direction = useSettingsStore(s => s.learningDirection);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore(s => s.user);
@@ -41,6 +44,7 @@ const Flashcards = () => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const word = words[currentIndex];
+  const df = word ? getDirectionFields(word, direction) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -169,8 +173,9 @@ const Flashcards = () => {
                 ) : (
                   <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{word.image || '💡'}</Text>
                 )}
-                <Text className="text-3xl font-bold text-[#0F172A] text-center">{word.english}</Text>
-                <Text className="text-base text-[#94A3B8] mt-4">Tap to reveal Nepali</Text>
+                <Text className="text-3xl font-bold text-[#0F172A] text-center">{df!.promptText}</Text>
+                {df!.promptRoman && <Text className="text-base text-[#94A3B8] mt-1">({df!.promptRoman})</Text>}
+                <Text className="text-base text-[#94A3B8] mt-4">Tap to reveal {direction === 'ne-to-en' ? 'English' : 'Nepali'}</Text>
               </View>
             ) : (
               <View className="items-center">
@@ -181,8 +186,8 @@ const Flashcards = () => {
                 ) : (
                   <Text className="text-5xl mb-3 text-center" style={{ lineHeight: 56, paddingVertical: 4 }}>{word.image || '💡'}</Text>
                 )}
-                <Text className="text-4xl font-bold text-[#4F46E5] text-center mb-3">{word.nepali}</Text>
-                <Text className="text-xl text-[#64748B] text-center">({word.roman})</Text>
+                <Text className="text-4xl font-bold text-[#4F46E5] text-center mb-3">{df!.answerText}</Text>
+                {direction !== 'ne-to-en' && <Text className="text-xl text-[#64748B] text-center">({word.roman})</Text>}
                 <TouchableOpacity
                   onPress={() => speakWord(word.nepali)}
                   className="mt-6 bg-[#EEF2FF] px-6 py-2 rounded-full flex-row items-center"

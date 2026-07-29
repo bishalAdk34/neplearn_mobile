@@ -6,7 +6,7 @@ import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, vocab, GUEST_ID } from '../src/data/vocab';
 import { useSrsStore } from '../src/stores/srs';
 import { useStatsStore } from '../src/stores/stats';
-import { buildEnglishOptionQuestions, EnglishQuizQuestion } from '../src/utils/quizBuilder';
+import { buildEnglishOptionQuestions, buildQuestions, EnglishQuizQuestion, QuizQuestion } from '../src/utils/quizBuilder';
 import { awardXp } from '../src/services/xp';
 import { speak } from '../src/services/tts';
 import { networkManager } from '../src/services/network';
@@ -14,6 +14,8 @@ import { ScreenHeader, ProgressBar } from '../src/components/ui';
 import { colors, shadows } from '../src/theme';
 import { hapticLight, hapticSuccess, hapticError } from '../src/utils/haptics';
 import Confetti from '../src/components/Confetti';
+import { useSettingsStore } from '../src/stores/settings';
+import { getListeningFields, getListeningOptionLabel, targetLang } from '../src/utils/direction';
 
 const SESSION_SIZE = 10;
 const SLOW_RATE = 0.5;
@@ -22,13 +24,15 @@ const Listening = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
   const uid = user?.id || GUEST_ID;
+  const direction = useSettingsStore(s => s.learningDirection);
 
-  const [questions] = useState<EnglishQuizQuestion[]>(() => {
+  const [questions] = useState<(EnglishQuizQuestion | QuizQuestion)[]>(() => {
     const learnedIds = useVocabStore.getState().getLearned(uid);
     const pool = learnedIds.length >= SESSION_SIZE
       ? vocab.filter(w => learnedIds.includes(w.id))
       : vocab;
-    return buildEnglishOptionQuestions(pool, SESSION_SIZE);
+    // Inverted vs quiz.tsx: audio = target lang, options = known lang.
+    return direction === 'ne-to-en' ? buildQuestions(pool, SESSION_SIZE) : buildEnglishOptionQuestions(pool, SESSION_SIZE);
   });
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -40,11 +44,12 @@ const Listening = () => {
   const xpAwarded = useRef(false);
 
   const q = questions[currentIndex];
+  const lf = q ? getListeningFields(q, direction) : null;
 
   const playAudio = async (rate?: number) => {
     if (!q || isPlaying) return;
     setIsPlaying(true);
-    await speak(q.nepali, 'ne-NP', rate !== undefined ? { rate } : undefined);
+    await speak(lf!.audioText, lf!.audioLang, rate !== undefined ? { rate } : undefined);
     setIsPlaying(false);
   };
 
@@ -57,7 +62,7 @@ const Listening = () => {
 
   const selectAnswer = (option: string) => {
     if (selected || !q) return;
-    const correct = option === q.english;
+    const correct = option === getListeningOptionLabel(q, direction);
     setSelected(option);
     useSrsStore.getState().recordResult(uid, q.id, correct, 'listening');
     if (correct) {
@@ -168,16 +173,16 @@ const Listening = () => {
 
             {selected && (
               <View style={{ backgroundColor: colors.mutedSurface, borderRadius: 12 }} className="w-full p-4 items-center mt-5">
-                <Text className="text-brand text-2xl font-bold mb-1">{q.nepali}</Text>
-                <Text style={{ color: colors.textSecondary }} className="text-base">{q.roman}</Text>
+                <Text className="text-brand text-2xl font-bold mb-1">{lf!.audioText}</Text>
+                {targetLang(direction) === 'ne' && <Text style={{ color: colors.textSecondary }} className="text-base">{q.roman}</Text>}
               </View>
             )}
           </View>
 
-          {/* English options */}
+          {/* Answer options (known lang) */}
           {q.options.map(option => {
             const isSelected = selected === option;
-            const isCorrectOption = option === q.english;
+            const isCorrectOption = option === getListeningOptionLabel(q, direction);
             let borderColor: string = colors.border;
             let bgColor: string = colors.surface;
             if (selected) {
