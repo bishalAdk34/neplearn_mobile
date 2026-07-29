@@ -3,6 +3,7 @@ import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '../theme';
+import { QuickActionsModal } from './QuickActionsModal';
 
 type TabName = 'home' | 'learn' | 'ai-tutor' | 'profile';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];

@@ -11,7 +11,6 @@ import { useSrsStore } from '../src/stores/srs';
 import { useMistakesStore } from '../src/stores/mistakes';
 import { useSettingsStore } from '../src/stores/settings';
 import { useDailyXpStore } from '../src/services/xp';
-import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 import { getPrefs } from '../src/services/notifications';
 import { getTotalXp, getStreak } from '../src/services/db';
 import { colors } from '../src/theme';
@@ -24,7 +23,6 @@ const Home = () => {
   const { isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
   const [menuVisible, setMenuVisible] = useState(false);
-  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(false);
   const [cloudXp, setCloudXp] = useState<number | null>(null);
   const [cloudStreak, setCloudStreak] = useState<{ current_streak: number; longest_streak: number } | null>(null);
