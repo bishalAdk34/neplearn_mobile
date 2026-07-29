@@ -111,7 +111,7 @@ const Home = () => {
         {/* Menu Modal */}
         <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
           <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setMenuVisible(false)}>
-            <View className="absolute top-12 right-5" style={{ backgroundColor: colors.surface, borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, width: 220 }}>
+            <View className="absolute top-12 right-5 " style={{ backgroundColor: colors.surface, borderRadius: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, width: 220 }}>
               <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/settings'); }}>
                 <Text className="text-ink text-base font-semibold">⚙️ Settings</Text>
               </TouchableOpacity>
@@ -121,7 +121,7 @@ const Home = () => {
               <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/support'); }}>
                 <Text className="text-ink text-base font-semibold">📧 Support</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/about'); }}>
+              <TouchableOpacity className="px-4 py-3 " style={{ borderColor: '#E5E7EB' }} onPress={() => { setMenuVisible(false); router.push('/about'); }}>
                 <Text className="text-ink text-base font-semibold">ℹ️ About</Text>
               </TouchableOpacity>
               {user && (
@@ -300,7 +300,9 @@ const Home = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <BottomNav activeTab="home" />
+      <BottomNav activeTab="home" onCenterPress={() => setQuickActionsVisible(true)} />
+
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
   );
 };

@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { QuickActionsModal } from '@/src/components/QuickActionsModal';
-import { categories, vocab, CATEGORY_META, GUEST_ID, getWordsByCategory } from '../src/data/vocab';
+import { categories, vocab, CATEGORY_META, GUEST_ID, getWordsByCategory, Word } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
 import { getPrioritizedCategories } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
@@ -12,18 +12,40 @@ import { useMistakesStore } from '../src/stores/mistakes';
 import { ScreenHeader, ProgressBar } from '../src/components/ui';
 import { colors, shadows } from '../src/theme';
 
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+const wordsByCategory: Record<string, typeof vocab> = {};
+for (const word of vocab) {
+  if (!wordsByCategory[word.category]) wordsByCategory[word.category] = [];
+  wordsByCategory[word.category].push(word);
+}
+
 const Learn = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
-  const { isLearned, learningGoal, learningLevel } = useVocabStore();
+  const isLearned = useVocabStore(s => s.isLearned);
+  const learningGoal = useVocabStore(s => s.learningGoal);
+  const learningLevel = useVocabStore(s => s.learningLevel);
   const learnedByUser = useVocabStore(s => s.learnedByUser);
   const uid = user?.id || GUEST_ID;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
+  const debouncedSearch = useDebounce(searchQuery, 250);
+
+  const isFiltering = debouncedSearch.trim().length > 0 || selectedCategory !== null;
+
   const filteredWords = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
+    const query = debouncedSearch.toLowerCase().trim();
     let words = vocab;
 
     if (selectedCategory) {
@@ -39,14 +61,16 @@ const Learn = () => {
     }
 
     return words;
-  }, [searchQuery, selectedCategory]);
+  }, [debouncedSearch, selectedCategory]);
 
   const mistakesByUser = useMistakesStore(s => s.mistakesByUser);
-  const mistakeCount = Object.values(mistakesByUser[uid] || {}).filter(m => !m.resolved).length;
+  const mistakeCount = useMemo(() =>
+    Object.values(mistakesByUser[uid] || {}).filter(m => !m.resolved).length,
+  [mistakesByUser, uid]);
 
   const categoryStats = useMemo(() =>
     getPrioritizedCategories(learningGoal, learningLevel).map(cat => {
-      const words = getWordsByCategory(cat);
+      const words = wordsByCategory[cat];
       const learned = words.filter(w => isLearned(uid, w.id)).length;
       const meta = CATEGORY_META[cat];
       return { cat, learned, total: words.length, emoji: meta.emoji, color: meta.color };
@@ -62,7 +86,7 @@ const Learn = () => {
         </View>
 
         <View className="px-5 mb-4">
-          <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border }} className="flex-row items-center px-4 py-3">
+          <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border }} className="flex-row items-center px-4 py-1">
             <Ionicons name="search" size={20} color={colors.textTertiary} style={{ marginRight: 8 }} />
             <TextInput
               className="flex-1 text-ink text-base"
@@ -113,52 +137,53 @@ const Learn = () => {
             ))}
           </ScrollView>
         </View>
-      </ScrollView>
 
-      {/* Scrollable Content */}
-      <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-        {searchQuery || selectedCategory ? (
-          /* Word List View */
-          <View className="px-5">
-            <Text style={{ color: colors.textSecondary }} className="text-sm mb-3">{filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''} found</Text>
-            {filteredWords.length === 0 ? (
-              <View className="items-center py-12">
-                <Text className="text-4xl mb-3">🔍</Text>
-                <Text style={{ color: colors.textSecondary }} className="text-base">No words found</Text>
-              </View>
-            ) : (
-              filteredWords.map((word) => {
-                const meta = CATEGORY_META[word.category as keyof typeof CATEGORY_META];
-                const learned = isLearned(uid, word.id);
-                return (
-                  <View
-                    key={word.id}
-                    style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
-                    className="p-4 mb-2 flex-row items-center"
-                  >
-                    <View style={{ backgroundColor: meta.color + '15' }} className="w-12 h-12 rounded-xl items-center justify-center mr-3">
-                      <Text className="text-xl">{meta.emoji}</Text>
-                    </View>
-                    <View className="flex-1">
+        {isFiltering ? (
+            <View className="px-5">
+              <Text style={{ color: colors.textSecondary }} className="text-sm mb-3">{filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''} found</Text>
+              {filteredWords.length === 0 ? (
+                <View className="items-center py-16">
+                  <Text className="text-5xl pt-3">🔍</Text>
+                  <Text className="text-ink text-base font-semibold mb-1">No words found</Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">Try a different search or category</Text>
+                </View>
+              ) : (
+                filteredWords.map((word) => {
+                  const meta = CATEGORY_META[word.category as keyof typeof CATEGORY_META];
+                  const learned = isLearned(uid, word.id);
+                  return (
+                    <View
+                      key={word.id}
+                      style={{ backgroundColor: colors.surface, borderRadius: 16, ...shadows.card }}
+                      className="p-4 mb-3"
+                    >
                       <View className="flex-row items-center">
-                        <Text className="text-ink text-base font-bold mr-2">{word.english}</Text>
-                        {learned && <Text style={{ color: colors.success }} className="text-xs">✓</Text>}
+                        <View style={{ backgroundColor: meta.color + '12' }} className="w-14 h-14 rounded-2xl items-center justify-center mr-4">
+                          <Text className="text-2xl">{meta.emoji}</Text>
+                        </View>
+                        <View className="flex-1">
+                          <View className="flex-row items-center mb-0.5">
+                            <Text className="text-ink text-lg font-bold">{word.english}</Text>
+                            {learned && (
+                              <View style={{ backgroundColor: colors.success + '18' }} className="px-1.5 py-0.5 rounded-full ml-2">
+                                <Text style={{ color: colors.success }} className="text-xs font-semibold">Learned</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={{ color: colors.primary }} className="text-lg font-semibold">{word.nepali}</Text>
+                          <Text style={{ color: colors.textSecondary }} className="text-sm">{word.roman}</Text>
+                        </View>
+                        <View style={{ backgroundColor: meta.color + '12' }} className="px-2.5 py-1 rounded-full">
+                          <Text style={{ color: meta.color }} className="text-xs font-semibold capitalize">{word.category}</Text>
+                        </View>
                       </View>
-                      <Text className="text-brand text-lg">{word.nepali}</Text>
-                      <Text style={{ color: colors.textTertiary }} className="text-sm">{word.roman}</Text>
                     </View>
-                    <View style={{ backgroundColor: meta.color + '15' }} className="px-2 py-1 rounded-full">
-                      <Text style={{ color: meta.color }} className="text-xs font-semibold capitalize">{word.category}</Text>
-                    </View>
-                  </View>
-                );
-              })
-            )}
-          </View>
+                  );
+                })
+              )}
+            </View>
         ) : (
-          /* Category Grid View */
           <View className="px-5">
-            {/* Skills & Practice */}
             <Text className="text-ink text-base font-semibold mb-3">Skills & Practice</Text>
             <View className="flex-row flex-wrap gap-3 mb-6">
               {[
@@ -233,16 +258,7 @@ const Learn = () => {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View>
-        <BottomNav activeTab="learn" />
-        <View style={{ position: 'absolute', top: -24, left: 0, right: 0, alignItems: 'center' }} pointerEvents="box-none">
-          <TouchableOpacity onPress={() => setQuickActionsVisible(true)}>
-            <View style={{ backgroundColor: '#800816', shadowColor: '#800816', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }} className="w-14 h-14 rounded-full items-center justify-center">
-              <Ionicons name="add" size={28} color="#FFFFFF" />
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <BottomNav activeTab="learn" onCenterPress={() => setQuickActionsVisible(true)} />
 
       <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
