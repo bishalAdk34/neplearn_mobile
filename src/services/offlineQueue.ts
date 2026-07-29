@@ -10,7 +10,10 @@ export type QueueOperationType =
   | 'SAVE_CHAT_MESSAGE'
   | 'SAVE_JOURNAL'
   | 'UPSERT_PROFILE'
-  | 'UPSERT_SRS';
+  | 'UPSERT_SRS'
+  | 'CREATE_CONVERSATION'
+  | 'RENAME_CONVERSATION'
+  | 'DELETE_CONVERSATION';
 
 export interface QueuedOperationPayload {
   userId: string;
@@ -19,6 +22,8 @@ export interface QueuedOperationPayload {
   xpSource?: string;
   chatRole?: 'user' | 'assistant';
   chatContent?: string;
+  conversationId?: string;
+  conversationTitle?: string;
   // UPDATE_STREAK (state push)
   streakCurrent?: number;
   streakLongest?: number;

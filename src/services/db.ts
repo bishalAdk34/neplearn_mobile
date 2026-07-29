@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { supabase } from './supabase';
 import { networkManager } from './network';
 import { enqueue } from './offlineQueue';
 
 const AI_CHAT_STORAGE_KEY = 'nepali-ai-chat';
+const AI_CONVERSATIONS_STORAGE_KEY = 'nepali-ai-conversations';
 const JOURNAL_STORAGE_KEY = 'nepali-journal';
 
 export async function upsertProfile(userId: string, name: string, email: string, avatarUrl?: string) {
@@ -218,36 +220,262 @@ export interface StoredChatMessage {
   created_at: string;
 }
 
+export interface StoredConversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const DEFAULT_TITLE = 'New chat';
+
+function truncateTitle(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
+}
+
+function conversationsListKey(userId: string): string {
+  return `${AI_CONVERSATIONS_STORAGE_KEY}-${userId}`;
+}
+
+function guestChatKey(userId: string, conversationId: string): string {
+  return `${AI_CHAT_STORAGE_KEY}-${userId}-${conversationId}`;
+}
+
+function sortConversations(list: StoredConversation[]): StoredConversation[] {
+  return [...list].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+}
+
+async function getGuestConversationsList(userId: string): Promise<StoredConversation[]> {
+  const raw = await AsyncStorage.getItem(conversationsListKey(userId));
+  return raw ? (JSON.parse(raw) as StoredConversation[]) : [];
+}
+
+async function setGuestConversationsList(userId: string, list: StoredConversation[]): Promise<void> {
+  await AsyncStorage.setItem(conversationsListKey(userId), JSON.stringify(list));
+}
+
+/** One-time migration: wraps a pre-multi-chat guest blob into a single "Legacy chat" conversation. No-op if a conversation list already exists, or if there's no legacy blob to migrate. */
+export async function migrateGuestLegacyChat(userId: string): Promise<void> {
+  const listKey = conversationsListKey(userId);
+  const existingList = await AsyncStorage.getItem(listKey);
+  if (existingList !== null) return;
+
+  const oldKey = `${AI_CHAT_STORAGE_KEY}-${userId}`;
+  const raw = await AsyncStorage.getItem(oldKey);
+  if (!raw) return;
+
+  let msgs: StoredChatMessage[];
+  try {
+    msgs = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!Array.isArray(msgs) || msgs.length === 0) return;
+
+  const id = Crypto.randomUUID();
+  const now = new Date().toISOString();
+  await AsyncStorage.setItem(guestChatKey(userId, id), JSON.stringify(msgs));
+  const conversation: StoredConversation = {
+    id,
+    title: 'Legacy chat',
+    created_at: msgs[0]?.created_at || now,
+    updated_at: msgs[msgs.length - 1]?.created_at || now,
+  };
+  await setGuestConversationsList(userId, [conversation]);
+  await AsyncStorage.removeItem(oldKey);
+}
+
+export async function fetchConversations(userId: string): Promise<StoredConversation[]> {
+  if (userId.startsWith('__guest__')) {
+    await migrateGuestLegacyChat(userId);
+    return sortConversations(await getGuestConversationsList(userId));
+  }
+
+  const { data, error } = await supabase
+    .from('ai_conversations')
+    .select('id, title, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+  if (error) {
+    console.warn('fetchConversations failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function createConversation(
+  userId: string,
+  title: string = DEFAULT_TITLE,
+): Promise<StoredConversation> {
+  const id = Crypto.randomUUID();
+  const now = new Date().toISOString();
+  const conversation: StoredConversation = { id, title, created_at: now, updated_at: now };
+
+  if (userId.startsWith('__guest__')) {
+    const list = await getGuestConversationsList(userId);
+    list.push(conversation);
+    await setGuestConversationsList(userId, list);
+    return conversation;
+  }
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('ai_conversations')
+      .insert({ id, user_id: userId, title });
+    if (!error) return conversation;
+    console.warn('createConversation failed, queueing:', error.message);
+  }
+
+  await enqueue({
+    type: 'CREATE_CONVERSATION',
+    payload: { userId, conversationId: id, conversationTitle: title },
+  });
+  return conversation;
+}
+
+export async function renameConversation(
+  userId: string,
+  conversationId: string,
+  title: string,
+): Promise<void> {
+  if (userId.startsWith('__guest__')) {
+    const list = await getGuestConversationsList(userId);
+    const idx = list.findIndex(c => c.id === conversationId);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], title, updated_at: new Date().toISOString() };
+      await setGuestConversationsList(userId, list);
+    }
+    return;
+  }
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('ai_conversations')
+      .update({ title, updated_at: new Date().toISOString() })
+      .eq('id', conversationId)
+      .eq('user_id', userId);
+    if (!error) return;
+    console.warn('renameConversation failed, queueing:', error.message);
+  }
+
+  await enqueue(
+    { type: 'RENAME_CONVERSATION', payload: { userId, conversationId, conversationTitle: title } },
+    `rename-${conversationId}`
+  );
+}
+
+export async function deleteConversation(userId: string, conversationId: string): Promise<void> {
+  if (userId.startsWith('__guest__')) {
+    const list = await getGuestConversationsList(userId);
+    await setGuestConversationsList(userId, list.filter(c => c.id !== conversationId));
+    await AsyncStorage.removeItem(guestChatKey(userId, conversationId));
+    return;
+  }
+
+  if (networkManager.getIsConnected()) {
+    const { error } = await supabase
+      .from('ai_conversations')
+      .delete()
+      .eq('id', conversationId)
+      .eq('user_id', userId);
+    if (!error) return;
+    console.warn('deleteConversation failed, queueing:', error.message);
+  }
+
+  await enqueue(
+    { type: 'DELETE_CONVERSATION', payload: { userId, conversationId } },
+    `delete-${conversationId}`
+  );
+}
+
+/** Bumps updated_at and, if the conversation still has the default title, auto-titles it from the first user message. */
+async function bumpConversationMeta(
+  userId: string,
+  conversationId: string,
+  role: 'user' | 'assistant',
+  content: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  if (role !== 'user') {
+    const { error } = await supabase
+      .from('ai_conversations')
+      .update({ updated_at: now })
+      .eq('id', conversationId)
+      .eq('user_id', userId);
+    if (error) console.warn('bumpConversationMeta failed:', error.message);
+    return;
+  }
+
+  const { data } = await supabase
+    .from('ai_conversations')
+    .select('title')
+    .eq('id', conversationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const patch: { updated_at: string; title?: string } = { updated_at: now };
+  if (!data || data.title === DEFAULT_TITLE) {
+    patch.title = truncateTitle(content);
+  }
+
+  const { error } = await supabase
+    .from('ai_conversations')
+    .update(patch)
+    .eq('id', conversationId)
+    .eq('user_id', userId);
+  if (error) console.warn('bumpConversationMeta failed:', error.message);
+}
+
 export async function saveChatMessage(
   userId: string,
+  conversationId: string,
   role: 'user' | 'assistant',
   content: string,
 ): Promise<void> {
   if (userId.startsWith('__guest__')) {
-    const key = `${AI_CHAT_STORAGE_KEY}-${userId}`;
+    const key = guestChatKey(userId, conversationId);
     const raw = await AsyncStorage.getItem(key);
     const msgs: StoredChatMessage[] = raw ? JSON.parse(raw) : [];
     msgs.push({ role, content, created_at: new Date().toISOString() });
     await AsyncStorage.setItem(key, JSON.stringify(msgs));
+
+    const list = await getGuestConversationsList(userId);
+    const idx = list.findIndex(c => c.id === conversationId);
+    if (idx !== -1) {
+      const updated = { ...list[idx], updated_at: new Date().toISOString() };
+      if (role === 'user' && updated.title === DEFAULT_TITLE) {
+        updated.title = truncateTitle(content);
+      }
+      list[idx] = updated;
+      await setGuestConversationsList(userId, list);
+    }
     return;
   }
 
   if (networkManager.getIsConnected()) {
     const { error } = await supabase
       .from('ai_chat_history')
-      .insert({ user_id: userId, role, content });
-    if (!error) return;
+      .insert({ user_id: userId, conversation_id: conversationId, role, content });
+    if (!error) {
+      await bumpConversationMeta(userId, conversationId, role, content);
+      return;
+    }
   }
 
-  await enqueue({ type: 'SAVE_CHAT_MESSAGE', payload: { userId, chatRole: role, chatContent: content } });
+  await enqueue({
+    type: 'SAVE_CHAT_MESSAGE',
+    payload: { userId, conversationId, chatRole: role, chatContent: content },
+  });
 }
 
 export async function fetchChatHistory(
   userId: string,
+  conversationId: string,
   limit = 50,
 ): Promise<StoredChatMessage[]> {
   if (userId.startsWith('__guest__')) {
-    const key = `${AI_CHAT_STORAGE_KEY}-${userId}`;
+    const key = guestChatKey(userId, conversationId);
     const raw = await AsyncStorage.getItem(key);
     return raw ? (JSON.parse(raw) as StoredChatMessage[]).slice(-limit) : [];
   }
@@ -255,6 +483,7 @@ export async function fetchChatHistory(
     .from('ai_chat_history')
     .select('role, content, created_at')
     .eq('user_id', userId)
+    .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
     .limit(limit);
   if (error) {

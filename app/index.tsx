@@ -15,6 +15,7 @@ import { getPrefs } from '../src/services/notifications';
 import { getTotalXp, getStreak } from '../src/services/db';
 import { colors } from '../src/theme';
 import { ProgressBar } from '../src/components/ui';
+import { QuickActionsModal } from '../src/components/QuickActionsModal';
 
 const Home = () => {
   const router = useRouter();
@@ -24,6 +25,7 @@ const Home = () => {
   const uid = user?.id || GUEST_ID;
   const [menuVisible, setMenuVisible] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(false);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [cloudXp, setCloudXp] = useState<number | null>(null);
   const [cloudStreak, setCloudStreak] = useState<{ current_streak: number; longest_streak: number } | null>(null);
 

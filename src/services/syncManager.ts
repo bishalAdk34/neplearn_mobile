@@ -142,7 +142,40 @@ class SyncManager {
               user_id: payload.userId,
               role: payload.chatRole,
               content: payload.chatContent,
+              conversation_id: payload.conversationId,
             });
+          return !error;
+        }
+
+        case 'CREATE_CONVERSATION': {
+          const { error } = await supabase
+            .from('ai_conversations')
+            .upsert(
+              {
+                id: payload.conversationId,
+                user_id: payload.userId,
+                title: payload.conversationTitle ?? 'New chat',
+              },
+              { onConflict: 'id' }
+            );
+          return !error;
+        }
+
+        case 'RENAME_CONVERSATION': {
+          const { error } = await supabase
+            .from('ai_conversations')
+            .update({ title: payload.conversationTitle, updated_at: new Date().toISOString() })
+            .eq('id', payload.conversationId)
+            .eq('user_id', payload.userId);
+          return !error;
+        }
+
+        case 'DELETE_CONVERSATION': {
+          const { error } = await supabase
+            .from('ai_conversations')
+            .delete()
+            .eq('id', payload.conversationId)
+            .eq('user_id', payload.userId);
           return !error;
         }
 
