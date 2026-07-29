@@ -96,6 +96,7 @@ const Lesson = () => {
       hapticSuccess();
       const earned = correctCount * 20;
       awardXp(uid, earned, 'lesson');
+      useVocabStore.getState().incrementCompletedLessons(uid);
     }
   }, [isLessonComplete]);
 
