@@ -104,6 +104,29 @@ export function getContinueCategory(
   return null;
 }
 
+export const CATEGORY_UNLOCK_THRESHOLD = 0.7;
+
+export function getCategoryLockMap(
+  goal: LearningGoal | null,
+  level: LearningLevel | null,
+  isLearnedFn: (wordId: number) => boolean
+): Record<Category, boolean> {
+  const order = getPrioritizedCategories(goal, level);
+  const lockMap = {} as Record<Category, boolean>;
+  if (level !== 'beginner') {
+    order.forEach(c => { lockMap[c] = false; });
+    return lockMap;
+  }
+  let prevUnlocked = true;
+  for (const cat of order) {
+    lockMap[cat] = !prevUnlocked;
+    const words = getWordsByCategory(cat);
+    const learned = words.filter(w => isLearnedFn(w.id)).length;
+    prevUnlocked = words.length > 0 && learned / words.length >= CATEGORY_UNLOCK_THRESHOLD;
+  }
+  return lockMap;
+}
+
 export function buildLearnerProfileContext(goal: LearningGoal | null, level: LearningLevel | null): string | undefined {
   if (!goal && !level) return undefined;
   const parts: string[] = [];

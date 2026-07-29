@@ -16,12 +16,12 @@ const TABS: { name: TabName; label: string; icon: IoniconName; activeIcon: Ionic
 ];
 
 const NAVBAR_HEIGHT = 72;
-const FAB_SIZE = 56;
+const FAB_SIZE = 60;
 const FAB_RADIUS = FAB_SIZE / 2;
-const NOTCH_RADIUS = 34;
-const NOTCH_DEPTH = 22;
+const NOTCH_RADIUS = 36;
+const NOTCH_DEPTH = 28;
 const CORNER_RADIUS = 22;
-const FAB_OVERLAP = 18;
+const FAB_OVERLAP = 35;
 
 function buildNotchPath(width: number): string {
   const h = NAVBAR_HEIGHT;
@@ -29,18 +29,16 @@ function buildNotchPath(width: number): string {
   const nr = NOTCH_RADIUS;
   const nd = NOTCH_DEPTH;
   const cr = CORNER_RADIUS;
-  const flatStart = cx - nr - 28;
-  const flatEnd = cx + nr + 28;
+  const flatStart = cx - nr - 32;
+  const flatEnd = cx + nr + 32;
 
   return [
     `M 0 ${h}`,
     `L 0 ${cr}`,
     `Q 0 0 ${cr} 0`,
     `L ${flatStart} 0`,
-    `C ${flatStart + 12} 0, ${cx - nr} ${nd * 0.3}, ${cx - nr} ${nd}`,
-    `C ${cx - nr} ${nd + 8}, ${cx - 8} ${nd + 14}, ${cx} ${nd + 14}`,
-    `C ${cx + 8} ${nd + 14}, ${cx + nr} ${nd + 8}, ${cx + nr} ${nd}`,
-    `C ${cx + nr} ${nd * 0.3}, ${flatEnd - 12} 0, ${flatEnd} 0`,
+    `C ${flatStart + 16} 0, ${cx - nr} ${nd}, ${cx} ${nd}`,
+    `C ${cx + nr} ${nd}, ${flatEnd - 16} 0, ${flatEnd} 0`,
     `L ${width - cr} 0`,
     `Q ${width} 0 ${width} ${cr}`,
     `L ${width} ${h}`,
@@ -82,7 +80,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
         <View
           style={{
             position: 'absolute',
-            bottom: NAVBAR_HEIGHT - FAB_RADIUS - FAB_OVERLAP + 4,
+            bottom: NAVBAR_HEIGHT - FAB_SIZE * 0.42,
             left: 0,
             right: 0,
             alignItems: 'center',
@@ -97,6 +95,8 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
                 height: FAB_SIZE,
                 borderRadius: FAB_RADIUS,
                 backgroundColor: colors.primary,
+                borderWidth: 3,
+                borderColor: colors.surface,
                 alignItems: 'center',
                 justifyContent: 'center',
                 shadowColor: colors.primary,

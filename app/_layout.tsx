@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppState } from 'react-native';
+import { AppState, InteractionManager } from 'react-native';
 import { Stack } from 'expo-router';
 import SplashScreen from '../src/components/SplashScreen';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
@@ -61,8 +61,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (user && !user.id.startsWith('__guest__')) {
-      syncFromCloud(user.id);
-      useSrsStore.getState().syncFromCloud(user.id);
+      const handle = InteractionManager.runAfterInteractions(() => {
+        syncFromCloud(user.id);
+        useSrsStore.getState().syncFromCloud(user.id);
+      });
+      return () => handle.cancel();
     }
   }, [user, syncFromCloud]);
 

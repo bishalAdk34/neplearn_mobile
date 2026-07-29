@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { QuickActionsModal } from '@/src/components/QuickActionsModal';
+import { ChatDrawer } from '../src/components/ChatDrawer';
 import { useAuthStore } from '../src/stores/auth';
+import { useChatsStore } from '../src/stores/chats';
 import { useVocabStore } from '../src/data/vocab';
 import { sendMessage, isOffline } from '../src/services/ai';
 import { saveChatMessage, fetchChatHistory } from '../src/services/db';
@@ -39,14 +41,34 @@ const AITutor = () => {
   const [hasLoaded, setHasLoaded] = useState(false);
   const sessionXpRef = useRef(0);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   const uid = user?.id || GUEST_ID;
   const learnedIds = learnedByUser[uid] || [];
 
+  const currentConversationId = useChatsStore(s => s.currentConversationId);
+  const loadConversations = useChatsStore(s => s.loadConversations);
+
   useEffect(() => {
     (async () => {
       try {
-        const history = await fetchChatHistory(uid, 50);
+        await loadConversations(uid);
+      } catch (e) {
+        console.warn('Failed to load conversations:', e);
+      } finally {
+        setHasLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!currentConversationId) {
+      setMessages([]);
+      return;
+    }
+    (async () => {
+      try {
+        const history = await fetchChatHistory(uid, currentConversationId, 50);
         setMessages(
           history.map((m, i) => ({
             id: `${i}`,
@@ -57,11 +79,15 @@ const AITutor = () => {
       } catch (e) {
         console.warn('Failed to load chat history:', e);
         setMessages([]);
-      } finally {
-        setHasLoaded(true);
       }
     })();
-  }, []);
+  }, [currentConversationId]);
+
+  useEffect(() => {
+    if (hasLoaded && !currentConversationId) {
+      loadConversations(uid);
+    }
+  }, [hasLoaded, currentConversationId]);
 
   const [kbHeight, setKbHeight] = useState(0);
 
@@ -78,14 +104,15 @@ const AITutor = () => {
   }, []);
 
   const handleSend = useCallback(async (text: string) => {
-    if (!text.trim() || isLoading) return;
+    if (!text.trim() || isLoading || !currentConversationId) return;
     const msg = text.trim();
+    const conversationId = currentConversationId;
     setInputText('');
     setIsLoading(true);
 
     const userMsg = { id: `u-${Date.now()}`, role: 'user' as const, text: msg };
     setMessages(prev => [...prev, userMsg]);
-    await saveChatMessage(uid, 'user', msg);
+    await saveChatMessage(uid, conversationId, 'user', msg);
 
     const chatHistory: ChatMessage[] = messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
@@ -102,7 +129,7 @@ const AITutor = () => {
 
     const aiMsg = { id: `a-${Date.now()}`, role: 'assistant' as const, text: reply };
     setMessages(prev => [...prev, aiMsg]);
-    await saveChatMessage(uid, 'assistant', reply);
+    await saveChatMessage(uid, conversationId, 'assistant', reply);
 
     // 5 XP per user message, capped at 25 XP per session
     if (sessionXpRef.current < 25) {
@@ -110,8 +137,9 @@ const AITutor = () => {
       awardXp(uid, 5, 'ai_tutor');
     }
 
+    await loadConversations(uid);
     setIsLoading(false);
-  }, [messages, isLoading, uid, learnedIds, learningGoal, learningLevel]);
+  }, [messages, isLoading, uid, currentConversationId, learnedIds, learningGoal, learningLevel]);
 
   const handleQuickAction = useCallback((text: string) => {
     handleSend(text);
@@ -134,6 +162,9 @@ const AITutor = () => {
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="mr-3">
             <Ionicons name="arrow-back" size={24} color={colors.ink} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setDrawerVisible(true)} className="mr-3">
+            <Ionicons name="menu" size={24} color={colors.ink} />
           </TouchableOpacity>
           <View>
             <Text className="text-ink text-lg font-bold">AI Tutor</Text>
@@ -228,9 +259,9 @@ const AITutor = () => {
           />
           <TouchableOpacity
             onPress={() => handleSend(inputText)}
-            disabled={!inputText.trim() || isLoading || networkOffline}
+            disabled={!inputText.trim() || isLoading || networkOffline || !currentConversationId}
             className="ml-3 w-11 h-11 rounded-full items-center justify-center"
-            style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline ? colors.primary : colors.disabled }}
+            style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline && currentConversationId ? colors.primary : colors.disabled }}
           >
             <Ionicons name="send" size={18} color="#FFFFFF" />
           </TouchableOpacity>
@@ -242,6 +273,7 @@ const AITutor = () => {
       </View>
 
       <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
+      <ChatDrawer visible={drawerVisible} onClose={() => setDrawerVisible(false)} userId={uid} />
     </View>
   );
 };
