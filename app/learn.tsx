@@ -22,12 +22,6 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-const wordsByCategory: Record<string, typeof vocab> = {};
-for (const word of vocab) {
-  if (!wordsByCategory[word.category]) wordsByCategory[word.category] = [];
-  wordsByCategory[word.category].push(word);
-}
-
 const Learn = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
@@ -71,7 +65,7 @@ const Learn = () => {
   const categoryStats = useMemo(() => {
     const lockMap = getCategoryLockMap(learningGoal, learningLevel, id => isLearned(uid, id));
     return getPrioritizedCategories(learningGoal, learningLevel).map(cat => {
-      const words = wordsByCategory[cat];
+      const words = getWordsByCategory(cat);
       const learned = words.filter(w => isLearned(uid, w.id)).length;
       const meta = CATEGORY_META[cat];
       return { cat, learned, total: words.length, emoji: meta.emoji, color: meta.color, locked: lockMap[cat] };
@@ -80,8 +74,6 @@ const Learn = () => {
 
   type CategoryStat = (typeof categoryStats)[number];
   type ListRow =
-    | { key: 'title' }
-    | { key: 'searchChips' }
     | { key: 'filterCount' }
     | { key: 'skillsAndBrowseTitle' }
     | { key: 'empty' }
@@ -90,91 +82,18 @@ const Learn = () => {
 
   const rows = useMemo<ListRow[]>(() => {
     if (isFiltering) {
-      const base: ListRow[] = [{ key: 'title' }, { key: 'searchChips' }, { key: 'filterCount' }];
+      const base: ListRow[] = [{ key: 'filterCount' }];
       if (filteredWords.length === 0) return [...base, { key: 'empty' }];
       return [...base, ...filteredWords.map(word => ({ key: `word-${word.id}` as const, word }))];
     }
     return [
-      { key: 'title' },
-      { key: 'searchChips' },
       { key: 'skillsAndBrowseTitle' },
       ...categoryStats.map((stat, index) => ({ key: `cat-${stat.cat}` as const, stat, index })),
     ];
   }, [isFiltering, filteredWords, categoryStats]);
 
-  // Search bar + category chips row (index 1) stays pinned while the rest scrolls underneath.
-  const stickyHeaderIndices = useMemo(() => [1], []);
-
   const renderRow = useCallback(({ item }: { item: ListRow }) => {
     switch (item.key) {
-      case 'title':
-        return (
-          <>
-            <ScreenHeader title="Learn" />
-            <View className="px-5 -mt-2 pb-4">
-              <Text style={{ color: colors.textSecondary }} className="text-sm">{vocab.length} words across {categories.length} categories</Text>
-            </View>
-          </>
-        );
-
-      case 'searchChips':
-        return (
-          <View style={{ backgroundColor: colors.background }} className="pb-4">
-            <View className="px-5 mb-4">
-              <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border }} className="flex-row items-center px-4 py-1">
-                <Ionicons name="search" size={20} color={colors.textTertiary} style={{ marginRight: 8 }} />
-                <TextInput
-                  className="flex-1 text-ink text-base"
-                  placeholder="Search words in English, Nepali, or Roman..."
-                  placeholderTextColor={colors.textTertiary}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')} className="ml-2">
-                    <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            <View className="px-5">
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row -mx-5 px-5">
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: selectedCategory === null ? colors.primary : colors.surface,
-                    borderWidth: 1,
-                    borderColor: selectedCategory === null ? colors.primary : colors.border,
-                  }}
-                  className="px-4 py-2 rounded-full mr-2"
-                  onPress={() => setSelectedCategory(null)}
-                >
-                  <Text style={{ color: selectedCategory === null ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
-                    All ({vocab.length})
-                  </Text>
-                </TouchableOpacity>
-                {categoryStats.map((s) => (
-                  <TouchableOpacity
-                    key={s.cat}
-                    style={{
-                      backgroundColor: selectedCategory === s.cat ? colors.primary : colors.surface,
-                      borderWidth: 1,
-                      borderColor: selectedCategory === s.cat ? colors.primary : colors.border,
-                    }}
-                    className="px-4 py-2 rounded-full mr-2 flex-row items-center"
-                    onPress={() => setSelectedCategory(selectedCategory === s.cat ? null : s.cat)}
-                  >
-                    <Text className="mr-1">{s.emoji}</Text>
-                    <Text style={{ color: selectedCategory === s.cat ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
-                      {s.cat} ({s.learned}/{s.total})
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        );
-
       case 'filterCount':
         return (
           <Text style={{ color: colors.textSecondary }} className="text-sm mb-3 px-5">
@@ -318,6 +237,66 @@ const Learn = () => {
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
+      <ScreenHeader title="Learn" />
+      <View className="px-5 -mt-2 pb-4">
+        <Text style={{ color: colors.textSecondary }} className="text-sm">{vocab.length} words across {categories.length} categories</Text>
+      </View>
+
+      <View style={{ backgroundColor: colors.background }} className="px-5 pb-4">
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border }} className="flex-row items-center px-4 py-1">
+          <Ionicons name="search" size={20} color={colors.textTertiary} style={{ marginRight: 8 }} />
+          <TextInput
+            className="flex-1 text-ink text-base"
+            placeholder="Search words in English, Nepali, or Roman..."
+            placeholderTextColor={colors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} className="ml-2">
+              <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <View style={{ backgroundColor: colors.background }} className="pb-4">
+        <View className="px-5">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row -mx-5 px-5">
+            <TouchableOpacity
+              style={{
+                backgroundColor: selectedCategory === null ? colors.primary : colors.surface,
+                borderWidth: 1,
+                borderColor: selectedCategory === null ? colors.primary : colors.border,
+              }}
+              className="px-4 py-2 rounded-full mr-2"
+              onPress={() => setSelectedCategory(null)}
+            >
+              <Text style={{ color: selectedCategory === null ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
+                All ({vocab.length})
+              </Text>
+            </TouchableOpacity>
+            {categoryStats.map((s) => (
+              <TouchableOpacity
+                key={s.cat}
+                style={{
+                  backgroundColor: selectedCategory === s.cat ? colors.primary : colors.surface,
+                  borderWidth: 1,
+                  borderColor: selectedCategory === s.cat ? colors.primary : colors.border,
+                }}
+                className="px-4 py-2 rounded-full mr-2 flex-row items-center"
+                onPress={() => setSelectedCategory(selectedCategory === s.cat ? null : s.cat)}
+              >
+                <Text className="mr-1">{s.emoji}</Text>
+                <Text style={{ color: selectedCategory === s.cat ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
+                  {s.cat} ({s.learned}/{s.total})
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -325,7 +304,6 @@ const Learn = () => {
         data={rows}
         keyExtractor={row => row.key}
         renderItem={renderRow}
-        stickyHeaderIndices={stickyHeaderIndices}
       />
 
       {/* Bottom Navigation */}

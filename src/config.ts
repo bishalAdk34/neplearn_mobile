@@ -16,3 +16,15 @@ export const GEMINI_API_KEY = extra.geminiApiKey ?? '';
 
 // Groq — free, no credit card, OpenAI-compatible. Get a key at https://console.groq.com/keys
 export const GROQ_API_KEY = extra.groqApiKey ?? '';
+
+/** Returns names of required env keys that are missing, for a clear startup warning. */
+export function getMissingConfigKeys(): string[] {
+  const required: Record<string, string> = {
+    GOOGLE_CLIENT_ID,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+  };
+  return Object.entries(required)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+}

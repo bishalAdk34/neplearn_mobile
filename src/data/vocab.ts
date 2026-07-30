@@ -8,7 +8,12 @@ import { useSrsStore } from '../stores/srs';
 const asyncStorage: PersistStorage<VocabState> = {
   getItem: async (name) => {
     const val = await AsyncStorage.getItem(name);
-    return val ? JSON.parse(val) : null;
+    if (!val) return null;
+    try {
+      return JSON.parse(val);
+    } catch {
+      return null;
+    }
   },
   setItem: async (name, value) => {
     await AsyncStorage.setItem(name, JSON.stringify(value));
@@ -553,8 +558,15 @@ export const vocab: Word[] = [
   { id: 327, english: 'Understand', nepali: 'बुझ्नु', roman: 'Bujhnu', category: 'verbs', image: '💡' },
 ];
 
+const wordsByCategoryCache = new Map<string, Word[]>();
+for (const word of vocab) {
+  const list = wordsByCategoryCache.get(word.category);
+  if (list) list.push(word);
+  else wordsByCategoryCache.set(word.category, [word]);
+}
+
 export function getWordsByCategory(cat: string): Word[] {
-  return vocab.filter(w => w.category === cat);
+  return wordsByCategoryCache.get(cat) || [];
 }
 
 export function shuffle<T>(array: T[]): T[] {

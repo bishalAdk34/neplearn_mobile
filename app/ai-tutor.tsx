@@ -42,6 +42,14 @@ const AITutor = () => {
   const sessionXpRef = useRef(0);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [queuedNotice, setQueuedNotice] = useState(false);
+  const queuedNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashQueuedNotice = useCallback(() => {
+    setQueuedNotice(true);
+    if (queuedNoticeTimer.current) clearTimeout(queuedNoticeTimer.current);
+    queuedNoticeTimer.current = setTimeout(() => setQueuedNotice(false), 3000);
+  }, []);
 
   const uid = user?.id || GUEST_ID;
   const learnedIds = learnedByUser[uid] || [];
@@ -112,7 +120,8 @@ const AITutor = () => {
 
     const userMsg = { id: `u-${Date.now()}`, role: 'user' as const, text: msg };
     setMessages(prev => [...prev, userMsg]);
-    await saveChatMessage(uid, conversationId, 'user', msg);
+    const userSaveResult = await saveChatMessage(uid, conversationId, 'user', msg);
+    if (userSaveResult.queued) flashQueuedNotice();
 
     const chatHistory: ChatMessage[] = messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
@@ -129,7 +138,8 @@ const AITutor = () => {
 
     const aiMsg = { id: `a-${Date.now()}`, role: 'assistant' as const, text: reply };
     setMessages(prev => [...prev, aiMsg]);
-    await saveChatMessage(uid, conversationId, 'assistant', reply);
+    const aiSaveResult = await saveChatMessage(uid, conversationId, 'assistant', reply);
+    if (aiSaveResult.queued) flashQueuedNotice();
 
     // 5 XP per user message, capped at 25 XP per session
     if (sessionXpRef.current < 25) {
@@ -139,7 +149,13 @@ const AITutor = () => {
 
     await loadConversations(uid);
     setIsLoading(false);
-  }, [messages, isLoading, uid, currentConversationId, learnedIds, learningGoal, learningLevel]);
+  }, [messages, isLoading, uid, currentConversationId, learnedIds, learningGoal, learningLevel, flashQueuedNotice]);
+
+  useEffect(() => {
+    return () => {
+      if (queuedNoticeTimer.current) clearTimeout(queuedNoticeTimer.current);
+    };
+  }, []);
 
   const handleQuickAction = useCallback((text: string) => {
     handleSend(text);
@@ -149,6 +165,21 @@ const AITutor = () => {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <Text className="text-brand text-lg">Loading Aama...</Text>
+      </View>
+    );
+  }
+
+  if (!currentConversationId) {
+    return (
+      <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: colors.background }}>
+        <Text className="text-ink text-base mb-4 text-center">Couldn't start a conversation.</Text>
+        <TouchableOpacity
+          onPress={() => loadConversations(uid)}
+          className="px-5 py-3 rounded-full"
+          style={{ backgroundColor: colors.primary }}
+        >
+          <Text className="text-white font-semibold">Start conversation</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -191,6 +222,14 @@ const AITutor = () => {
         <View className="px-4 py-2" style={{ backgroundColor: colors.warmSurface }}>
           <Text style={{ color: colors.warmInk }} className="text-sm text-center">
             You're offline. Changes sync when back online.
+          </Text>
+        </View>
+      )}
+
+      {!networkOffline && queuedNotice && (
+        <View className="px-4 py-2" style={{ backgroundColor: colors.warmSurface }}>
+          <Text style={{ color: colors.warmInk }} className="text-sm text-center">
+            Saved offline — will sync shortly.
           </Text>
         </View>
       )}

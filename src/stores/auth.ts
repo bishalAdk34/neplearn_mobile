@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
 import { upsertProfile } from '../services/db';
+import { clearQueueForUser } from '../services/offlineQueue';
 import type { Session, Subscription } from '@supabase/supabase-js';
 
 export type User = {
@@ -33,8 +34,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
   setSession: (session) => set({ session }),
 
   clearUser: async () => {
+    const uid = useAuthStore.getState().user?.id;
     if (supabase) await supabase.auth.signOut();
     set({ user: null, session: null });
+    if (uid) await clearQueueForUser(uid);
   },
 
   cleanup: () => {

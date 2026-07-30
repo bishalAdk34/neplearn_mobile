@@ -13,6 +13,7 @@ import { ProgressBar } from '../src/components/ui';
 import { hapticSuccess, hapticError } from '../src/utils/haptics';
 import Confetti from '../src/components/Confetti';
 import { useSettingsStore } from '../src/stores/settings';
+import { maybeShowNotifPrompt } from '../src/stores/notifPrompt';
 import { getDirectionFields, getOptionLabel } from '../src/utils/direction';
 
 const Lesson = () => {
@@ -96,7 +97,7 @@ const Lesson = () => {
       hapticSuccess();
       const earned = correctCount * 20;
       awardXp(uid, earned, 'lesson');
-      useVocabStore.getState().incrementCompletedLessons(uid);
+      maybeShowNotifPrompt();
     }
   }, [isLessonComplete]);
 
