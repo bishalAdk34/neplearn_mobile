@@ -25,7 +25,12 @@ type SettingsState = {
 const asyncStorage: PersistStorage<SettingsState> = {
   getItem: async (name) => {
     const val = await AsyncStorage.getItem(name);
-    return val ? JSON.parse(val) : null;
+    if (!val) return null;
+    try {
+      return JSON.parse(val);
+    } catch {
+      return null;
+    }
   },
   setItem: async (name, value) => {
     await AsyncStorage.setItem(name, JSON.stringify(value));

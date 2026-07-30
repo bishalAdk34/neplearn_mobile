@@ -8,10 +8,19 @@ const AI_CHAT_STORAGE_KEY = 'nepali-ai-chat';
 const AI_CONVERSATIONS_STORAGE_KEY = 'nepali-ai-conversations';
 const JOURNAL_STORAGE_KEY = 'nepali-journal';
 
+function safeParse<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function upsertProfile(userId: string, name: string, email: string, avatarUrl?: string) {
   if (userId.startsWith('__guest__')) return;
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('profiles')
       .upsert({ id: userId, name, email, avatar_url: avatarUrl }, { onConflict: 'id' });
@@ -31,7 +40,7 @@ export async function upsertProfile(userId: string, name: string, email: string,
 export async function syncLearnWord(userId: string, wordId: number) {
   if (userId.startsWith('__guest__')) return;
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('user_learned_words')
       .upsert({ user_id: userId, word_id: wordId }, { onConflict: 'user_id,word_id' });
@@ -44,7 +53,7 @@ export async function syncLearnWord(userId: string, wordId: number) {
 export async function syncUnlearnWord(userId: string, wordId: number) {
   if (userId.startsWith('__guest__')) return;
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('user_learned_words')
       .delete()
@@ -58,6 +67,7 @@ export async function syncUnlearnWord(userId: string, wordId: number) {
 
 export async function fetchLearnedWords(userId: string): Promise<number[]> {
   if (userId.startsWith('__guest__')) return [];
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('user_learned_words')
     .select('word_id')
@@ -93,7 +103,7 @@ export async function saveJournalEntry(
   if (userId.startsWith('__guest__')) {
     const key = `${JOURNAL_STORAGE_KEY}-${userId}`;
     const raw = await AsyncStorage.getItem(key);
-    const entries: StoredJournalEntry[] = raw ? JSON.parse(raw) : [];
+    const entries: StoredJournalEntry[] = safeParse(raw, []);
     entries.push({
       prompt_nepali: promptNepali,
       prompt_roman: promptRoman,
@@ -106,7 +116,7 @@ export async function saveJournalEntry(
     return { saved: true, guest: true };
   }
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('journal_entries')
       .insert({
@@ -144,7 +154,7 @@ export type XpSource =
 export async function addXp(userId: string, amount: number, source: XpSource) {
   if (userId.startsWith('__guest__')) return;
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('user_xp')
       .insert({ user_id: userId, xp_amount: amount, source });
@@ -156,6 +166,7 @@ export async function addXp(userId: string, amount: number, source: XpSource) {
 
 export async function getTotalXp(userId: string): Promise<number> {
   if (userId.startsWith('__guest__')) return 0;
+  if (!supabase) return 0;
   const { data, error } = await supabase
     .rpc('get_total_xp', { p_user_id: userId });
   if (error) {
@@ -172,6 +183,7 @@ export async function getTotalXp(userId: string): Promise<number> {
 /** Daily XP totals from the cloud (for the heatmap). Returns 'YYYY-MM-DD' -> xp. */
 export async function fetchDailyXp(userId: string): Promise<Record<string, number>> {
   if (userId.startsWith('__guest__')) return {};
+  if (!supabase) return {};
   const { data, error } = await supabase
     .rpc('get_daily_xp', { p_user_id: userId });
   if (error || !data) {
@@ -194,6 +206,7 @@ export interface LeaderboardRow {
 
 /** Weekly leaderboard (signed-in only; RPC is security definer). */
 export async function fetchWeeklyLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .rpc('get_weekly_leaderboard', { p_limit: limit });
   if (error || !data) {
@@ -205,6 +218,7 @@ export async function fetchWeeklyLeaderboard(limit = 50): Promise<LeaderboardRow
 
 export async function getStreak(userId: string): Promise<{ current_streak: number; longest_streak: number }> {
   if (userId.startsWith('__guest__')) return { current_streak: 0, longest_streak: 0 };
+  if (!supabase) return { current_streak: 0, longest_streak: 0 };
   const { data, error } = await supabase
     .from('user_streaks')
     .select('current_streak, longest_streak')
@@ -248,7 +262,7 @@ function sortConversations(list: StoredConversation[]): StoredConversation[] {
 
 async function getGuestConversationsList(userId: string): Promise<StoredConversation[]> {
   const raw = await AsyncStorage.getItem(conversationsListKey(userId));
-  return raw ? (JSON.parse(raw) as StoredConversation[]) : [];
+  return safeParse<StoredConversation[]>(raw, []);
 }
 
 async function setGuestConversationsList(userId: string, list: StoredConversation[]): Promise<void> {
@@ -292,6 +306,7 @@ export async function fetchConversations(userId: string): Promise<StoredConversa
     return sortConversations(await getGuestConversationsList(userId));
   }
 
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('ai_conversations')
     .select('id, title, created_at, updated_at')
@@ -319,7 +334,7 @@ export async function createConversation(
     return conversation;
   }
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('ai_conversations')
       .insert({ id, user_id: userId, title });
@@ -349,7 +364,7 @@ export async function renameConversation(
     return;
   }
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('ai_conversations')
       .update({ title, updated_at: new Date().toISOString() })
@@ -373,7 +388,7 @@ export async function deleteConversation(userId: string, conversationId: string)
     return;
   }
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('ai_conversations')
       .delete()
@@ -396,6 +411,7 @@ async function bumpConversationMeta(
   role: 'user' | 'assistant',
   content: string,
 ): Promise<void> {
+  if (!supabase) return;
   const now = new Date().toISOString();
   if (role !== 'user') {
     const { error } = await supabase
@@ -432,11 +448,11 @@ export async function saveChatMessage(
   conversationId: string,
   role: 'user' | 'assistant',
   content: string,
-): Promise<void> {
+): Promise<{ queued: boolean }> {
   if (userId.startsWith('__guest__')) {
     const key = guestChatKey(userId, conversationId);
     const raw = await AsyncStorage.getItem(key);
-    const msgs: StoredChatMessage[] = raw ? JSON.parse(raw) : [];
+    const msgs: StoredChatMessage[] = safeParse(raw, []);
     msgs.push({ role, content, created_at: new Date().toISOString() });
     await AsyncStorage.setItem(key, JSON.stringify(msgs));
 
@@ -450,16 +466,16 @@ export async function saveChatMessage(
       list[idx] = updated;
       await setGuestConversationsList(userId, list);
     }
-    return;
+    return { queued: false };
   }
 
-  if (networkManager.getIsConnected()) {
+  if (networkManager.getIsConnected() && supabase) {
     const { error } = await supabase
       .from('ai_chat_history')
       .insert({ user_id: userId, conversation_id: conversationId, role, content });
     if (!error) {
       await bumpConversationMeta(userId, conversationId, role, content);
-      return;
+      return { queued: false };
     }
   }
 
@@ -467,6 +483,7 @@ export async function saveChatMessage(
     type: 'SAVE_CHAT_MESSAGE',
     payload: { userId, conversationId, chatRole: role, chatContent: content },
   });
+  return { queued: true };
 }
 
 export async function fetchChatHistory(
@@ -477,8 +494,9 @@ export async function fetchChatHistory(
   if (userId.startsWith('__guest__')) {
     const key = guestChatKey(userId, conversationId);
     const raw = await AsyncStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as StoredChatMessage[]).slice(-limit) : [];
+    return safeParse<StoredChatMessage[]>(raw, []).slice(-limit);
   }
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('ai_chat_history')
     .select('role, content, created_at')

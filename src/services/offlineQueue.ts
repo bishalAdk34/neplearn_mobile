@@ -112,6 +112,13 @@ export async function clearQueue(): Promise<void> {
   await AsyncStorage.removeItem(QUEUE_KEY);
 }
 
+/** Drops queued ops belonging to a specific user (e.g. on sign-out). */
+export async function clearQueueForUser(userId: string): Promise<void> {
+  const queue = await getQueue();
+  const filtered = queue.filter((op) => op.payload.userId !== userId);
+  await saveQueue(filtered);
+}
+
 export async function getQueueSize(): Promise<number> {
   const queue = await getQueue();
   return queue.length;

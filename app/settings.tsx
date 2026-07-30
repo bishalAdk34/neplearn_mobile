@@ -6,6 +6,7 @@ import BottomNav from '../src/components/BottomNav';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSettingsStore, TtsSpeed, LearningDirection } from '../src/stores/settings';
+import { useNotifPromptStore } from '../src/stores/notifPrompt';
 import { DIRECTION_OPTIONS } from '../src/utils/direction';
 import { supabase } from '../src/services/supabase';
 import {
@@ -98,6 +99,7 @@ const Settings = () => {
     try {
       if (value) {
         const granted = await requestPermissions();
+        useNotifPromptStore.getState().markPrompted();
         if (!granted) {
           Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive practice reminders.');
           return;
@@ -132,6 +134,7 @@ const Settings = () => {
     try {
       if (value) {
         const granted = await requestPermissions();
+        useNotifPromptStore.getState().markPrompted();
         if (!granted) {
           Alert.alert('Permission Denied', 'Enable notifications in your device settings to receive the word of the day.');
           return;

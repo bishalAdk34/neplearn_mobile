@@ -40,6 +40,7 @@ module.exports = {
       'expo-web-browser',
       '@react-native-google-signin/google-signin',
       'expo-notifications',
+      '@dev-amirzubair/react-native-voice',
       [
         'expo-image-picker',
         {
