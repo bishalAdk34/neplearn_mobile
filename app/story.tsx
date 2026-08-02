@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
+import { QuickActionsModal } from '../src/components/QuickActionsModal';
 import { ScreenHeader, ProgressBar } from '../src/components/ui';
 import { colors, shadows } from '../src/theme';
 import { stories, Story, LEVEL_LABELS } from '../src/data/stories';
@@ -21,6 +22,7 @@ const StoryScreen = () => {
   const [selected, setSelected] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
   const [score, setScore] = useState(0);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
   const openStory = (s: Story) => {
     hapticLight();
@@ -93,7 +95,8 @@ const StoryScreen = () => {
             ))}
           </View>
         </ScrollView>
-        <BottomNav activeTab="learn" />
+        <BottomNav activeTab="learn" onCenterPress={() => setQuickActionsVisible(true)} />
+        <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
       </View>
     );
   }
@@ -115,6 +118,8 @@ const StoryScreen = () => {
         >
           <Text className="text-white font-bold text-lg">Back to Stories</Text>
         </TouchableOpacity>
+        <BottomNav activeTab="learn" onCenterPress={() => setQuickActionsVisible(true)} />
+        <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
       </View>
     );
   }
@@ -184,6 +189,8 @@ const StoryScreen = () => {
             </TouchableOpacity>
           </View>
         )}
+        <BottomNav activeTab="learn" onCenterPress={() => setQuickActionsVisible(true)} />
+        <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
       </View>
     );
   }

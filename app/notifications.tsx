@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
+import { QuickActionsModal } from '../src/components/QuickActionsModal';
 import { colors } from '../src/theme';
 import { ScreenHeader, EmptyState, LoadingSkeleton } from '../src/components/ui';
 import {
@@ -36,6 +37,7 @@ export default function NotificationsScreen() {
   const [scheduled, setScheduled] = useState<ScheduledReminder[]>([]);
   const [log, setLog] = useState<NotificationLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -158,7 +160,8 @@ export default function NotificationsScreen() {
         )}
       </View>
 
-      <BottomNav />
+      <BottomNav onCenterPress={() => setQuickActionsVisible(true)} />
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
   );
 }

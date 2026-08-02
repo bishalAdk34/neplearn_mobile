@@ -92,4 +92,82 @@ export const cultureCards: CultureCard[] = [
       { nepali: 'खाना अगाडि हात धुनुहोस्', roman: 'Khaana agaadi haat dhunuhos', english: 'Wash your hands before the meal' },
     ],
   },
+  {
+    id: 7,
+    emoji: '🥟',
+    title: 'Ordering at a momo shop',
+    summary: 'How to order politely — and share the plate.',
+    explanation:
+      'At a momo shop or restaurant, order with "tapaai" forms and the phrase "dinuhos" (please give). Ask how many plates, veg or buff (buffalo), and spice level. Meals are often shared — plates go in the middle and everyone eats together. Calling for the waiter with "dai/didi" is warm and normal. When you are done, just say "bill dinuhos".',
+    examples: [
+      { nepali: 'मोमो दुई प्लेट दिनुहोस्', roman: 'Momo dui plate dinuhos', english: 'Two plates of momos, please' },
+      { nepali: 'के खानुहुन्छ?', roman: 'Ke khanuhunchha?', english: 'What would you like to eat?' },
+      { nepali: 'बिल दिनुहोस्', roman: 'Bill dinuhos', english: 'The bill, please' },
+    ],
+  },
+  {
+    id: 8,
+    emoji: '🙇',
+    title: 'Showing respect to elders',
+    summary: 'Bend, touch feet, ask for blessings — and never say "ta".',
+    explanation:
+      'When greeting elders, bend slightly with namaste, and close family often touch the elder\'s feet ("paau chhune") asking for blessings (aashirwad). Address elders with "hajur" or "dai/didi" — never their first name. Use the polite "tapaai" form only; "timi"/"ta" with an elder is rude. Always greet elders first, before anyone else in the room.',
+    examples: [
+      { nepali: 'पाउ छुन्छु, आशीर्वाद दिनुहोस्', roman: 'Pau chhunchhu, aashirwad dinuhos', english: 'I touch your feet, please bless me' },
+      { nepali: 'कस्तो छ हजुर?', roman: 'Kasto chha hajur?', english: 'How are you, respected one?' },
+      { nepali: 'हजुर, बाबु', roman: 'Hajur, baabu', english: 'Yes, dear (respectful reply)' },
+    ],
+  },
+  {
+    id: 9,
+    emoji: '🎨',
+    title: 'Holi: festival of colors',
+    summary: 'Phagu Purnima — color, water balloons, and forgiveness.',
+    explanation:
+      'Holi (Feb–Mar) is the festival of colors marking the start of spring. Friends and strangers alike smear each other with colored powder (abeer) and squirt water. It is a great equalizer — everyone is fair game, and nobody gets offended. In the days before, watch Holika Dahan bonfires. Wearing old clothes is smart, and playing with abandon is the point.',
+    examples: [
+      { nepali: 'होलीको शुभकामना', roman: 'Holi ko shubhakamana', english: 'Happy Holi!' },
+      { nepali: 'रंग लगाउने', roman: 'Rang lagaune', english: 'To play with colors' },
+      { nepali: 'होलीमा रंगाउनुहुन्छ?', roman: 'Holi-ma rangaunuhunchha?', english: 'Will you play Holi?' },
+    ],
+  },
+  {
+    id: 10,
+    emoji: '🍵',
+    title: '"Have you eaten?" is a greeting',
+    summary: '"Khana khanubhayo?" — food is care in Nepal.',
+    explanation:
+      'Asking "khana khanubhayo?" (have you eaten?) is a warm, everyday greeting — not really a question about your stomach. Expect to be offered chiya (tea) or food the moment you enter any home; refusing is fine, but accepting at least a little is polite. If you are full, say "bharien" with a smile. Tea is almost always worth saying yes to.',
+    examples: [
+      { nepali: 'खाना खानुभयो?', roman: 'Khana khanubhayo?', english: 'Have you eaten? (a common greeting)' },
+      { nepali: 'चिया पिउनुहोस्', roman: 'Chiya piunuhos', english: 'Please have some tea' },
+      { nepali: 'भरिएँ, धन्यवाद', roman: 'Bharien, dhanyabaad', english: 'I\'m full, thank you' },
+    ],
+  },
+  {
+    id: 11,
+    emoji: '☀️',
+    title: 'Chhath: the sun festival',
+    summary: 'Terai\'s great river festival — arghya at sunrise.',
+    explanation:
+      'Chhath (Oct–Nov) is four days of fasting and devotion to the sun god Surya, celebrated big in Nepal\'s Terai and by Madhesi communities everywhere. Devotees stand waist-deep in rivers at sunrise and sunset offering arghya (water and offerings), after days of purification and fasting. Songs float across the water as families gather on the banks.',
+    examples: [
+      { nepali: 'छठ पर्वको शुभकामना', roman: 'Chhath parv-ko shubhakamana', english: 'Happy Chhath!' },
+      { nepali: 'नदीमा अर्घ्य दिन्छु', roman: 'Nadi-ma arghya dinchhu', english: 'I offer arghya at the river' },
+      { nepali: 'छठ व्रत बस्नुहुन्छ?', roman: 'Chhath brat basnuhunchha?', english: 'Are you keeping the Chhath fast?' },
+    ],
+  },
+  {
+    id: 12,
+    emoji: '🎭',
+    title: 'Indra Jatra: Kathmandu\'s street festival',
+    summary: 'The living goddess Kumari rides out — and the demon mask dance.',
+    explanation:
+      'Indra Jatra (Sep) turns Kathmandu\'s old town into a procession-filled carnival. The living goddess Kumari is carried through the streets in a chariot — her only outing of the year. Masked Lakhe demons dance, the giant lingo pole rises at Hanuman Dhoka, and on the final day the sacred Bhoto (vest) is shown to the crowd. If you are in Kathmandu in September, do not miss it.',
+    examples: [
+      { nepali: 'इन्द्रजात्रा हेर्न जाने?', roman: 'Indra Jaatra herna jaane?', english: 'Going to see Indra Jatra?' },
+      { nepali: 'कुमारीको रथ देख्नुभयो?', roman: 'Kumaari-ko rath dekh-nubhayo?', english: 'Did you see the Kumari\'s chariot?' },
+      { nepali: 'लिङ्गो ठड्याइयो', roman: 'Lingo thadayiyo', english: 'The lingo pole has been raised' },
+    ],
+  },
 ];

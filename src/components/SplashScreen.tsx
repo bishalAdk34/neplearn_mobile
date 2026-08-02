@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Image, Dimensions } from 'react-native';
+import { View, Text, Animated, Image, Dimensions, TouchableOpacity } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,12 +21,6 @@ export default function SplashScreen({ onFinish }: Props) {
         Animated.timing(dotScale, { toValue: 0.5, duration: 600, useNativeDriver: true }),
       ])
     ).start();
-
-    const timer = setTimeout(() => {
-      Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onFinish);
-    }, 2200);
-
-    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -44,12 +38,13 @@ export default function SplashScreen({ onFinish }: Props) {
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <View
               style={{
-                width: 160,
+                width: 170,
                 height: 160,
                 borderRadius: 80,
-                backgroundColor: '#FFFFFF',
+                backgroundColor: '#E4E0D5',
                 justifyContent: 'center',
                 alignItems: 'center',
+                overflow: 'hidden',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.25,
@@ -59,15 +54,15 @@ export default function SplashScreen({ onFinish }: Props) {
             >
               <Image
                 source={require('@/assets/neplearn_logo.png')}
-                style={{ width: 140, height: 140, borderRadius: 70 }}
-                resizeMode="cover"
+                style={{ width: 170, height: 170, marginTop: -2 }}
+                resizeMode="contain"
               />
             </View>
           </Animated.View>
         </View>
 
         {/* Bottom text section */}
-        <View style={{ flex: 1, alignItems: 'center', paddingTop: height * 0.34, paddingHorizontal: 24 }}>
+        <View style={{ flex: 1, alignItems: 'center', paddingTop: height * 0.12, paddingHorizontal: 24 }}>
           {/* App name */}
           <Text
             style={{
@@ -104,7 +99,7 @@ export default function SplashScreen({ onFinish }: Props) {
               lineHeight: 22,
             }}
           >
-            NEPALI SATHI • LEARN. SPEAK.{'\n'}CONNECT.
+            LEARN. SPEAK.CONNECT.
           </Text>
 
           {/* Loading text */}
@@ -131,8 +126,22 @@ export default function SplashScreen({ onFinish }: Props) {
             }}
           />
 
+          <TouchableOpacity
+            onPress={onFinish}
+            activeOpacity={0.8}
+            style={{
+              marginTop: 34,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+              borderRadius: 999,
+              backgroundColor: '#C9A84C',
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: '700', letterSpacing: 1 }}>CONTINUE</Text>
+          </TouchableOpacity>
+
           {/* Footer */}
-          <View style={{ position: 'absolute', bottom: 40 }}>
+          <View style={{ position: 'absolute', bottom: 90 }}>
             <Text
               style={{
                 fontSize: 11,
@@ -141,7 +150,7 @@ export default function SplashScreen({ onFinish }: Props) {
                 textAlign: 'center',
               }}
             >
-              BRIDGING CULTURE & WISDOM • EST. 2024
+              BRIDGING CULTURE & WISDOM 
             </Text>
           </View>
         </View>

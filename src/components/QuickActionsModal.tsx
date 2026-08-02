@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, Pressable, Platform, Animated, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Pressable, Platform, Animated, Dimensions, PanResponder } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors } from '../theme';
@@ -13,34 +13,40 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const QuickActionsModal = ({ visible, onClose }: Props) => {
   const router = useRouter();
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const dragOffset = useRef(0);
+  const yRef = useRef(0);
+  const isDragging = useRef(false);
   const cardAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     if (visible) {
-      slideAnim.setValue(SCREEN_HEIGHT);
+      dragOffset.current = 0;
+      isDragging.current = false;
+      yRef.current = 0;
+      translateY.setValue(SCREEN_HEIGHT);
       fadeAnim.setValue(0);
       cardAnims.forEach(anim => anim.setValue(0));
 
       Animated.parallel([
-        Animated.spring(slideAnim, {
+        Animated.spring(translateY, {
           toValue: 0,
-          damping: 25,
-          stiffness: 200,
+          damping: 24,
+          stiffness: 180,
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 280,
           useNativeDriver: true,
         }),
         ...cardAnims.map((anim, i) =>
           Animated.spring(anim, {
             toValue: 1,
-            delay: 200 + i * 100,
+            delay: 160 + i * 90,
             damping: 20,
-            stiffness: 150,
+            stiffness: 140,
             useNativeDriver: true,
           })
         ),
@@ -49,19 +55,57 @@ export const QuickActionsModal = ({ visible, onClose }: Props) => {
   }, [visible]);
 
   const handleClose = () => {
+    isDragging.current = false;
+    yRef.current = SCREEN_HEIGHT;
     Animated.parallel([
-      Animated.timing(slideAnim, {
+      Animated.timing(translateY, {
         toValue: SCREEN_HEIGHT,
-        duration: 300,
+        duration: 650,
         useNativeDriver: true,
       }),
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 500,
         useNativeDriver: true,
       }),
     ]).start(() => onClose());
   };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 15 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        isDragging.current = true;
+        dragOffset.current = yRef.current;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (!isDragging.current || gestureState.dy <= 0) return;
+        const nextValue = Math.max(0, dragOffset.current + gestureState.dy);
+        yRef.current = nextValue;
+        translateY.setValue(nextValue);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        isDragging.current = false;
+        const nextValue = Math.max(0, dragOffset.current + gestureState.dy);
+        const flingClose = gestureState.vy > 0.08 && gestureState.dy > 40;
+        if (nextValue > SCREEN_HEIGHT * 0.35 || flingClose) {
+          handleClose();
+        } else {
+          yRef.current = 0;
+          Animated.spring(translateY, {
+            toValue: 0,
+            friction: 12,
+            tension: 50,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const actions = [
     {
@@ -113,8 +157,9 @@ export const QuickActionsModal = ({ visible, onClose }: Props) => {
             bottom: 0,
             left: 0,
             right: 0,
-            transform: [{ translateY: slideAnim }],
+            transform: [{ translateY }],
           }}
+          {...panResponder.panHandlers}
         >
           <View
             style={{

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { AppState, InteractionManager } from 'react-native';
 import { Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SplashScreen from '../src/components/SplashScreen';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSrsStore } from '../src/stores/srs';
 import { useAuthStore } from '../src/stores/auth';
@@ -27,17 +26,15 @@ import { getMissingConfigKeys } from '../src/config';
 import './global.css';
 
 export default function RootLayout() {
-  const [splashDone, setSplashDone] = useState(false);
+  const [splashDone] = useState(true);
   const onboardingDone = useVocabStore(s => s.onboardingDone);
   const user = useAuthStore(s => s.user);
   const initializeAuth = useAuthStore(s => s.initialize);
   const syncFromCloud = useVocabStore(s => s.syncFromCloud);
 
   useEffect(() => {
-    if (splashDone) {
-      initializeAuth();
-    }
-  }, [splashDone, initializeAuth]);
+    initializeAuth();
+  }, [initializeAuth]);
 
   useEffect(() => {
     initNotifications().catch(() => {});
@@ -69,8 +66,6 @@ export default function RootLayout() {
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   useEffect(() => {
-    if (!splashDone) return;
-
     const checkPrompt = async () => {
       const prefs = await getPrefs();
       if (prefs.enabled) {
@@ -83,7 +78,7 @@ export default function RootLayout() {
     };
 
     checkPrompt().catch(() => {});
-  }, [splashDone]);
+  }, []);
 
   const handleEnableNotifications = async () => {
     const granted = await requestPermissions();
@@ -147,10 +142,6 @@ export default function RootLayout() {
       return () => handle.cancel();
     }
   }, [user, syncFromCloud]);
-
-  if (!splashDone) {
-    return <SplashScreen onFinish={() => setSplashDone(true)} />;
-  }
 
   if (!onboardingDone) {
     return (

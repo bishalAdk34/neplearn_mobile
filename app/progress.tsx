@@ -9,10 +9,12 @@ import { useVocabStore } from '../src/data/vocab';
 import { useAuthStore } from '../src/stores/auth';
 import { colors } from '../src/theme';
 import { ProgressBar } from '../src/components/ui';
+import { useState } from 'react';
 
 const Progress = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const user = useAuthStore(s => s.user);
   const clearUser = useAuthStore(s => s.clearUser);
   const { isLearned } = useVocabStore();
@@ -145,7 +147,8 @@ const Progress = () => {
         })}
       </View>
       </ScrollView>
-      <BottomNav />
+      <BottomNav onCenterPress={() => setQuickActionsVisible(true)} />
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
   );
 };
