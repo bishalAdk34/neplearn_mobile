@@ -4,13 +4,12 @@ import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getWordsByCategory, shuffle, Category, GUEST_ID } from '../../src/data/vocab';
+import { getWordsByCategory, shuffle, GUEST_ID } from '../../src/data/vocab';
 import { speak } from '../../src/services/tts';
 import { getWordImage } from '../../src/services/image';
 import { useVocabStore } from '../../src/data/vocab';
 import { useAuthStore } from '../../src/stores/auth';
 import { useSrsStore } from '../../src/stores/srs';
-import { getCategoryLockMap } from '../../src/data/personalization';
 import { colors } from '../../src/theme';
 import { ProgressBar } from '../../src/components/ui';
 import { hapticLight } from '../../src/utils/haptics';
@@ -27,14 +26,6 @@ const Flashcards = () => {
   const { toggleLearned, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
 
-  useEffect(() => {
-    if (!category) return;
-    const locked = getCategoryLockMap(learningGoal, learningLevel, id => isLearned(uid, id))[category as Category];
-    if (locked) {
-      Alert.alert('Locked', 'Complete more of the previous category to unlock this one.');
-      router.back();
-    }
-  }, [category]);
   const words = useMemo(() => shuffle(getWordsByCategory(category)), [category]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);

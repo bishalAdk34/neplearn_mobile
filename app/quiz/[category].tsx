@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getWordsByCategory, Category, GUEST_ID } from '../../src/data/vocab';
+import { getWordsByCategory, GUEST_ID } from '../../src/data/vocab';
 import { speak } from '../../src/services/tts';
 import { getWordImage } from '../../src/services/image';
 import { useVocabStore } from '../../src/data/vocab';
@@ -12,7 +12,6 @@ import { useAuthStore } from '../../src/stores/auth';
 import { useSrsStore } from '../../src/stores/srs';
 import { awardXp } from '../../src/services/xp';
 import { buildQuestions, buildEnglishOptionQuestions, type QuizQuestion } from '../../src/utils/quizBuilder';
-import { getCategoryLockMap } from '../../src/data/personalization';
 import { colors } from '../../src/theme';
 import { ProgressBar } from '../../src/components/ui';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
@@ -29,14 +28,6 @@ const Quiz = () => {
   const { learnWord, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
 
-  useEffect(() => {
-    if (!category) return;
-    const locked = getCategoryLockMap(learningGoal, learningLevel, id => isLearned(uid, id))[category as Category];
-    if (locked) {
-      Alert.alert('Locked', 'Complete more of the previous category to unlock this one.');
-      router.back();
-    }
-  }, [category]);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [score, setScore] = useState(0);

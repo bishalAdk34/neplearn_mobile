@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import GoogleLogo from '../src/components/GoogleLogo';
 import {
   GoogleSignin,
   isErrorWithCode,
   statusCodes,
   isSuccessResponse,
 } from '@react-native-google-signin/google-signin';
-import { GOOGLE_CLIENT_ID } from '../src/config';
+import { GOOGLE_CLIENT_ID, SUPABASE_URL } from '../src/config';
 import { supabase } from '../src/services/supabase';
 import { upsertProfile, syncLearnWord } from '../src/services/db';
 import { useAuthStore } from '../src/stores/auth';
@@ -56,6 +57,11 @@ export default function SignIn() {
         });
 
         if (sbError) {
+          console.error('supabase signInWithIdToken failed', {
+            supabaseUrl: SUPABASE_URL,
+            idTokenPresent: !!idToken,
+            message: sbError.message,
+          });
           setError(`Authentication failed: ${sbError.message}`);
           setIsLoading(false);
           return;
@@ -109,53 +115,53 @@ export default function SignIn() {
   const goHome = () => router.replace('/');
 
   return (
-    <View className="flex-1 bg-[#F8FAFC] justify-center items-center px-8">
-      <TouchableOpacity onPress={goHome} className="absolute top-16 left-6 p-2">
+    <View className="flex-1 bg-[#F8FAFC]">
+      <TouchableOpacity onPress={goHome} className="absolute top-16 left-6 p-2 z-10">
         <Ionicons name="arrow-back" size={24} color="#64748B" />
       </TouchableOpacity>
 
-      <View className="items-center mb-4">
-        <View className="w-36 h-36 bg-indigo-100 rounded-2xl items-center justify-center mb-4 overflow-hidden">
-          <Image source={require('../assets/icon.png')} className="w-full h-full" resizeMode="contain" />
+      <View className="flex-1 justify-center items-center px-8">
+        <View className="items-center mb-10">
+          <View className="w-32 h-32 bg-indigo-100 rounded-2xl items-center justify-center mb-4 overflow-hidden">
+            <Image source={require('../assets/icon.png')} className="w-full h-full" resizeMode="contain" />
+          </View>
+          <Text className="text-3xl font-bold text-[#4F46E5] tracking-wide">NepLearn</Text>
+          <Text className="text-sm text-[#64748B] mt-1">Learn Nepali, one word at a time</Text>
         </View>
-        <Text className="text-3xl font-bold text-[#4F46E5] tracking-wide">NepLearn</Text>
-        <Text className="text-sm text-[#64748B] mt-1">Learn Nepali, one word at a time</Text>
-      </View>
 
-      <View className="w-full border-t border-[#E2E8F0] my-8" />
-
-      <View className="items-center mb-8">
-        <Text className="text-xl font-bold text-[#0F172A] text-center">Sign in to save progress</Text>
-        <Text className="text-sm text-[#64748B] text-center mt-1">
-          Your progress will be synced to your account
-        </Text>
-      </View>
-
-      {error && (
-        <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' }} className="px-4 py-3 mb-6 w-full">
-          <Text className="text-[#DC2626] text-sm text-center">{error}</Text>
+        <View className="items-center mb-8">
+          <Text className="text-xl font-bold text-[#0F172A] text-center">Sign in to save progress</Text>
+          <Text className="text-sm text-[#64748B] text-center mt-1">
+            Your progress will be synced to your account
+          </Text>
         </View>
-      )}
 
-      <TouchableOpacity
-        onPress={handleSignIn}
-        disabled={isLoading}
-        className="flex-row bg-white border border-[#E2E8F0] py-4 px-8 rounded-2xl items-center justify-center w-full"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2, opacity: isLoading ? 0.6 : 1 }}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#4285F4" style={{ marginRight: 8 }} />
-        ) : (
-          <Text className="text-xl font-bold text-[#4285F4] mr-3">G</Text>
+        {error && (
+          <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' }} className="px-4 py-3 mb-6 w-full">
+            <Text className="text-[#DC2626] text-sm text-center">{error}</Text>
+          </View>
         )}
-        <Text className="text-lg font-semibold text-[#0F172A]">
-          {isLoading ? 'Signing in...' : 'Sign in with Google'}
-        </Text>
-      </TouchableOpacity>
 
-      <TouchableOpacity onPress={goHome} className="mt-6">
-        <Text className="text-sm text-[#94A3B8]">Continue without signing in</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleSignIn}
+          disabled={isLoading}
+          className="flex-row bg-white border border-[#E2E8F0] py-4 px-8 rounded-2xl items-center justify-center w-full"
+          style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2, opacity: isLoading ? 0.6 : 1 }}
+        >
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#4285F4" style={{ marginRight: 10 }} />
+        ) : (
+          <GoogleLogo size={22} />
+        )}
+        <Text className="text-lg font-semibold text-[#0F172A] ml-2">
+            {isLoading ? 'Signing in...' : 'Sign in with Google'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={goHome} className="mt-6">
+          <Text className="text-sm text-[#94A3B8]">Continue without signing in</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

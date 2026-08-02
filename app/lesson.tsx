@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, Category, GUEST_ID } from '../src/data/vocab';
-import { getRecommendedWords, getCategoryLockMap } from '../src/data/personalization';
+import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { getRecommendedWords } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
 import { useSrsStore } from '../src/stores/srs';
 import { speak } from '../src/services/tts';
@@ -23,15 +23,6 @@ const Lesson = () => {
   const { learnWord, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
   const direction = useSettingsStore(s => s.learningDirection);
-
-  useEffect(() => {
-    if (!category) return;
-    const locked = getCategoryLockMap(learningGoal, learningLevel, id => isLearned(uid, id))[category as Category];
-    if (locked) {
-      Alert.alert('Locked', 'Complete more of the previous category to unlock this one.');
-      router.back();
-    }
-  }, [category]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
