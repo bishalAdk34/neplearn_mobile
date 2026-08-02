@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, FlatList, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, FlatList } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
 import { QuickActionsModal } from '@/src/components/QuickActionsModal';
 import { categories, vocab, CATEGORY_META, GUEST_ID, getWordsByCategory, Word } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
-import { getPrioritizedCategories, getCategoryLockMap } from '../src/data/personalization';
+import { getPrioritizedCategories } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
 import { useMistakesStore } from '../src/stores/mistakes';
 import { ScreenHeader, ProgressBar } from '../src/components/ui';
@@ -63,12 +63,11 @@ const Learn = () => {
   [mistakesByUser, uid]);
 
   const categoryStats = useMemo(() => {
-    const lockMap = getCategoryLockMap(learningGoal, learningLevel, id => isLearned(uid, id));
     return getPrioritizedCategories(learningGoal, learningLevel).map(cat => {
       const words = getWordsByCategory(cat);
       const learned = words.filter(w => isLearned(uid, w.id)).length;
       const meta = CATEGORY_META[cat];
-      return { cat, learned, total: words.length, emoji: meta.emoji, color: meta.color, locked: lockMap[cat] };
+      return { cat, learned, total: words.length, emoji: meta.emoji, color: meta.color };
     });
   }, [learningGoal, learningLevel, uid, learnedByUser]);
 
@@ -179,7 +178,7 @@ const Learn = () => {
         const { stat: s, index } = item;
         return (
           <View
-            style={{ backgroundColor: colors.surface, borderRadius: 16, opacity: s.locked ? 0.55 : 1, ...shadows.card }}
+            style={{ backgroundColor: colors.surface, borderRadius: 16, ...shadows.card }}
             className="p-4 mb-3 mx-5"
           >
             <View className="flex-row items-center mb-3">
@@ -189,9 +188,7 @@ const Learn = () => {
               <View className="flex-1">
                 <View className="flex-row items-center">
                   <Text className="text-ink text-lg font-bold capitalize">{s.cat}</Text>
-                  {s.locked ? (
-                    <Text className="text-base ml-2">🔒</Text>
-                  ) : learningGoal !== null && index < 3 && (
+                  {learningGoal !== null && index < 3 && (
                     <View style={{ backgroundColor: colors.primary + '15' }} className="px-2 py-0.5 rounded-full ml-2">
                       <Text style={{ color: colors.primary }} className="text-xs font-semibold">Recommended</Text>
                     </View>
@@ -202,33 +199,23 @@ const Learn = () => {
               <Text className="text-lg font-bold" style={{ color: s.color }}>{Math.round((s.learned / s.total) * 100)}%</Text>
             </View>
             <ProgressBar progress={s.learned / s.total} color={s.color} style={{ marginBottom: 12 }} />
-            {s.locked ? (
-              <TouchableOpacity
-                className="py-2.5 rounded-xl items-center"
-                style={{ backgroundColor: colors.mutedSurface }}
-                onPress={() => Alert.alert('Locked', 'Reach 70% in the previous category to unlock this one.')}
-              >
-                <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>🔒 Locked</Text>
-              </TouchableOpacity>
-            ) : (
-              <View className="flex-row gap-2">
-                <Link href={`/flashcards/${s.cat}`} asChild style={{ flex: 1 }}>
-                  <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: colors.mutedSurface }}>
-                    <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>🃏 Flashcards</Text>
-                  </TouchableOpacity>
-                </Link>
-                <Link href={`/quiz/${s.cat}`} asChild style={{ flex: 1 }}>
-                  <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#EEF2FF' }}>
-                    <Text className="text-sm font-semibold" style={{ color: colors.accent }}>✍️ Quiz</Text>
-                  </TouchableOpacity>
-                </Link>
-                <Link href={`/quiz/${s.cat}?mode=reverse`} asChild style={{ flex: 1 }}>
-                  <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#FEF3C7' }}>
-                    <Text className="text-sm font-semibold" style={{ color: colors.warmInk }}>🔁 Reverse</Text>
-                  </TouchableOpacity>
-                </Link>
-              </View>
-            )}
+            <View className="flex-row gap-2">
+              <Link href={`/flashcards/${s.cat}`} asChild style={{ flex: 1 }}>
+                <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: colors.mutedSurface }}>
+                  <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>🃏 Flashcards</Text>
+                </TouchableOpacity>
+              </Link>
+              <Link href={`/quiz/${s.cat}`} asChild style={{ flex: 1 }}>
+                <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#EEF2FF' }}>
+                  <Text className="text-sm font-semibold" style={{ color: colors.accent }}>✍️ Quiz</Text>
+                </TouchableOpacity>
+              </Link>
+              <Link href={`/quiz/${s.cat}?mode=reverse`} asChild style={{ flex: 1 }}>
+                <TouchableOpacity className="py-2.5 rounded-xl items-center" style={{ backgroundColor: '#FEF3C7' }}>
+                  <Text className="text-sm font-semibold" style={{ color: colors.warmInk }}>🔁 Reverse</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
           </View>
         );
       }
@@ -237,12 +224,13 @@ const Learn = () => {
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
+      {/* Fixed header — does not scroll */}
       <ScreenHeader title="Learn" />
-      <View className="px-5 -mt-2 pb-4">
+      <View className="px-5 -mt-2 pb-3">
         <Text style={{ color: colors.textSecondary }} className="text-sm">{vocab.length} words across {categories.length} categories</Text>
       </View>
 
-      <View style={{ backgroundColor: colors.background }} className="px-5 pb-4">
+      <View className="px-5 pb-3">
         <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border }} className="flex-row items-center px-4 py-1">
           <Ionicons name="search" size={20} color={colors.textTertiary} style={{ marginRight: 8 }} />
           <TextInput
@@ -260,43 +248,42 @@ const Learn = () => {
         </View>
       </View>
 
-      <View style={{ backgroundColor: colors.background }} className="pb-4">
-        <View className="px-5">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row -mx-5 px-5">
+      <View className="pb-3">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row px-5">
+          <TouchableOpacity
+            style={{
+              backgroundColor: selectedCategory === null ? colors.primary : colors.surface,
+              borderWidth: 1,
+              borderColor: selectedCategory === null ? colors.primary : colors.border,
+            }}
+            className="px-4 py-2 rounded-full mr-2"
+            onPress={() => setSelectedCategory(null)}
+          >
+            <Text style={{ color: selectedCategory === null ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
+              All ({vocab.length})
+            </Text>
+          </TouchableOpacity>
+          {categoryStats.map((s) => (
             <TouchableOpacity
+              key={s.cat}
               style={{
-                backgroundColor: selectedCategory === null ? colors.primary : colors.surface,
+                backgroundColor: selectedCategory === s.cat ? colors.primary : colors.surface,
                 borderWidth: 1,
-                borderColor: selectedCategory === null ? colors.primary : colors.border,
+                borderColor: selectedCategory === s.cat ? colors.primary : colors.border,
               }}
-              className="px-4 py-2 rounded-full mr-2"
-              onPress={() => setSelectedCategory(null)}
+              className="px-4 py-2 rounded-full mr-2 flex-row items-center"
+              onPress={() => setSelectedCategory(selectedCategory === s.cat ? null : s.cat)}
             >
-              <Text style={{ color: selectedCategory === null ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
-                All ({vocab.length})
+              <Text className="mr-1">{s.emoji}</Text>
+              <Text style={{ color: selectedCategory === s.cat ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
+                {s.cat} ({s.learned}/{s.total})
               </Text>
             </TouchableOpacity>
-            {categoryStats.map((s) => (
-              <TouchableOpacity
-                key={s.cat}
-                style={{
-                  backgroundColor: selectedCategory === s.cat ? colors.primary : colors.surface,
-                  borderWidth: 1,
-                  borderColor: selectedCategory === s.cat ? colors.primary : colors.border,
-                }}
-                className="px-4 py-2 rounded-full mr-2 flex-row items-center"
-                onPress={() => setSelectedCategory(selectedCategory === s.cat ? null : s.cat)}
-              >
-                <Text className="mr-1">{s.emoji}</Text>
-                <Text style={{ color: selectedCategory === s.cat ? '#FFFFFF' : colors.ink }} className="text-sm font-semibold">
-                  {s.cat} ({s.learned}/{s.total})
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+          ))}
+        </ScrollView>
       </View>
 
+      {/* Scrollable content starts from Skills & Practice */}
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -304,6 +291,10 @@ const Learn = () => {
         data={rows}
         keyExtractor={row => row.key}
         renderItem={renderRow}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={11}
+        removeClippedSubviews
       />
 
       {/* Bottom Navigation */}

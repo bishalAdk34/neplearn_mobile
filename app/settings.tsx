@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Alert, Switch, Modal } from '
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
+import { QuickActionsModal } from '../src/components/QuickActionsModal';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSettingsStore, TtsSpeed, LearningDirection } from '../src/stores/settings';
@@ -70,6 +71,7 @@ const Settings = () => {
   const [speedPickerVisible, setSpeedPickerVisible] = useState(false);
   const [goalPickerVisible, setGoalPickerVisible] = useState(false);
   const [directionPickerVisible, setDirectionPickerVisible] = useState(false);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const ttsSpeed = useSettingsStore(s => s.ttsSpeed);
   const setTtsSpeed = useSettingsStore(s => s.setTtsSpeed);
   const dailyGoalXp = useSettingsStore(s => s.dailyGoalXp);
@@ -430,7 +432,8 @@ const Settings = () => {
         </TouchableOpacity>
       </Modal>
 
-      <BottomNav />
+      <BottomNav onCenterPress={() => setQuickActionsVisible(true)} />
+      <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
     </View>
   );
 };

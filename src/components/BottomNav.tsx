@@ -3,7 +3,6 @@ import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '../theme';
-import { QuickActionsModal } from './QuickActionsModal';
 
 type TabName = 'home' | 'learn' | 'ai-tutor' | 'profile';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -23,17 +22,36 @@ const FAB_OVERLAP = 30;
 
 function buildBarPath(width: number): string {
   const h = NAVBAR_HEIGHT;
-  const cr = CORNER_RADIUS;
+  const r = CORNER_RADIUS;
 
-  return [
-    `M 0 ${h}`,
-    `L 0 ${cr}`,
-    `Q 0 0 ${cr} 0`,
-    `L ${width - cr} 0`,
-    `Q ${width} 0 ${width} ${cr}`,
-    `L ${width} ${h}`,
-    `Z`,
-  ].join(' ');
+  const center = width / 2;
+
+  // Radius of the notch
+  const notchRadius = FAB_SIZE / 2 + 10;
+
+  const left = center - notchRadius;
+  const right = center + notchRadius;
+
+  return `
+    M 0 ${h}
+    L 0 ${r}
+    Q 0 0 ${r} 0
+
+    L ${left} 0
+
+    A ${notchRadius} ${notchRadius}
+      0
+      0 0
+      ${right} 0
+
+    L ${width - r} 0
+
+    Q ${width} 0 ${width} ${r}
+
+    L ${width} ${h}
+
+    Z
+  `;
 }
 
 interface BottomNavProps {
@@ -50,7 +68,23 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
 
   return (
     <View style={{ height: NAVBAR_HEIGHT + FAB_OVERLAP }}>
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: NAVBAR_HEIGHT }}>
+      {/* SVG bar with curved notch + shadow + rounded top corners */}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: NAVBAR_HEIGHT,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 10,
+          elevation: 6,
+        }}
+      >
         <Svg width={screenWidth} height={NAVBAR_HEIGHT} viewBox={`0 0 ${screenWidth} ${NAVBAR_HEIGHT}`}>
           <Path d={barPath} fill={colors.surface} />
         </Svg>
@@ -66,6 +100,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
         />
       </View>
 
+      {/* Center FAB — center aligns with top of flat bar, bottom dips into notch */}
       {onCenterPress && (
         <View
           style={{
@@ -102,6 +137,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
         </View>
       )}
 
+      {/* Tab content — aligned with the flat sections of the bar */}
       <View
         style={{
           position: 'absolute',
@@ -110,8 +146,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
           right: 0,
           height: NAVBAR_HEIGHT,
           flexDirection: 'row',
-          alignItems: 'flex-end',
-          paddingBottom: 10,
+          alignItems: 'center',
         }}
       >
         <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-evenly' }}>

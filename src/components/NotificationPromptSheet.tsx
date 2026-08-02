@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, Pressable, Platform, Animated, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Pressable, Platform, Animated, Dimensions, PanResponder } from 'react-native';
 import { colors } from '../theme';
 
 type Props = {
@@ -13,6 +13,53 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export default function NotificationPromptSheet({ visible, onEnable, onNotNow }: Props) {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const handleNotNow = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onNotNow());
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+          fadeAnim.setValue(Math.max(0, 1 - gestureState.dy / 300));
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 120 || gestureState.vy > 0.8) {
+          handleNotNow();
+        } else {
+          Animated.parallel([
+            Animated.spring(slideAnim, {
+              toValue: 0,
+              damping: 25,
+              stiffness: 200,
+              useNativeDriver: true,
+            }),
+            Animated.spring(fadeAnim, {
+              toValue: 1,
+              damping: 25,
+              stiffness: 200,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
@@ -34,21 +81,6 @@ export default function NotificationPromptSheet({ visible, onEnable, onNotNow }:
       ]).start();
     }
   }, [visible]);
-
-  const handleNotNow = () => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: SCREEN_HEIGHT,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => onNotNow());
-  };
 
   const handleEnable = () => {
     Animated.parallel([
@@ -80,6 +112,7 @@ export default function NotificationPromptSheet({ visible, onEnable, onNotNow }:
             right: 0,
             transform: [{ translateY: slideAnim }],
           }}
+          {...panResponder.panHandlers}
         >
           <View
             style={{
