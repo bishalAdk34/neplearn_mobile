@@ -67,7 +67,7 @@ export default function SplashScreen({ onFinish }: Props) {
         </View>
 
         {/* Bottom text section */}
-        <View style={{ flex: 1, alignItems: 'center', paddingTop: height * 0.24, paddingHorizontal: 24 }}>
+        <View style={{ flex: 1, alignItems: 'center', paddingTop: height * 0.34, paddingHorizontal: 24 }}>
           {/* App name */}
           <Text
             style={{
