@@ -104,20 +104,22 @@ const StoryScreen = () => {
   // ---- Completion ----
   if (mode === 'done') {
     return (
-      <View className="flex-1 items-center justify-center px-5" style={{ backgroundColor: colors.background }}>
-        <Confetti active={true} />
-        <Text className="text-6xl mb-4">📖</Text>
-        <Text className="text-ink text-2xl font-bold mb-2">Story Complete!</Text>
-        <Text style={{ color: colors.textSecondary }} className="text-base mb-6 text-center">
-          You got {score} of {story.questions.length} questions right.
-        </Text>
-        <TouchableOpacity
-          style={{ backgroundColor: colors.primary, borderRadius: 12 }}
-          className="px-8 py-4 w-full items-center"
-          onPress={() => setMode('list')}
-        >
-          <Text className="text-white font-bold text-lg">Back to Stories</Text>
-        </TouchableOpacity>
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
+        <View className="flex-1 items-center justify-center px-5">
+          <Confetti active={true} />
+          <Text className="text-6xl mb-4">📖</Text>
+          <Text className="text-ink text-2xl font-bold mb-2">Story Complete!</Text>
+          <Text style={{ color: colors.textSecondary }} className="text-base mb-6 text-center">
+            You got {score} of {story.questions.length} questions right.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: colors.primary, borderRadius: 12 }}
+            className="px-8 py-4 w-full items-center"
+            onPress={() => setMode('list')}
+          >
+            <Text className="text-white font-bold text-lg">Back to Stories</Text>
+          </TouchableOpacity>
+        </View>
         <BottomNav activeTab="learn" onCenterPress={() => setQuickActionsVisible(true)} />
         <QuickActionsModal visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
       </View>
