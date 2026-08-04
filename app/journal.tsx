@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../src/stores/auth';
 import { GUEST_ID } from '../src/data/vocab';
@@ -28,6 +28,14 @@ const Journal = () => {
     () => prompts[Math.floor(Math.random() * prompts.length)],
     [],
   );
+  const [kbHeight, setKbHeight] = useState(0);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const handleSubmit = async () => {
     if (text.trim().length === 0) {
@@ -109,49 +117,51 @@ const Journal = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1"
-      style={{ backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScreenHeader title="Daily Journal" backIcon="close" centered />
 
-      <View className="px-5 flex-1">
-        <View style={{ backgroundColor: colors.surface, borderRadius: 16 }} className="p-5 mb-4">
-          <Text className="text-brand text-sm font-bold mb-1">TODAY'S PROMPT</Text>
-          <Text className="text-ink text-xl font-bold mb-1">{prompt.nepali}</Text>
-          <Text style={{ color: colors.textSecondary }} className="text-sm mb-1">{prompt.roman}</Text>
-          <Text style={{ color: colors.textTertiary }} className="text-sm italic">{prompt.english}</Text>
+      <KeyboardAvoidingView
+        className="flex-1"
+        style={{ paddingBottom: kbHeight }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View className="px-5 flex-1">
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16 }} className="p-5 mb-4">
+            <Text className="text-brand text-sm font-bold mb-1">TODAY'S PROMPT</Text>
+            <Text className="text-ink text-xl font-bold mb-1">{prompt.nepali}</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-sm mb-1">{prompt.roman}</Text>
+            <Text style={{ color: colors.textTertiary }} className="text-sm italic">{prompt.english}</Text>
+          </View>
+
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, flex: 1 }} className="p-4">
+            <TextInput
+              className="text-ink text-base flex-1"
+              placeholder="Write your answer in Nepali here..."
+              placeholderTextColor={colors.textTertiary}
+              value={text}
+              onChangeText={setText}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
         </View>
 
-        <View style={{ backgroundColor: colors.surface, borderRadius: 16, flex: 1 }} className="p-4">
-          <TextInput
-            className="text-ink text-base flex-1"
-            placeholder="Write your answer in Nepali here..."
-            placeholderTextColor={colors.textTertiary}
-            value={text}
-            onChangeText={setText}
-            multiline
-            textAlignVertical="top"
-          />
+        <View className="px-5 pb-8 pt-4" style={{ backgroundColor: colors.background }}>
+          <TouchableOpacity
+            style={{ backgroundColor: text.trim().length > 0 && !saving ? colors.primary : colors.disabled }}
+            className="py-4 rounded-xl items-center flex-row justify-center"
+            onPress={handleSubmit}
+            disabled={text.trim().length === 0 || saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-bold text-lg">SAVE ENTRY</Text>
+            )}
+          </TouchableOpacity>
         </View>
-      </View>
-
-      <View className="px-5 pb-8 pt-4" style={{ backgroundColor: colors.background }}>
-        <TouchableOpacity
-          style={{ backgroundColor: text.trim().length > 0 && !saving ? colors.primary : colors.disabled }}
-          className="py-4 rounded-xl items-center flex-row justify-center"
-          onPress={handleSubmit}
-          disabled={text.trim().length === 0 || saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-white font-bold text-lg">SAVE ENTRY</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 

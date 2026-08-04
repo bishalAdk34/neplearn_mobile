@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../src/stores/auth';
@@ -28,12 +28,20 @@ const Roleplay = () => {
   const [isLoading, setIsLoading] = useState(false);
   const userTurnsRef = useRef(0);
   const xpAwardedRef = useRef(false);
+  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages.length]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const startScenario = (s: Scenario) => {
     hapticLight();
@@ -112,12 +120,7 @@ const Roleplay = () => {
 
   // ---- Chat ----
   return (
-    <KeyboardAvoidingView
-      className="flex-1"
-      style={{ backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScreenHeader
         title={`${scenario.emoji} ${scenario.title}`}
         backIcon="close"
@@ -129,41 +132,49 @@ const Roleplay = () => {
         }
       />
 
-      <ScrollView
-        ref={scrollRef}
+      <KeyboardAvoidingView
         className="flex-1"
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}
-        showsVerticalScrollIndicator={false}
+        style={{ paddingBottom: kbHeight }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {messages.map(msg => <MessageBubble key={msg.id} role={msg.role} text={msg.text} />)}
-        {isLoading && <TypingDots />}
-      </ScrollView>
-
-      <View
-        className="flex-row items-center px-4 py-3 mb-6"
-        style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border }}
-      >
-        <TextInput
-          className="flex-1 h-11 px-4 rounded-full text-base"
-          style={{ backgroundColor: colors.mutedSurface, color: colors.ink }}
-          placeholder="Reply in Nepali..."
-          placeholderTextColor={colors.textTertiary}
-          value={inputText}
-          onChangeText={setInputText}
-          onSubmitEditing={() => handleSend(inputText)}
-          returnKeyType="send"
-          editable={!isLoading}
-        />
-        <TouchableOpacity
-          onPress={() => handleSend(inputText)}
-          disabled={!inputText.trim() || isLoading || networkOffline}
-          className="ml-3 w-11 h-11 rounded-full items-center justify-center"
-          style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline ? colors.primary : colors.disabled }}
+        <ScrollView
+          ref={scrollRef}
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="send" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          {messages.map(msg => <MessageBubble key={msg.id} role={msg.role} text={msg.text} />)}
+          {isLoading && <TypingDots />}
+        </ScrollView>
+
+        <View
+          className="flex-row items-center px-4 py-3"
+          style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border }}
+        >
+          <TextInput
+            className="flex-1 h-11 px-4 rounded-full text-base"
+            style={{ backgroundColor: colors.mutedSurface, color: colors.ink }}
+            placeholder="Reply in Nepali..."
+            placeholderTextColor={colors.textTertiary}
+            value={inputText}
+            onChangeText={setInputText}
+            onSubmitEditing={() => handleSend(inputText)}
+            returnKeyType="send"
+            editable={!isLoading}
+          />
+          <TouchableOpacity
+            onPress={() => handleSend(inputText)}
+            disabled={!inputText.trim() || isLoading || networkOffline}
+            className="ml-3 w-11 h-11 rounded-full items-center justify-center"
+            style={{ backgroundColor: inputText.trim() && !isLoading && !networkOffline ? colors.primary : colors.disabled }}
+          >
+            <Ionicons name="send" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
