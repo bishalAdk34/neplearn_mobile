@@ -73,6 +73,7 @@ export default function SignIn() {
           const photo = user.photo || undefined;
           useAuthStore.getState().setUser({ id: data.user.id, name, email, photo });
           upsertProfile(data.user.id, name, email, photo);
+          useVocabStore.getState().completeOnboarding();
 
           const vocabState = useVocabStore.getState();
           const guestWords = vocabState.learnedByUser[GUEST_ID] || [];
@@ -112,7 +113,10 @@ export default function SignIn() {
     }
   };
 
-  const goHome = () => router.replace('/');
+  const goHome = () => {
+    useVocabStore.getState().completeOnboarding();
+    router.replace('/');
+  };
 
   return (
     <View className="flex-1 bg-[#F8FAFC]">

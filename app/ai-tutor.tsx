@@ -34,6 +34,8 @@ const AITutor = () => {
   const learnedByUser = useVocabStore(s => s.learnedByUser);
   const learningGoal = useVocabStore(s => s.learningGoal);
   const learningLevel = useVocabStore(s => s.learningLevel);
+  const onboardingName = useVocabStore(s => s.userName);
+  const userName = user?.name || onboardingName;
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
   const [inputText, setInputText] = useState('');
@@ -128,7 +130,7 @@ const AITutor = () => {
       text: m.text,
     }));
 
-    const profileContext = buildLearnerProfileContext(learningGoal, learningLevel);
+    const profileContext = buildLearnerProfileContext(learningGoal, learningLevel, userName);
     const learnedContext = learnedIds.length > 0
       ? `The user already knows these word IDs: ${learnedIds.join(', ')}`
       : undefined;

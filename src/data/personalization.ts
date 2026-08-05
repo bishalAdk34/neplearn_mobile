@@ -104,9 +104,12 @@ export function getContinueCategory(
   return null;
 }
 
-export function buildLearnerProfileContext(goal: LearningGoal | null, level: LearningLevel | null): string | undefined {
-  if (!goal && !level) return undefined;
+export function buildLearnerProfileContext(goal: LearningGoal | null, level: LearningLevel | null, name?: string | null): string | undefined {
+  if (!goal && !level && !name) return undefined;
   const parts: string[] = [];
+  if (name) {
+    parts.push(`The user's name is ${name}. Address them by name occasionally, in a warm and personal way.`);
+  }
   if (goal) {
     parts.push(`The user's main goal is ${GOAL_PHRASES[goal]}. Prefer examples and vocabulary relevant to this goal.`);
   }

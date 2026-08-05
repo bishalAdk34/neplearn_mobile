@@ -33,6 +33,16 @@ export default function RootLayout() {
   const syncFromCloud = useVocabStore(s => s.syncFromCloud);
 
   useEffect(() => {
+    if (!__DEV__) return;
+    const resetOnboarding = () => useVocabStore.setState({ onboardingDone: false });
+    if (useVocabStore.persist.hasHydrated()) {
+      resetOnboarding();
+    } else {
+      return useVocabStore.persist.onFinishHydration(resetOnboarding);
+    }
+  }, []);
+
+  useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
@@ -53,7 +63,10 @@ export default function RootLayout() {
     };
     refreshReminder();
     const appStateSub = AppState.addEventListener('change', state => {
-      if (state === 'active') refreshReminder();
+      if (state === 'active') {
+        refreshReminder();
+        if (__DEV__) useVocabStore.setState({ onboardingDone: false });
+      }
     });
 
     return () => {

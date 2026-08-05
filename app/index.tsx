@@ -21,7 +21,7 @@ const Home = () => {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
   const clearUser = useAuthStore(s => s.clearUser);
-  const { isLearned, learningGoal, learningLevel } = useVocabStore();
+  const { isLearned, learningGoal, learningLevel, userName: onboardingName } = useVocabStore();
   const uid = user?.id || GUEST_ID;
   const [menuVisible, setMenuVisible] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(false);
@@ -54,7 +54,7 @@ const Home = () => {
   const level = Math.floor((xp) / 500) + 1;
   const streak = isGuest ? localStreak.current : (cloudStreak?.current_streak ?? 0);
 
-  const userName = user?.name || 'Guest';
+  const userName = user?.name || onboardingName || 'Guest';
   const firstName = userName.split(' ')[0];
 
   // Daily goal progress (subscribe to daily map so the bar live-updates)

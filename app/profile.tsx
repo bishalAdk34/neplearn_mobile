@@ -43,7 +43,8 @@ const Profile = () => {
   const xp = isGuest ? localXp : (cloudXp ?? 0);
   const streak = isGuest ? localStreak.current : (cloudStreak?.current_streak ?? 0);
 
-  const userName = user?.name || 'Guest';
+  const onboardingName = useVocabStore(s => s.userName);
+  const userName = user?.name || onboardingName || 'Guest';
   const firstName = userName.split(' ')[0];
 
   const preferences: { label: string; icon: string; route: string | null; onPress?: () => void }[] = [

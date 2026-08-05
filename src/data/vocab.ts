@@ -42,9 +42,11 @@ type VocabState = {
   completedLessons: Record<string, number>;
   learningGoal: LearningGoal | null;
   learningLevel: LearningLevel | null;
+  userName: string | null;
   onboardingDone: boolean;
   setLearningGoal: (goal: LearningGoal) => void;
   setLearningLevel: (level: LearningLevel) => void;
+  setUserName: (name: string) => void;
   completeOnboarding: () => void;
   learnWord: (userId: string, id: number) => void;
   unlearnWord: (userId: string, id: number) => void;
@@ -69,9 +71,11 @@ export const useVocabStore = create<VocabState>()(
       completedLessons: {},
       learningGoal: null,
       learningLevel: null,
+      userName: null,
       onboardingDone: false,
       setLearningGoal: (goal) => set({ learningGoal: goal }),
       setLearningLevel: (level) => set({ learningLevel: level }),
+      setUserName: (name) => set({ userName: name.trim() || null }),
       completeOnboarding: () => set({ onboardingDone: true }),
       learnWord: (userId, id) => {
         const userLearned = get().learnedByUser[userId] || [];
