@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
+import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID, Category } from '../src/data/vocab';
 import { getRecommendedWords } from '../src/data/personalization';
+import { getLessonWords } from '../src/data/skillTree';
 import { useAuthStore } from '../src/stores/auth';
 import { useSrsStore } from '../src/stores/srs';
 import { speak } from '../src/services/tts';
@@ -20,6 +21,8 @@ const Lesson = () => {
   const router = useRouter();
   const params = useGlobalSearchParams();
   const category = params.category as string | undefined;
+  const lessonIndexParam = params.lessonIndex as string | undefined;
+  const lessonIndex = lessonIndexParam !== undefined ? parseInt(lessonIndexParam, 10) : undefined;
   const user = useAuthStore(s => s.user);
   const { learnWord, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
@@ -33,9 +36,12 @@ const Lesson = () => {
   const [correctCount, setCorrectCount] = useState(0);
 
   const sessionWords = useMemo(() => {
+    if (category && lessonIndex !== undefined && !Number.isNaN(lessonIndex)) {
+      return getLessonWords(category as Category, lessonIndex);
+    }
     const words = category ? getWordsByCategory(category) : getRecommendedWords(learningGoal, learningLevel, 5);
     return category ? shuffle(words).slice(0, 5) : words;
-  }, [category]);
+  }, [category, lessonIndex]);
 
   const currentWord = sessionWords[currentIndex];
   const df = currentWord ? getDirectionFields(currentWord, direction) : null;

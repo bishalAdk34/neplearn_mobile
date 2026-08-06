@@ -149,7 +149,9 @@ export type XpSource =
   | 'mistakes'
   | 'sentence'
   | 'listening'
-  | 'grammar';
+  | 'grammar'
+  | 'match_pairs'
+  | 'speak_check';
 
 export async function addXp(userId: string, amount: number, source: XpSource) {
   if (userId.startsWith('__guest__')) return;

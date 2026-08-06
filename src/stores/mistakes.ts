@@ -11,7 +11,9 @@ export type MistakeSource =
   | 'review'
   | 'mistakes'
   | 'listening'
-  | 'sentence';
+  | 'sentence'
+  | 'match_pairs'
+  | 'speak_check';
 
 export interface Mistake {
   wordId: number;

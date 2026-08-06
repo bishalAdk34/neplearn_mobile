@@ -33,7 +33,6 @@ export default function RootLayout() {
   const syncFromCloud = useVocabStore(s => s.syncFromCloud);
 
   useEffect(() => {
-    if (!__DEV__) return;
     const resetOnboarding = () => useVocabStore.setState({ onboardingDone: false });
     if (useVocabStore.persist.hasHydrated()) {
       resetOnboarding();
@@ -65,7 +64,7 @@ export default function RootLayout() {
     const appStateSub = AppState.addEventListener('change', state => {
       if (state === 'active') {
         refreshReminder();
-        if (__DEV__) useVocabStore.setState({ onboardingDone: false });
+        useVocabStore.setState({ onboardingDone: false });
       }
     });
 
@@ -200,6 +199,10 @@ export default function RootLayout() {
           <Stack.Screen name="culture" options={{ headerShown: false }} />
           <Stack.Screen name="roleplay" options={{ headerShown: false }} />
           <Stack.Screen name="photo-vocab" options={{ headerShown: false }} />
+          <Stack.Screen name="skill-tree" options={{ headerShown: false }} />
+          <Stack.Screen name="listen-type" options={{ headerShown: false }} />
+          <Stack.Screen name="match-pairs" options={{ headerShown: false }} />
+          <Stack.Screen name="speak-check" options={{ headerShown: false }} />
           <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
           <Stack.Screen name="help" options={{ headerShown: false }} />
           <Stack.Screen name="support" options={{ headerShown: false }} />

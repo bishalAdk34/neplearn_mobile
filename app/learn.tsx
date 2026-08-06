@@ -114,6 +114,10 @@ const Learn = () => {
                 { href: '/culture', emoji: '🪔', label: 'Culture', sub: 'Customs & festivals' },
                 { href: '/roleplay', emoji: '🎭', label: 'Roleplay', sub: 'Practice scenarios' },
                 { href: '/photo-vocab', emoji: '📷', label: 'Photo Vocab', sub: 'Snap & learn' },
+                { href: '/skill-tree', emoji: '🗺️', label: 'Skill Path', sub: 'Visual lesson map' },
+                { href: '/listen-type', emoji: '⌨️', label: 'Listen & Type', sub: 'Spell what you hear' },
+                { href: '/match-pairs', emoji: '🧠', label: 'Match Pairs', sub: 'Tap to match words' },
+                { href: '/speak-check', emoji: '🗣️', label: 'Speak & Check', sub: 'Recall it aloud' },
               ].map(skill => (
                 <Link key={skill.href} href={skill.href as any} asChild>
                   <TouchableOpacity
