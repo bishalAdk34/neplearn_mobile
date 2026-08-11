@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PersistStorage } from 'zustand/middleware';
 import { syncLearnWord, syncUnlearnWord, fetchLearnedWords } from '../services/db';
+import { getQueue } from '../services/offlineQueue';
 import { useSrsStore } from '../stores/srs';
 
 const asyncStorage: PersistStorage<VocabState> = {
@@ -104,9 +105,20 @@ export const useVocabStore = create<VocabState>()(
       getLearned: (userId) => get().learnedByUser[userId] || [],
       syncFromCloud: async (userId) => {
         const cloudIds = await fetchLearnedWords(userId);
-        const local = get().learnedByUser[userId] || [];
-        const merged = [...new Set([...local, ...cloudIds])];
-        set({ learnedByUser: { ...get().learnedByUser, [userId]: merged } });
+        // Cloud is authoritative (so unlearns propagate across devices), but any
+        // learn/unlearn still sitting in the offline queue hasn't reached the cloud
+        // yet — keep those local intents so we don't clobber an in-flight change.
+        const queue = await getQueue();
+        const pendingLearn = new Set<number>();
+        const pendingUnlearn = new Set<number>();
+        for (const op of queue) {
+          if (op.payload.userId !== userId || op.payload.wordId === undefined) continue;
+          if (op.type === 'LEARN_WORD') pendingLearn.add(op.payload.wordId);
+          if (op.type === 'UNLEARN_WORD') pendingUnlearn.add(op.payload.wordId);
+        }
+        const merged = new Set(cloudIds.filter(id => !pendingUnlearn.has(id)));
+        for (const id of pendingLearn) merged.add(id);
+        set({ learnedByUser: { ...get().learnedByUser, [userId]: [...merged] } });
       },
       addLocalXp: (userId, amount) => {
         const current = get().localXp[userId] || 0;

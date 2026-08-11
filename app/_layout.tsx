@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, InteractionManager } from 'react-native';
 import { Stack } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSrsStore } from '../src/stores/srs';
 import { useAuthStore } from '../src/stores/auth';
@@ -10,12 +9,7 @@ import {
   initNotificationLogListener,
   refreshDailyReminder,
   refreshWordOfDay,
-  getPrefs,
-  savePrefs,
-  requestPermissions,
-  scheduleDailyReminder,
 } from '../src/services/notifications';
-import NotificationPromptSheet from '../src/components/NotificationPromptSheet';
 import { networkManager } from '../src/services/network';
 import { syncManager } from '../src/services/syncManager';
 import { NetworkProvider } from '../src/contexts/NetworkContext';
@@ -74,55 +68,6 @@ export default function RootLayout() {
       appStateSub.remove();
     };
   }, []);
-
-  // Notification permission prompt — custom bottom sheet on 3rd app open
-  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
-
-  useEffect(() => {
-    const checkPrompt = async () => {
-      const prefs = await getPrefs();
-      if (prefs.enabled) {
-        await savePrefs({ ...prefs, enabled: false, wordOfDayEnabled: false });
-      }
-
-      const KEY = 'nepali-notification-prompt-state';
-      await AsyncStorage.setItem(KEY, JSON.stringify({ opens: 2, asked: 0, lastDenyTime: null, completedAtDeny: null }));
-      setShowNotificationPrompt(true);
-    };
-
-    checkPrompt().catch(() => {});
-  }, []);
-
-  const handleEnableNotifications = async () => {
-    const granted = await requestPermissions();
-    if (granted) {
-      const uid = useAuthStore.getState().user?.id || GUEST_ID;
-      const streak = useVocabStore.getState().getLocalStreak(uid).current;
-      const prefs = await getPrefs();
-      await scheduleDailyReminder(prefs.reminderHour, prefs.reminderMinute, streak);
-      await savePrefs({ ...prefs, enabled: true });
-    }
-
-    const KEY = 'nepali-notification-prompt-state';
-    const raw = await AsyncStorage.getItem(KEY);
-    const state = raw ? JSON.parse(raw) : {};
-    state.asked = 99;
-    await AsyncStorage.setItem(KEY, JSON.stringify(state));
-    setShowNotificationPrompt(false);
-  };
-
-  const handleNotNowNotifications = async () => {
-    const uid = useAuthStore.getState().user?.id || GUEST_ID;
-    const completedLessons = useVocabStore.getState().getCompletedLessons(uid);
-
-    const KEY = 'nepali-notification-prompt-state';
-    const raw = await AsyncStorage.getItem(KEY);
-    const state = raw ? JSON.parse(raw) : {};
-    state.lastDenyTime = Date.now();
-    state.completedAtDeny = completedLessons;
-    await AsyncStorage.setItem(KEY, JSON.stringify(state));
-    setShowNotificationPrompt(false);
-  };
 
   useEffect(() => {
     networkManager.init();

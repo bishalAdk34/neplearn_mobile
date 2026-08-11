@@ -11,6 +11,21 @@ import { mergeStreaks } from './streak';
 
 const MAX_RETRIES = 3;
 
+type OpResult = { success: true } | { success: false; permanent: boolean };
+
+/**
+ * Classify a Supabase/PostgREST error as permanent (retrying won't help — bad
+ * data, constraint violation, RLS denial) vs transient (network blip, drop the
+ * connection mid-request, etc). Postgres error codes: 22xxx = invalid input,
+ * 23xxx = integrity constraint violation, 42xxx = syntax/access rule violation
+ * (includes 42501 = insufficient_privilege / RLS denial).
+ */
+function classify(error: { code?: string } | null): OpResult {
+  if (!error) return { success: true };
+  const permanent = /^(22|23|42)/.test(error.code || '');
+  return { success: false, permanent };
+}
+
 class SyncManager {
   private isSyncing = false;
   private unsubscribe: (() => void) | null = null;
@@ -47,8 +62,11 @@ class SyncManager {
       for (const operation of queue) {
         if (!networkManager.getIsConnected()) break;
 
-        const success = await this.processOperation(operation);
-        if (success) {
+        const result = await this.processOperation(operation);
+        if (result.success) {
+          await removeFromQueue(operation.id);
+        } else if (result.permanent) {
+          console.warn(`Operation ${operation.id} (${operation.type}) failed permanently, dropping without retry`);
           await removeFromQueue(operation.id);
         } else if (operation.retryCount < MAX_RETRIES) {
           await incrementRetry(operation.id);
@@ -63,10 +81,10 @@ class SyncManager {
     }
   }
 
-  private async processOperation(op: QueuedOperation): Promise<boolean> {
+  private async processOperation(op: QueuedOperation): Promise<OpResult> {
     const { type, payload } = op;
 
-    if (!supabase) return true;
+    if (!supabase) return { success: true };
 
     try {
       switch (type) {
@@ -77,7 +95,7 @@ class SyncManager {
               { user_id: payload.userId, word_id: payload.wordId },
               { onConflict: 'user_id,word_id' }
             );
-          return !error;
+          return classify(error);
         }
 
         case 'UNLEARN_WORD': {
@@ -86,7 +104,7 @@ class SyncManager {
             .delete()
             .eq('user_id', payload.userId)
             .eq('word_id', payload.wordId);
-          return !error;
+          return classify(error);
         }
 
         case 'ADD_XP': {
@@ -97,7 +115,7 @@ class SyncManager {
               xp_amount: payload.xpAmount,
               source: payload.xpSource,
             });
-          return !error;
+          return classify(error);
         }
 
         case 'UPDATE_STREAK': {
@@ -106,7 +124,7 @@ class SyncManager {
             payload.streakLongest === undefined ||
             !payload.streakLastDate
           ) {
-            return true; // Legacy op without state payload — drop it
+            return { success: true }; // Legacy op without state payload — drop it
           }
           const { data: remote } = await supabase
             .from('user_streaks')
@@ -132,7 +150,7 @@ class SyncManager {
             },
             { onConflict: 'user_id' }
           );
-          return !error;
+          return classify(error);
         }
 
         case 'SAVE_CHAT_MESSAGE': {
@@ -144,7 +162,7 @@ class SyncManager {
               content: payload.chatContent,
               conversation_id: payload.conversationId,
             });
-          return !error;
+          return classify(error);
         }
 
         case 'CREATE_CONVERSATION': {
@@ -158,7 +176,7 @@ class SyncManager {
               },
               { onConflict: 'id' }
             );
-          return !error;
+          return classify(error);
         }
 
         case 'RENAME_CONVERSATION': {
@@ -167,7 +185,7 @@ class SyncManager {
             .update({ title: payload.conversationTitle, updated_at: new Date().toISOString() })
             .eq('id', payload.conversationId)
             .eq('user_id', payload.userId);
-          return !error;
+          return classify(error);
         }
 
         case 'DELETE_CONVERSATION': {
@@ -176,7 +194,7 @@ class SyncManager {
             .delete()
             .eq('id', payload.conversationId)
             .eq('user_id', payload.userId);
-          return !error;
+          return classify(error);
         }
 
         case 'SAVE_JOURNAL': {
@@ -190,7 +208,7 @@ class SyncManager {
               response_text: payload.responseText,
               feedback_text: payload.feedbackText ?? null,
             });
-          return !error;
+          return classify(error);
         }
 
         case 'UPSERT_PROFILE': {
@@ -205,7 +223,7 @@ class SyncManager {
               },
               { onConflict: 'id' }
             );
-          return !error;
+          return classify(error);
         }
 
         case 'UPSERT_SRS': {
@@ -224,16 +242,16 @@ class SyncManager {
               },
               { onConflict: 'user_id,word_id' }
             );
-          return !error;
+          return classify(error);
         }
 
         default:
           console.warn(`Unknown operation type: ${type}`);
-          return true; // Remove unknown ops
+          return { success: true }; // Remove unknown ops
       }
     } catch (e) {
       console.error('processOperation error:', e);
-      return false;
+      return { success: false, permanent: false };
     }
   }
 
