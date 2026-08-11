@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { type ComponentProps } from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, radii } from '../../theme';
 import { hapticLight } from '../../utils/haptics';
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
 type Size = 'sm' | 'md' | 'lg';
+type IconName = ComponentProps<typeof Ionicons>['name'];
 
 interface ButtonProps {
-  title: string;
+  title?: string;
+  icon?: IconName;
+  iconPosition?: 'left' | 'right';
   onPress: () => void;
   variant?: Variant;
   size?: Size;
@@ -25,6 +29,8 @@ const sizeStyles: Record<Size, { paddingVertical: number; paddingHorizontal: num
 
 export default function Button({
   title,
+  icon,
+  iconPosition = 'left',
   onPress,
   variant = 'primary',
   size = 'md',
@@ -73,6 +79,10 @@ export default function Button({
       containerStyle.backgroundColor = isDisabled ? colors.disabled : colors.danger;
       textStyle.color = '#FFFFFF';
       break;
+    case 'success':
+      containerStyle.backgroundColor = isDisabled ? colors.disabled : colors.success;
+      textStyle.color = '#FFFFFF';
+      break;
   }
 
   const handlePress = () => {
@@ -90,7 +100,25 @@ export default function Button({
       {loading ? (
         <ActivityIndicator color={variant === 'outline' || variant === 'ghost' || variant === 'secondary' ? colors.primary : '#FFFFFF'} />
       ) : (
-        <Text style={textStyle}>{title}</Text>
+        <>
+          {icon && iconPosition === 'left' && (
+            <Ionicons
+              name={icon}
+              size={sizeStyles[size].fontSize + 4}
+              color={textStyle.color}
+              style={{ marginRight: title ? 8 : 0 }}
+            />
+          )}
+          {title ? <Text style={textStyle}>{title}</Text> : null}
+          {icon && iconPosition === 'right' && (
+            <Ionicons
+              name={icon}
+              size={sizeStyles[size].fontSize + 4}
+              color={textStyle.color}
+              style={{ marginLeft: title ? 8 : 0 }}
+            />
+          )}
+        </>
       )}
     </TouchableOpacity>
   );

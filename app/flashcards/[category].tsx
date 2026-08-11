@@ -11,7 +11,7 @@ import { useVocabStore } from '../../src/data/vocab';
 import { useAuthStore } from '../../src/stores/auth';
 import { useSrsStore } from '../../src/stores/srs';
 import { colors } from '../../src/theme';
-import { ProgressBar } from '../../src/components/ui';
+import { Button, ProgressBar } from '../../src/components/ui';
 import { hapticLight } from '../../src/utils/haptics';
 import { useSettingsStore } from '../../src/stores/settings';
 import { getDirectionFields } from '../../src/utils/direction';
@@ -70,6 +70,7 @@ const Flashcards = () => {
 
   const reveal = () => {
     setRevealed(true);
+    hapticLight();
   };
 
   const goNext = () => {
@@ -80,6 +81,7 @@ const Flashcards = () => {
     ]).start(() => {
       setRevealed(false);
       setCurrentIndex(prev => prev + 1);
+      hapticLight();
       fadeAnim.setValue(0);
       slideAnim.setValue(50);
       Animated.parallel([
@@ -97,6 +99,7 @@ const Flashcards = () => {
     ]).start(() => {
       setRevealed(false);
       setCurrentIndex(prev => prev - 1);
+      hapticLight();
       fadeAnim.setValue(0);
       slideAnim.setValue(-50);
       Animated.parallel([
@@ -107,7 +110,6 @@ const Flashcards = () => {
   };
 
   const handleLearn = () => {
-    hapticLight();
     // Self-grade: marking as learned counts as a correct review
     if (!isLearned(uid, word.id)) {
       useSrsStore.getState().recordResult(uid, word.id, true, 'flashcards');
@@ -179,41 +181,48 @@ const Flashcards = () => {
                 )}
                 <Text className="text-4xl font-bold text-[#4F46E5] text-center mb-3">{df!.answerText}</Text>
                 {direction !== 'ne-to-en' && <Text className="text-xl text-[#64748B] text-center">({word.roman})</Text>}
-                <TouchableOpacity
+                <Button
+                  title="Pronounce"
+                  icon="volume-high"
                   onPress={() => speakWord(word.nepali)}
-                  className="mt-6 bg-[#EEF2FF] px-6 py-2 rounded-full flex-row items-center"
-                >
-                  <Text className="text-lg mr-2">🔊</Text>
-                  <Text className="text-accent font-semibold">Pronounce</Text>
-                </TouchableOpacity>
+                  variant="outline"
+                  size="md"
+                  style={{ marginTop: 24, alignSelf: 'center' }}
+                />
               </View>
             )}
           </TouchableOpacity>
 
-          <View className="flex-row justify-center gap-3 mt-6">
-            <TouchableOpacity
+          <View className="flex-row gap-3 mt-6">
+            <Button
+              icon="arrow-back"
               onPress={goBack}
               disabled={currentIndex === 0}
-              style={currentIndex === 0 ? {} : { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }} className={`p-4 rounded-2xl ${currentIndex === 0 ? 'bg-[#E2E8F0]' : 'bg-white'}`}
-            >
-              <Text className="text-2xl">⬅️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              variant="outline"
+              size="lg"
+              haptic={false}
+              style={{ width: 54, paddingHorizontal: 0 }}
+            />
+            <Button
+              icon="checkmark-circle"
+              iconPosition="right"
+              title="Learned"
               onPress={handleLearn}
-              className="flex-1 bg-emerald-500 py-4 rounded-2xl flex-row justify-center items-center"
-              style={{ shadowColor: '#10B981', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
-            >
-              <Text className="text-white font-bold text-lg mr-2">✅</Text>
-              <Text className="text-white font-bold text-lg">Learned</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              variant="success"
+              size="lg"
+              haptic={false}
+              style={{ flex: 1 }}
+            />
+            <Button
+              icon="arrow-forward"
+              iconPosition="right"
+              title="Next"
               onPress={goNext}
-              className="flex-1 bg-accent py-4 rounded-2xl flex-row justify-center items-center"
-              style={{ shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
-            >
-              <Text className="text-white font-bold text-lg mr-2">➡️</Text>
-              <Text className="text-white font-bold text-lg">Next</Text>
-            </TouchableOpacity>
+              variant="primary"
+              size="lg"
+              haptic={false}
+              style={{ flex: 1, backgroundColor: colors.accent }}
+            />
           </View>
         </Animated.View>
       </View>

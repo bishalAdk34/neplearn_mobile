@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, InteractionManager } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSrsStore } from '../src/stores/srs';
 import { useAuthStore } from '../src/stores/auth';
@@ -105,6 +105,7 @@ export default function RootLayout() {
     return (
       <ErrorBoundary>
         <NetworkProvider>
+          <Redirect href="/onboarding" />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="signin" options={{ headerShown: false }} />

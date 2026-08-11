@@ -245,7 +245,7 @@ export default function Onboarding() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       {/* Top bar: back + progress (hidden on final loading step) */}
       {step < TOTAL_STEPS && (
@@ -316,7 +316,7 @@ export default function Onboarding() {
         {step === 1 && (
           <View className="px-8 flex-1 justify-center">
             <View className="items-center mb-8">
-              <Text style={{ fontSize: 14 }}>🇳🇵</Text>
+              <Text style={{ fontSize: 40 }}>🇳🇵</Text>
               <Text style={{ fontSize: 22, fontWeight: '700', color: colors.ink, marginTop: 8, textAlign: 'center' }}>
                 Why are you learning Nepali?
               </Text>
@@ -338,7 +338,7 @@ export default function Onboarding() {
                       alignItems: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 28, marginBottom: 6 }}>{g.icon}</Text>
+                    <Text style={{ fontSize: 32, marginBottom: 6 }}>{g.icon}</Text>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: isSelected ? colors.primary : colors.ink }}>
                       {g.label}
                     </Text>
@@ -352,7 +352,7 @@ export default function Onboarding() {
         {step === 2 && (
           <View className="px-8 flex-1 justify-center">
             <View className="items-center mb-8">
-              <Text style={{ fontSize: 14 }}>📊</Text>
+              <Text style={{ fontSize: 40 }}>📊</Text>
               <Text style={{ fontSize: 22, fontWeight: '700', color: colors.ink, marginTop: 8, textAlign: 'center' }}>
                 How much Nepali do you know?
               </Text>
@@ -401,8 +401,8 @@ export default function Onboarding() {
         {step === 3 && (
           <View className="px-8 flex-1 justify-center">
             <View className="items-center mb-8">
-              <Text style={{ fontSize: 14 }}>🎯</Text>
-              <Text style={{ fontSize: 22, fontWeight: '700', color: colors.ink, marginTop: 8, textAlign: 'center' }}>
+              <Text style={{ fontSize: 80 }}>🎯</Text>
+              <Text style={{ fontSize: 32, fontWeight: '700', color: colors.ink, marginTop: 8, textAlign: 'center' }}>
                 Set your daily goal
               </Text>
               <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 4, textAlign: 'center' }}>
@@ -426,7 +426,7 @@ export default function Onboarding() {
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 24, marginRight: 14 }}>{d.icon}</Text>
+                  <Text style={{ fontSize: 28, marginRight: 14 }}>{d.icon}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>{d.label}</Text>
                     <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>{d.desc}</Text>
