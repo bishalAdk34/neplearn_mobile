@@ -65,17 +65,17 @@ export async function syncUnlearnWord(userId: string, wordId: number) {
   await enqueue({ type: 'UNLEARN_WORD', payload: { userId, wordId } });
 }
 
+/** Throws on fetch failure so callers can tell "no learned words" apart from
+ *  "couldn't reach the cloud" — conflating the two risks clobbering local
+ *  state with an empty set on a transient network error. */
 export async function fetchLearnedWords(userId: string): Promise<number[]> {
   if (userId.startsWith('__guest__')) return [];
-  if (!supabase) return [];
+  if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase
     .from('user_learned_words')
     .select('word_id')
     .eq('user_id', userId);
-  if (error) {
-    console.warn('fetchLearnedWords failed:', error.message);
-    return [];
-  }
+  if (error) throw error;
   return data.map(r => r.word_id);
 }
 

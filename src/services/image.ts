@@ -1,6 +1,7 @@
 const cache = new Map<string, string | null>();
+const MAX_SIMPLIFY_DEPTH = 3;
 
-export async function getWordImage(english: string): Promise<string | null> {
+export async function getWordImage(english: string, depth = 0): Promise<string | null> {
   if (cache.has(english)) return cache.get(english) ?? null;
 
   try {
@@ -14,9 +15,15 @@ export async function getWordImage(english: string): Promise<string | null> {
     cache.set(english, url);
     return url;
   } catch {
-    // Try simplified term for compound words
-    const simple = english.replace(/[?.!]/g, '').split(' ')[0];
-    if (simple !== english) return getWordImage(simple);
+    // Try simplified term for compound words, bounded to avoid runaway recursion
+    if (depth < MAX_SIMPLIFY_DEPTH) {
+      const simple = english.replace(/[?.!]/g, '').split(' ')[0];
+      if (simple && simple !== english) {
+        const result = await getWordImage(simple, depth + 1);
+        cache.set(english, result);
+        return result;
+      }
+    }
     cache.set(english, null);
     return null;
   }

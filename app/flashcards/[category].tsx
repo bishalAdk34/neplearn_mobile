@@ -42,6 +42,10 @@ const Flashcards = () => {
     if (word.image?.startsWith('http')) {
       setImgUrl(word.image);
       setLoadingImg(false);
+    } else if (word.image) {
+      // emoji already provided, no need to hit network
+      setImgUrl(null);
+      setLoadingImg(false);
     } else {
       setImgUrl(null);
       setLoadingImg(true);
@@ -162,7 +166,7 @@ const Flashcards = () => {
                 {loadingImg ? (
                   <ActivityIndicator size="large" color="#6366F1" style={{ height: 80 }} />
                 ) : imgUrl ? (
-                  <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-4" resizeMode="contain" />
+                  <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-4" resizeMode="contain" onError={() => setImgUrl(null)} />
                 ) : (
                   <Text className="text-6xl mb-4 text-center" style={{ lineHeight: 72, paddingVertical: 4 }}>{word.image || '💡'}</Text>
                 )}
@@ -175,7 +179,7 @@ const Flashcards = () => {
                 {loadingImg ? (
                   <ActivityIndicator size="large" color="#6366F1" style={{ height: 80 }} />
                 ) : imgUrl ? (
-                  <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" />
+                  <Image source={{ uri: imgUrl }} style={{ width: '100%', aspectRatio: 16 / 9 }} className="rounded-xl mb-3" resizeMode="contain" onError={() => setImgUrl(null)} />
                 ) : (
                   <Text className="text-5xl mb-3 text-center" style={{ lineHeight: 56, paddingVertical: 4 }}>{word.image || '💡'}</Text>
                 )}

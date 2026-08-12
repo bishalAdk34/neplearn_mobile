@@ -70,9 +70,14 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    networkManager.init();
-    syncManager.init();
+    let cancelled = false;
+    (async () => {
+      await networkManager.init();
+      if (cancelled) return;
+      syncManager.init();
+    })();
     return () => {
+      cancelled = true;
       networkManager.destroy();
       syncManager.destroy();
     };
@@ -142,6 +147,10 @@ export default function RootLayout() {
           <Stack.Screen name="grammar" options={{ headerShown: false }} />
           <Stack.Screen name="sentence-builder" options={{ headerShown: false }} />
           <Stack.Screen name="listening" options={{ headerShown: false }} />
+          <Stack.Screen name="match-pairs" options={{ headerShown: false }} />
+          <Stack.Screen name="skill-tree" options={{ headerShown: false }} />
+          <Stack.Screen name="listen-type" options={{ headerShown: false }} />
+          <Stack.Screen name="speak-check" options={{ headerShown: false }} />
           <Stack.Screen name="heatmap" options={{ headerShown: false }} />
           <Stack.Screen name="culture" options={{ headerShown: false }} />
           <Stack.Screen name="roleplay" options={{ headerShown: false }} />

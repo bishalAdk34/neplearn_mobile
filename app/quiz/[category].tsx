@@ -39,6 +39,10 @@ const Quiz = () => {
 
   useEffect(() => {
     const words = getWordsByCategory(category);
+    if (words.length === 0) {
+      router.replace('/');
+      return;
+    }
     setQuestions(reverse ? buildEnglishOptionQuestions(words, 10) : buildQuestions(words, 10));
   }, [category, reverse]);
 

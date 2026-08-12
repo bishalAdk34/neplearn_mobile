@@ -35,7 +35,7 @@ type SrsState = {
   recordResult: (userId: string, wordId: number, correct: boolean, source: MistakeSource) => void;
   getDueWords: (userId: string) => WordSRS[];
   getStrength: (userId: string, wordId: number) => number;
-  syncFromCloud: (userId: string) => Promise<void>;
+  syncFromCloud: (userId: string) => Promise<boolean>;
 };
 
 const asyncStorage: PersistStorage<SrsState> = {
@@ -176,13 +176,16 @@ export const useSrsStore = create<SrsState>()(
         return Math.max(0.1, base * Math.pow(0.5, overdueRatio));
       },
       syncFromCloud: async (userId) => {
-        if (userId.startsWith('__guest__')) return;
+        if (userId.startsWith('__guest__')) return true;
         try {
           const { data, error } = await supabase
             .from('user_word_srs')
             .select('word_id, box, last_result, last_reviewed_at, due_at, correct_count, incorrect_count')
             .eq('user_id', userId);
-          if (error || !data) return;
+          if (error || !data) {
+            console.warn('SRS syncFromCloud failed:', error);
+            return false;
+          }
 
           const userSrs = { ...(get().srsByUser[userId] || {}) };
           for (const row of data) {
@@ -201,8 +204,10 @@ export const useSrsStore = create<SrsState>()(
             }
           }
           set({ srsByUser: { ...get().srsByUser, [userId]: userSrs } });
+          return true;
         } catch (e) {
           console.warn('SRS syncFromCloud failed:', e);
+          return false;
         }
       },
     }),

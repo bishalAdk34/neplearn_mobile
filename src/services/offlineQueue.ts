@@ -64,8 +64,12 @@ export async function getQueue(): Promise<QueuedOperation[]> {
   const data = await AsyncStorage.getItem(QUEUE_KEY);
   if (!data) return [];
   try {
-    return JSON.parse(data) as QueuedOperation[];
-  } catch {
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) throw new Error('queue is not an array');
+    return parsed as QueuedOperation[];
+  } catch (e) {
+    console.warn('Offline queue corrupted, resetting:', e);
+    await AsyncStorage.removeItem(QUEUE_KEY);
     return [];
   }
 }
@@ -78,6 +82,11 @@ export async function enqueue(
   operation: Omit<QueuedOperation, 'id' | 'createdAt' | 'retryCount'>,
   dedupeKey?: string
 ): Promise<void> {
+  if (!operation.type || !operation.payload?.userId) {
+    console.warn('Refusing to enqueue malformed operation:', operation);
+    return;
+  }
+
   let queue = await getQueue();
   if (dedupeKey) {
     // Latest state replaces any older queued op with the same key

@@ -54,7 +54,7 @@ type VocabState = {
   isLearned: (userId: string, id: number) => boolean;
   toggleLearned: (userId: string, id: number) => void;
   getLearned: (userId: string) => number[];
-  syncFromCloud: (userId: string) => Promise<void>;
+  syncFromCloud: (userId: string) => Promise<boolean>;
   addLocalXp: (userId: string, amount: number) => void;
   getLocalXp: (userId: string) => number;
   addLocalStreak: (userId: string) => void;
@@ -104,7 +104,15 @@ export const useVocabStore = create<VocabState>()(
       },
       getLearned: (userId) => get().learnedByUser[userId] || [],
       syncFromCloud: async (userId) => {
-        const cloudIds = await fetchLearnedWords(userId);
+        let cloudIds: number[];
+        try {
+          cloudIds = await fetchLearnedWords(userId);
+        } catch (e) {
+          // Fetch failed (network blip, RLS hiccup, etc) — keep local state as-is
+          // instead of overwriting it with an empty set.
+          console.warn('syncFromCloud (learned words) failed, keeping local state:', e);
+          return false;
+        }
         // Cloud is authoritative (so unlearns propagate across devices), but any
         // learn/unlearn still sitting in the offline queue hasn't reached the cloud
         // yet — keep those local intents so we don't clobber an in-flight change.
@@ -119,6 +127,7 @@ export const useVocabStore = create<VocabState>()(
         const merged = new Set(cloudIds.filter(id => !pendingUnlearn.has(id)));
         for (const id of pendingLearn) merged.add(id);
         set({ learnedByUser: { ...get().learnedByUser, [userId]: [...merged] } });
+        return true;
       },
       addLocalXp: (userId, amount) => {
         const current = get().localXp[userId] || 0;

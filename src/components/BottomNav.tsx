@@ -95,7 +95,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
             left: 0,
             right: 0,
             height: 1,
-            backgroundColor: colors.border,
+            // backgroundColor: colors.border,
           }}
         />
       </View>
@@ -120,7 +120,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
                 height: FAB_SIZE,
                 borderRadius: FAB_RADIUS,
                 backgroundColor: colors.primary,
-                borderWidth: 3,
+                borderWidth: 2,
                 borderColor: colors.surface,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -153,7 +153,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
           {leftTabs.map((tab) => {
             const isActive = tab.name === activeTab;
             return (
-              <Link key={tab.name} href={tab.href} asChild>
+              <Link key={tab.name} href={tab.href} replace asChild>
                 <TouchableOpacity style={{ alignItems: 'center', minWidth: 60 }}>
                   <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={24} color={isActive ? colors.primary : colors.textTertiary} />
                   <Text style={{ color: isActive ? colors.primary : colors.textTertiary, fontSize: 11, marginTop: 2, fontWeight: isActive ? '600' : '400' }}>
@@ -171,7 +171,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
           {rightTabs.map((tab) => {
             const isActive = tab.name === activeTab;
             return (
-              <Link key={tab.name} href={tab.href} asChild>
+              <Link key={tab.name} href={tab.href} replace asChild>
                 <TouchableOpacity style={{ alignItems: 'center', minWidth: 60 }}>
                   <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={24} color={isActive ? colors.primary : colors.textTertiary} />
                   <Text style={{ color: isActive ? colors.primary : colors.textTertiary, fontSize: 11, marginTop: 2, fontWeight: isActive ? '600' : '400' }}>

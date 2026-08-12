@@ -68,6 +68,10 @@ export const useDailyXpStore = create<DailyXpState>()(
  * guests or Supabase for signed-in users, and records streak activity.
  */
 export async function awardXp(userId: string, amount: number, source: XpSource): Promise<void> {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    console.warn(`awardXp: ignoring non-positive amount (${amount}) for source ${source}`);
+    return;
+  }
   useDailyXpStore.getState().addToday(userId, amount);
 
   // Track days where the daily goal was hit

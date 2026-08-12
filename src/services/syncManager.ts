@@ -55,26 +55,41 @@ class SyncManager {
 
   async processQueue(): Promise<void> {
     if (this.isSyncing) return;
+    if (!supabase) return; // Not configured — leave queue intact for later, don't burn retries
     this.isSyncing = true;
 
     try {
-      const queue = await getQueue();
-      for (const operation of queue) {
-        if (!networkManager.getIsConnected()) break;
+      // Re-fetch queue each pass so items enqueued mid-sync (e.g. user acts
+      // while a sync is already running) get picked up in the same run
+      // instead of waiting for the next network/AppState trigger.
+      while (networkManager.getIsConnected()) {
+        const queue = await getQueue();
+        if (queue.length === 0) break;
 
-        const result = await this.processOperation(operation);
-        if (result.success) {
-          await removeFromQueue(operation.id);
-        } else if (result.permanent) {
-          console.warn(`Operation ${operation.id} (${operation.type}) failed permanently, dropping without retry`);
-          await removeFromQueue(operation.id);
-        } else if (operation.retryCount < MAX_RETRIES) {
-          await incrementRetry(operation.id);
-        } else {
-          // Max retries reached, remove from queue
-          console.warn(`Operation ${operation.id} failed after ${MAX_RETRIES} retries, removing`);
-          await removeFromQueue(operation.id);
+        let processedAny = false;
+        for (const operation of queue) {
+          if (!networkManager.getIsConnected()) break;
+
+          const result = await this.processOperation(operation);
+          if (result.success) {
+            await removeFromQueue(operation.id);
+            processedAny = true;
+          } else if (result.permanent) {
+            console.warn(`Operation ${operation.id} (${operation.type}) failed permanently, dropping without retry`);
+            await removeFromQueue(operation.id);
+            processedAny = true;
+          } else if (operation.retryCount < MAX_RETRIES) {
+            await incrementRetry(operation.id);
+          } else {
+            // Max retries reached, remove from queue
+            console.warn(`Operation ${operation.id} failed after ${MAX_RETRIES} retries, removing`);
+            await removeFromQueue(operation.id);
+            processedAny = true;
+          }
         }
+        // Nothing changed this pass (all remaining ops are transient failures
+        // still under retry count) — stop instead of spinning forever.
+        if (!processedAny) break;
       }
     } finally {
       this.isSyncing = false;
@@ -84,7 +99,9 @@ class SyncManager {
   private async processOperation(op: QueuedOperation): Promise<OpResult> {
     const { type, payload } = op;
 
-    if (!supabase) return { success: true };
+    // processQueue() already bails out before calling this when supabase is
+    // unconfigured; this is a defensive fallback, not a silent success.
+    if (!supabase) return { success: false, permanent: false };
 
     try {
       switch (type) {
