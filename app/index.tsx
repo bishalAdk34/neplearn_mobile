@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Alert } from 'r
 import { Link, useRouter } from 'expo-router';
 import BottomNav from '../src/components/BottomNav';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { categories, getWordsByCategory, CATEGORY_META, GUEST_ID } from '../src/data/vocab';
 import { useVocabStore } from '../src/data/vocab';
 import { getContinueCategory } from '../src/data/personalization';
@@ -19,6 +20,7 @@ import { QuickActionsModal } from '../src/components/QuickActionsModal';
 
 const Home = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore(s => s.user);
   const clearUser = useAuthStore(s => s.clearUser);
   const { isLearned, learningGoal, learningLevel, userName: onboardingName } = useVocabStore();
@@ -79,9 +81,9 @@ const Home = () => {
 
   return (
     <View className="flex-1 bg-cream">
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="px-5 pt-12 pb-4">
+        <View style={{ paddingTop: insets.top  }} className="px-5 pb-4">
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center flex-1">
               <View style={{ backgroundColor: '#E5E7EB' }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
@@ -250,7 +252,7 @@ const Home = () => {
         </View>
 
         {/* Daily Challenges */}
-        <View className="px-5 mb-6">
+        <View className="px-5 mb-10">
           <Text className="text-ink text-base font-semibold mb-3">DAILY CHALLENGES</Text>
           <View className="bg-white border border-line overflow-hidden" style={{ borderRadius: 20 }}>
             {/* Morning Vocab */}

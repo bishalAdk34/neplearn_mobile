@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, InteractionManager } from 'react-native';
 import { Stack, Redirect } from 'expo-router';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
+
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSrsStore } from '../src/stores/srs';
 import { useAuthStore } from '../src/stores/auth';
+
 import {
   initNotifications,
   initNotificationLogListener,
   refreshDailyReminder,
   refreshWordOfDay,
 } from '../src/services/notifications';
+
 import { networkManager } from '../src/services/network';
 import { syncManager } from '../src/services/syncManager';
 import { NetworkProvider } from '../src/contexts/NetworkContext';
@@ -17,51 +24,75 @@ import NotificationPromptModal from '../src/components/NotificationPromptModal';
 import { maybeShowNotifPrompt } from '../src/stores/notifPrompt';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { getMissingConfigKeys } from '../src/config';
+
 import './global.css';
 
 export default function RootLayout() {
   const [splashDone] = useState(true);
-  const onboardingDone = useVocabStore(s => s.onboardingDone);
-  const user = useAuthStore(s => s.user);
-  const initializeAuth = useAuthStore(s => s.initialize);
-  const syncFromCloud = useVocabStore(s => s.syncFromCloud);
 
-  useEffect(() => {
-    if (!__DEV__) return;
-    const resetOnboarding = () => useVocabStore.setState({ onboardingDone: false });
-    if (useVocabStore.persist.hasHydrated()) {
-      resetOnboarding();
-    } else {
-      return useVocabStore.persist.onFinishHydration(resetOnboarding);
-    }
-  }, []);
+  const onboardingDone = useVocabStore(
+    (s) => s.onboardingDone
+  );
+
+  const user = useAuthStore((s) => s.user);
+  const initializeAuth = useAuthStore((s) => s.initialize);
+
+  const syncFromCloud = useVocabStore(
+    (s) => s.syncFromCloud
+  );
+
+  // --------------------------------------------------
+  // Authentication initialization
+  // --------------------------------------------------
 
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
+  // --------------------------------------------------
+  // Notifications
+  // --------------------------------------------------
+
   useEffect(() => {
     initNotifications().catch(() => {});
 
-    let unsubscribeLog: (() => void) | undefined;
-    initNotificationLogListener().then(unsub => {
-      unsubscribeLog = unsub;
-    }).catch(() => {});
+    let unsubscribeLog:
+      | (() => void)
+      | undefined;
 
-    // Keep the daily reminder copy streak-aware: refresh whenever the app foregrounds.
+    initNotificationLogListener()
+      .then((unsub) => {
+        unsubscribeLog = unsub;
+      })
+      .catch(() => {});
+
     const refreshReminder = () => {
-      const uid = useAuthStore.getState().user?.id || GUEST_ID;
-      const streak = useVocabStore.getState().getLocalStreak(uid).current;
+      const uid =
+        useAuthStore.getState().user?.id ||
+        GUEST_ID;
+
+      const streak =
+        useVocabStore
+          .getState()
+          .getLocalStreak(uid)
+          .current;
+
       refreshDailyReminder(streak).catch(() => {});
       refreshWordOfDay().catch(() => {});
     };
+
+    // Initial refresh
     refreshReminder();
-    const appStateSub = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        refreshReminder();
-        if (__DEV__) useVocabStore.setState({ onboardingDone: false });
+
+    // Refresh when app comes back to foreground
+    const appStateSub = AppState.addEventListener(
+      'change',
+      (state) => {
+        if (state === 'active') {
+          refreshReminder();
+        }
       }
-    });
+    );
 
     return () => {
       unsubscribeLog?.();
@@ -69,98 +100,397 @@ export default function RootLayout() {
     };
   }, []);
 
+  // --------------------------------------------------
+  // Network + Sync initialization
+  // --------------------------------------------------
+
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       await networkManager.init();
+
       if (cancelled) return;
+
       syncManager.init();
     })();
+
     return () => {
       cancelled = true;
+
       networkManager.destroy();
       syncManager.destroy();
     };
   }, []);
 
+  // --------------------------------------------------
+  // Environment config check
+  // --------------------------------------------------
+
   useEffect(() => {
     const missing = getMissingConfigKeys();
+
     if (missing.length > 0) {
-      console.warn(`[config] Missing required env vars: ${missing.join(', ')}. Check .env.`);
+      console.warn(
+        `[config] Missing required env vars: ${missing.join(
+          ', '
+        )}. Check .env.`
+      );
     }
   }, []);
 
+  // --------------------------------------------------
+  // Notification prompt
+  // --------------------------------------------------
+
   useEffect(() => {
     if (!onboardingDone) return;
-    const timer = setTimeout(() => maybeShowNotifPrompt(), 150000);
+
+    const timer = setTimeout(
+      () => maybeShowNotifPrompt(),
+      150000
+    );
+
     return () => clearTimeout(timer);
   }, [onboardingDone]);
 
+  // --------------------------------------------------
+  // Cloud sync
+  // --------------------------------------------------
+
   useEffect(() => {
-    if (user && !user.id.startsWith('__guest__')) {
-      const handle = InteractionManager.runAfterInteractions(() => {
-        syncFromCloud(user.id);
-        useSrsStore.getState().syncFromCloud(user.id);
-      });
+    if (
+      user &&
+      !user.id.startsWith('__guest__')
+    ) {
+      const handle =
+        InteractionManager.runAfterInteractions(() => {
+          syncFromCloud(user.id);
+
+          useSrsStore
+            .getState()
+            .syncFromCloud(user.id);
+        });
+
       return () => handle.cancel();
     }
   }, [user, syncFromCloud]);
 
+  // --------------------------------------------------
+  // ONBOARDING
+  // --------------------------------------------------
+
   if (!onboardingDone) {
     return (
       <ErrorBoundary>
-        <NetworkProvider>
-          <Redirect href="/onboarding" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-            <Stack.Screen name="signin" options={{ headerShown: false }} />
-          </Stack>
-        </NetworkProvider>
+        <SafeAreaProvider>
+          <NetworkProvider>
+
+            {/* 
+              SafeAreaView prevents your onboarding
+              screen from going underneath Android's
+              status/navigation bars.
+            */}
+            <SafeAreaView
+              style={{ flex: 1 }}
+              edges={['top', 'bottom']}
+            >
+              <Redirect href="/onboarding" />
+
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                }}
+              >
+                <Stack.Screen
+                  name="onboarding"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+                <Stack.Screen
+                  name="signin"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+            </SafeAreaView>
+
+          </NetworkProvider>
+        </SafeAreaProvider>
       </ErrorBoundary>
     );
   }
 
+  // --------------------------------------------------
+  // MAIN APP
+  // --------------------------------------------------
+
   return (
     <ErrorBoundary>
-      <NetworkProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="signin" options={{ headerShown: false }} />
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="learn" options={{ headerShown: false }} />
-          <Stack.Screen name="ai-tutor" options={{ headerShown: false }} />
-          <Stack.Screen name="lesson" options={{ headerShown: false }} />
-          <Stack.Screen name="profile" options={{ headerShown: false }} />
-          <Stack.Screen name="flashcards/[category]" options={{ headerShown: false }} />
-          <Stack.Screen name="quiz/[category]" options={{ headerShown: false }} />
-          <Stack.Screen name="progress" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-          <Stack.Screen name="morning-vocab" options={{ headerShown: false }} />
-          <Stack.Screen name="echo-practice" options={{ headerShown: false }} />
-          <Stack.Screen name="journal" options={{ headerShown: false }} />
-          <Stack.Screen name="practice-phrases" options={{ headerShown: false }} />
-          <Stack.Screen name="story" options={{ headerShown: false }} />
-          <Stack.Screen name="about" options={{ headerShown: false }} />
-          <Stack.Screen name="notifications" options={{ headerShown: false }} />
-          <Stack.Screen name="achievements" options={{ headerShown: false }} />
-          <Stack.Screen name="review" options={{ headerShown: false }} />
-          <Stack.Screen name="practice-mistakes" options={{ headerShown: false }} />
-          <Stack.Screen name="grammar" options={{ headerShown: false }} />
-          <Stack.Screen name="sentence-builder" options={{ headerShown: false }} />
-          <Stack.Screen name="listening" options={{ headerShown: false }} />
-          <Stack.Screen name="match-pairs" options={{ headerShown: false }} />
-          <Stack.Screen name="skill-tree" options={{ headerShown: false }} />
-          <Stack.Screen name="listen-type" options={{ headerShown: false }} />
-          <Stack.Screen name="speak-check" options={{ headerShown: false }} />
-          <Stack.Screen name="heatmap" options={{ headerShown: false }} />
-          <Stack.Screen name="culture" options={{ headerShown: false }} />
-          <Stack.Screen name="roleplay" options={{ headerShown: false }} />
-          <Stack.Screen name="photo-vocab" options={{ headerShown: false }} />
-          <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
-          <Stack.Screen name="help" options={{ headerShown: false }} />
-          <Stack.Screen name="support" options={{ headerShown: false }} />
-        </Stack>
-        <NotificationPromptModal />
-      </NetworkProvider>
+      <SafeAreaProvider>
+        <NetworkProvider>
+
+          {/* 
+            IMPORTANT:
+            This is what fixes the Android status bar
+            and bottom gesture/navigation area overlap.
+          */}
+          <SafeAreaView
+            style={{ flex: 1 }}
+            edges={['top']}
+          >
+            <Stack
+              screenOptions={{
+                headerShown: false,
+              }}
+            >
+              <Stack.Screen
+                name="signin"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="index"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="learn"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="ai-tutor"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="lesson"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="profile"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="flashcards/[category]"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="quiz/[category]"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="progress"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="settings"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="morning-vocab"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="echo-practice"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="journal"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="practice-phrases"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="story"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="about"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="notifications"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="achievements"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="review"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="practice-mistakes"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="grammar"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="sentence-builder"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="listening"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="match-pairs"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="skill-tree"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="listen-type"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="speak-check"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="heatmap"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="culture"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="roleplay"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="photo-vocab"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="leaderboard"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="help"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Stack.Screen
+                name="support"
+                options={{
+                  headerShown: false,
+                }}
+              />
+            </Stack>
+          </SafeAreaView>
+
+          <NotificationPromptModal />
+
+        </NetworkProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

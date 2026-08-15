@@ -189,7 +189,7 @@ const AITutor = () => {
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <View
-        style={{ paddingTop: insets.top + 8 }}
+        style={{ paddingTop: insets.top }}
         className="flex-row items-center justify-between px-5 pb-4"
       >
         <View className="flex-row items-center">

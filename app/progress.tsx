@@ -34,7 +34,7 @@ const Progress = () => {
     <View className="flex-1 bg-cream">
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View className="bg-brand px-6 pb-8" style={{ paddingTop: insets.top + 8, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}>
+      <View className="bg-brand px-6 pb-8" style={{ paddingTop: insets.top, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}>
         <View className="flex-row items-center mb-4">
           <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} className="p-2 rounded-xl mr-3">
             <Ionicons name="arrow-back" size={24} color={colors.surface} />

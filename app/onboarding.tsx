@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Animated, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVocabStore, type LearningGoal, type LearningLevel } from '../src/data/vocab';
 import { useSettingsStore } from '../src/stores/settings';
 import { colors } from '../src/theme';
@@ -169,6 +170,7 @@ function ProgressDots({ step }: { step: number }) {
 
 export default function Onboarding() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { setLearningGoal, setLearningLevel, setUserName, completeOnboarding } = useVocabStore();
   const setDailyGoalXp = useSettingsStore(s => s.setDailyGoalXp);
 
@@ -249,7 +251,7 @@ export default function Onboarding() {
     >
       {/* Top bar: back + progress (hidden on final loading step) */}
       {step < TOTAL_STEPS && (
-        <View className="px-6 pt-16 pb-4 flex-row items-center">
+        <View style={{ paddingTop: insets.top }} className="px-6 pb-4 flex-row items-center">
           <TouchableOpacity
             onPress={goBack}
             disabled={step === 0}

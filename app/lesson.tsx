@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vocab, getWordsByCategory, categories, shuffle, useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { getRecommendedWords } from '../src/data/personalization';
 import { useAuthStore } from '../src/stores/auth';
@@ -17,6 +18,7 @@ import { maybeShowNotifPrompt } from '../src/stores/notifPrompt';
 import { getDirectionFields, getOptionLabel } from '../src/utils/direction';
 
 const Lesson = () => {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useGlobalSearchParams();
   const category = params.category as string | undefined;
@@ -116,7 +118,7 @@ const Lesson = () => {
   return (
     <View className="flex-1 bg-cream">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-5 pt-12 pb-4">
+      <View style={{ paddingTop: insets.top }} className="flex-row items-center justify-between px-5 pb-4">
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>

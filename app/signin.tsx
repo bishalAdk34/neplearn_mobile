@@ -120,28 +120,28 @@ export default function SignIn() {
 
   return (
     <View className="flex-1 bg-[#F8FAFC]">
-      <TouchableOpacity onPress={goHome} className="absolute top-16 left-6 p-2 z-10">
+      <TouchableOpacity onPress={goHome} className="absolute top-8 left-6 p-2 z-10">
         <Ionicons name="arrow-back" size={24} color="#64748B" />
       </TouchableOpacity>
 
       <View className="flex-1 justify-center items-center px-8">
-        <View className="items-center mb-10">
-          <View className="w-32 h-32 bg-indigo-100 rounded-2xl items-center justify-center mb-4 overflow-hidden">
+        <View className="items-center mb-6">
+          <View className="w-32 h-32 items-center justify-center mb-3 overflow-hidden">
             <Image source={require('../assets/icon.png')} className="w-full h-full" resizeMode="contain" />
           </View>
           <Text className="text-3xl font-bold text-[#4F46E5] tracking-wide">NepLearn</Text>
           <Text className="text-sm text-[#64748B] mt-1">Learn Nepali, one word at a time</Text>
         </View>
 
-        <View className="items-center mb-8">
-          <Text className="text-xl font-bold text-[#0F172A] text-center">Sign in to save progress</Text>
+        <View className="items-center mb-6">
+          <Text className="text-xl font-extrabold text-[#0F172A] text-center">Sign in to save progress</Text>
           <Text className="text-sm text-[#64748B] text-center mt-1">
             Your progress will be synced to your account
           </Text>
         </View>
 
         {error && (
-          <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' }} className="px-4 py-3 mb-6 w-full">
+          <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' }} className="px-4 py-3 mb-4 w-full">
             <Text className="text-[#DC2626] text-sm text-center">{error}</Text>
           </View>
         )}
@@ -162,8 +162,8 @@ export default function SignIn() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={goHome} className="mt-6">
-          <Text className="text-sm text-[#94A3B8]">Continue without signing in</Text>
+        <TouchableOpacity onPress={goHome} className="mt-5">
+          <Text className="text-sm font-medium text-[#64748B]">Continue without signing in</Text>
         </TouchableOpacity>
       </View>
     </View>

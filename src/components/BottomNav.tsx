@@ -18,7 +18,7 @@ const NAVBAR_HEIGHT = 72;
 const FAB_SIZE = 60;
 const FAB_RADIUS = FAB_SIZE / 2;
 const CORNER_RADIUS = 22;
-const FAB_OVERLAP = 30;
+const FAB_OVERLAP = 1;
 
 function buildBarPath(width: number): string {
   const h = NAVBAR_HEIGHT;
@@ -153,7 +153,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
           {leftTabs.map((tab) => {
             const isActive = tab.name === activeTab;
             return (
-              <Link key={tab.name} href={tab.href} replace asChild>
+              <Link key={tab.name} href={tab.href} asChild>
                 <TouchableOpacity style={{ alignItems: 'center', minWidth: 60 }}>
                   <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={24} color={isActive ? colors.primary : colors.textTertiary} />
                   <Text style={{ color: isActive ? colors.primary : colors.textTertiary, fontSize: 11, marginTop: 2, fontWeight: isActive ? '600' : '400' }}>
@@ -171,7 +171,7 @@ export default function BottomNav({ activeTab, onCenterPress }: BottomNavProps) 
           {rightTabs.map((tab) => {
             const isActive = tab.name === activeTab;
             return (
-              <Link key={tab.name} href={tab.href} replace asChild>
+              <Link key={tab.name} href={tab.href} asChild>
                 <TouchableOpacity style={{ alignItems: 'center', minWidth: 60 }}>
                   <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={24} color={isActive ? colors.primary : colors.textTertiary} />
                   <Text style={{ color: isActive ? colors.primary : colors.textTertiary, fontSize: 11, marginTop: 2, fontWeight: isActive ? '600' : '400' }}>

@@ -29,7 +29,7 @@ export default function ScreenHeader({
 
   return (
     <View
-      style={{ paddingTop: insets.top + 8 }}
+      style={{ paddingTop: insets.top }}
       className="flex-row items-center justify-between px-5 pb-4"
     >
       <View className="flex-row items-center flex-1">
