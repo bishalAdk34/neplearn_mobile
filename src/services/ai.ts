@@ -2,6 +2,7 @@ import { GROQ_API_KEY } from '../config';
 import { networkManager } from './network';
 
 const MODEL = 'llama-3.3-70b-versatile';
+const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const BASE_URL = 'https://api.groq.com/openai/v1';
 
 export interface ChatMessage {
@@ -211,8 +212,52 @@ export interface IdentifiedObject {
 }
 
 /** Identify objects in a photo and name them in Nepali. Returns null offline or on failure. */
-export async function identifyObjects(_base64: string): Promise<IdentifiedObject[] | null> {
-  // Groq's free tier models are text-only — no vision/multimodal support
-  console.warn('Photo analysis is not available on the current AI provider (Groq free tier)');
-  return null;
+export async function identifyObjects(base64: string): Promise<IdentifiedObject[] | null> {
+  if (!networkManager.getIsConnected() || !GROQ_API_KEY) return null;
+
+  const content = [
+    {
+      type: 'text',
+      text:
+        'Identify up to 6 distinct physical objects visible in this photo. ' +
+        'For each, give its Nepali name. Respond as JSON: ' +
+        '{"objects": [{"english": string, "nepali": string (Devanagari script), "roman": string (romanized spelling)}]}',
+    },
+    {
+      type: 'image_url',
+      image_url: { url: `data:image/jpeg;base64,${base64}` },
+    },
+  ];
+
+  try {
+    const res = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: VISION_MODEL,
+        messages: [{ role: 'user', content }],
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.warn('Groq vision API error:', data.error?.message || res.status);
+      return null;
+    }
+
+    const raw = data?.choices?.[0]?.message?.content;
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as { objects?: IdentifiedObject[] };
+    if (!Array.isArray(parsed.objects)) return null;
+
+    const valid = parsed.objects.filter(
+      o => o && typeof o.english === 'string' && typeof o.nepali === 'string' && typeof o.roman === 'string',
+    );
+    return valid.length > 0 ? valid : null;
+  } catch (e) {
+    console.warn('Groq vision fetch failed:', e);
+    return null;
+  }
 }

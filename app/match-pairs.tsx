@@ -66,6 +66,7 @@ const MatchPairs = () => {
     if (first.wordId === card.wordId && first.lang !== card.lang) {
       // Match
       hapticSuccess();
+      useSrsStore.getState().recordResult(uid, card.wordId, true, 'quiz');
       const newCards = cards.map(c =>
         c.wordId === card.wordId ? { ...c, matched: true } : c
       );

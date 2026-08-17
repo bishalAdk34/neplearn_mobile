@@ -57,7 +57,7 @@ const ListenType = () => {
 
   const handleSubmit = () => {
     if (submitted || !typed.trim() || !word) return;
-    const isCorrect = isPronunciationMatch(typed, word.roman);
+    const isCorrect = isPronunciationMatch(typed.toLowerCase(), word.roman.toLowerCase());
     setSubmitted(true);
     setCorrect(isCorrect);
     useSrsStore.getState().recordResult(uid, word.id, isCorrect, 'listening');

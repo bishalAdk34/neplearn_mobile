@@ -22,8 +22,8 @@ const SkillTree = () => {
       const learned = words.filter(w => isLearned(uid, w.id)).length;
       const meta = CATEGORY_META[cat];
       return { cat, learned, total: words.length, emoji: meta.emoji, color: meta.color };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, learnedByUser]);
 
   const totalLearned = nodes.reduce((sum, n) => sum + n.learned, 0);
