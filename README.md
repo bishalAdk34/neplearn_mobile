@@ -14,7 +14,8 @@ A cross-platform mobile app (iOS + Android + Web) for learning Nepali vocabulary
 - **Streaks & XP** — earn XP from lessons, quizzes, journal, and echo practice
 - **Achievements & Leaderboard** — gamification to stay motivated
 - **Google Sign-In** — optional auth with cloud sync via Supabase
-- **Guest Mode** — all features work without signing in
+- **Guest Mode** — all features work without signing in.
+
 - **Offline-First** — queue-based sync processes writes when connectivity returns
 
 ## Tech Stack
@@ -189,3 +190,4 @@ neplearn_mobile/
 ## License
 
 [MIT](LICENSE)
+
