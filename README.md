@@ -1,6 +1,6 @@
 # NepLearn
 
-A cross-platform mobile app (iOS + Android + Web) for learning Nepali vocabulary, built with **Expo SDK 54** and **React Native**.
+A cross-platform mobile app (iOS + Android + Web) for learning Nepali vocabulary, built with **Expo SDK 54** and **React Native**
 
 ## Features
 
