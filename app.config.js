@@ -21,6 +21,12 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: isDev ? 'com.neplearn.app.dev' : 'com.neplearn.app',
+      infoPlist: {
+        NSMicrophoneUsageDescription:
+          'NepLearn uses your microphone to recognize your Nepali pronunciation.',
+        NSSpeechRecognitionUsageDescription:
+          'NepLearn uses speech recognition to evaluate your Nepali pronunciation.',
+      },
     },
     android: {
       googleServicesFile: isDev ? './google-services-dev.json' : './google-services.json',
@@ -31,6 +37,7 @@ module.exports = {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
+      permissions: ['android.permission.RECORD_AUDIO'],
     },
     web: {
       favicon: './assets/favicon.png',
@@ -40,7 +47,6 @@ module.exports = {
       'expo-web-browser',
       '@react-native-google-signin/google-signin',
       'expo-notifications',
-      '@dev-amirzubair/react-native-voice',
       [
         'expo-image-picker',
         {
