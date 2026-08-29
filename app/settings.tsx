@@ -228,19 +228,21 @@ const Settings = () => {
                 : 'Off'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            className="px-4 py-4 flex-row justify-between items-center"
-            onPress={async () => {
-              try {
-                await sendTestNotification();
-              } catch (e: any) {
-                Alert.alert('Notification Error', e?.message || 'Failed to send test notification.');
-              }
-            }}
-          >
-            <Text className="text-ink text-base">Send Test Notification</Text>
-            <Text className="text-brand text-base">Send</Text>
-          </TouchableOpacity>
+          {__DEV__ && (
+            <TouchableOpacity
+              className="px-4 py-4 flex-row justify-between items-center"
+              onPress={async () => {
+                try {
+                  await sendTestNotification();
+                } catch (e: any) {
+                  Alert.alert('Notification Error', e?.message || 'Failed to send test notification.');
+                }
+              }}
+            >
+              <Text className="text-ink text-base">Send Test Notification</Text>
+              <Text className="text-brand text-base">Send</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View className="bg-white overflow-hidden mb-6" style={{ borderRadius: 16 }}>

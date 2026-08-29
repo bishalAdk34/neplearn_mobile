@@ -22,6 +22,7 @@ const Lesson = () => {
   const router = useRouter();
   const params = useGlobalSearchParams();
   const category = params.category as string | undefined;
+  const recommended = params.recommended === '1';
   const user = useAuthStore(s => s.user);
   const { learnWord, isLearned, learningGoal, learningLevel } = useVocabStore();
   const uid = user?.id || GUEST_ID;
@@ -35,9 +36,10 @@ const Lesson = () => {
   const [correctCount, setCorrectCount] = useState(0);
 
   const sessionWords = useMemo(() => {
+    if (recommended) return getRecommendedWords(learningGoal, learningLevel, 5);
     const words = category ? getWordsByCategory(category) : getRecommendedWords(learningGoal, learningLevel, 5);
     return category ? shuffle(words).slice(0, 5) : words;
-  }, [category]);
+  }, [category, recommended, learningGoal, learningLevel]);
 
   const currentWord = sessionWords[currentIndex];
   const df = currentWord ? getDirectionFields(currentWord, direction) : null;

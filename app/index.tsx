@@ -220,7 +220,7 @@ const Home = () => {
         <View className="px-5 mb-6">
           <Text className="text-ink text-base font-semibold mb-3">CONTINUE LEARNING</Text>
           {continueRec ? (
-            <Link href={{ pathname: '/lesson', params: { category: continueRec.cat } }} asChild>
+            <Link href={{ pathname: '/lesson', params: { category: continueRec.cat, recommended: '1' } }} asChild>
               <TouchableOpacity className="bg-white border border-line p-4 flex-row items-center" style={{ borderRadius: 20 }}>
                 <View style={{ backgroundColor: CATEGORY_META[continueRec.cat].color }} className="w-20 h-20 rounded-xl items-center justify-center mr-4">
                   <Text className="text-3xl">{CATEGORY_META[continueRec.cat].emoji}</Text>
