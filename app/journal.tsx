@@ -47,7 +47,7 @@ const Journal = () => {
     // AI feedback only when online; never queued.
     let aiFeedback: JournalFeedback | null = null;
     if (!isOffline()) {
-      aiFeedback = await getJournalFeedback(prompt.nepali, text.trim());
+      aiFeedback = await getJournalFeedback(prompt.nepali, text.trim(), uid);
     }
 
     const feedbackText = aiFeedback

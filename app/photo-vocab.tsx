@@ -34,7 +34,7 @@ const PhotoVocab = () => {
     }
 
     setLoading(true);
-    const identified = await identifyObjects(asset.base64!);
+    const identified = await identifyObjects(asset.base64!, uid);
     setLoading(false);
     if (!identified) {
       setError('Could not identify objects in this photo. Try another one.');

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Switch, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Switch, Modal, TextInput, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../src/components/BottomNav';
@@ -8,6 +8,7 @@ import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSettingsStore, TtsSpeed, LearningDirection } from '../src/stores/settings';
 import { useNotifPromptStore } from '../src/stores/notifPrompt';
+import { useAiQuotaStore, DAILY_AI_LIMIT } from '../src/stores/aiQuota';
 import { DIRECTION_OPTIONS } from '../src/utils/direction';
 import { supabase } from '../src/services/supabase';
 import {
@@ -72,12 +73,17 @@ const Settings = () => {
   const [goalPickerVisible, setGoalPickerVisible] = useState(false);
   const [directionPickerVisible, setDirectionPickerVisible] = useState(false);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+  const [apiKeyModalVisible, setApiKeyModalVisible] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
   const ttsSpeed = useSettingsStore(s => s.ttsSpeed);
   const setTtsSpeed = useSettingsStore(s => s.setTtsSpeed);
   const dailyGoalXp = useSettingsStore(s => s.dailyGoalXp);
   const setDailyGoalXp = useSettingsStore(s => s.setDailyGoalXp);
   const learningDirection = useSettingsStore(s => s.learningDirection);
   const setLearningDirection = useSettingsStore(s => s.setLearningDirection);
+  const customApiKey = useAiQuotaStore(s => s.customApiKey);
+  const setCustomApiKey = useAiQuotaStore(s => s.setCustomApiKey);
+  const aiQuota = useAiQuotaStore(s => s.getQuota(uid));
 
   const currentStreak = useVocabStore.getState().getLocalStreak(uid).current;
 
@@ -292,6 +298,42 @@ const Settings = () => {
             <Text style={{ color: colors.textSecondary }} className="text-base">{user ? user.name || 'Signed In' : 'Sign In'}</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Advanced Section - AI API Key */}
+        <Text className="text-sm font-semibold mb-2 px-1" style={{ color: colors.textSecondary }}>Advanced</Text>
+        <View className="bg-white overflow-hidden mb-6" style={{ borderRadius: 16 }}>
+          <View className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }}>
+            <View className="flex-row justify-between items-center">
+              <Text className="text-ink text-base">AI Usage</Text>
+              <Text style={{ color: customApiKey ? colors.success : colors.textSecondary }} className="text-base">
+                {customApiKey ? 'Unlimited' : `${aiQuota.remaining}/${DAILY_AI_LIMIT} today`}
+              </Text>
+            </View>
+            {!customApiKey && (
+              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                Daily limit resets at midnight
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity
+            className="px-4 py-4 flex-row justify-between items-center"
+            onPress={() => {
+              setApiKeyInput(customApiKey || '');
+              setApiKeyModalVisible(true);
+            }}
+          >
+            <View className="flex-1 mr-3">
+              <Text className="text-ink text-base">Your Groq API Key</Text>
+              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                Add your own key for unlimited AI access
+              </Text>
+            </View>
+            <Text style={{ color: customApiKey ? colors.success : colors.primary }} className="text-base">
+              {customApiKey ? 'Set' : 'Add'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {user && (
           <TouchableOpacity
             className="bg-white overflow-hidden mb-6"
@@ -431,6 +473,75 @@ const Settings = () => {
               );
             })}
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={apiKeyModalVisible} transparent animationType="slide" onRequestClose={() => setApiKeyModalVisible(false)}>
+        <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setApiKeyModalVisible(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+              <Text className="text-ink text-lg font-bold mb-2 text-center">Groq API Key</Text>
+              <Text className="text-sm text-center mb-4" style={{ color: colors.textSecondary }}>
+                Add your own free API key for unlimited AI access
+              </Text>
+
+              <TextInput
+                className="border rounded-xl px-4 py-3 text-base mb-3"
+                style={{ borderColor: '#E5E7EB', color: colors.ink }}
+                placeholder="gsk_..."
+                placeholderTextColor={colors.disabled}
+                value={apiKeyInput}
+                onChangeText={setApiKeyInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+              />
+
+              <TouchableOpacity
+                className="mb-4"
+                onPress={() => Linking.openURL('https://console.groq.com/keys')}
+              >
+                <Text className="text-center text-sm" style={{ color: colors.primary }}>
+                  Get a free key at console.groq.com
+                </Text>
+              </TouchableOpacity>
+
+              <View className="flex-row gap-3">
+                {customApiKey && (
+                  <TouchableOpacity
+                    className="flex-1 py-3 rounded-xl"
+                    style={{ backgroundColor: colors.danger + '15' }}
+                    onPress={() => {
+                      setCustomApiKey(null);
+                      setApiKeyInput('');
+                      setApiKeyModalVisible(false);
+                      Alert.alert('Removed', 'Your API key has been removed. You will use the daily quota now.');
+                    }}
+                  >
+                    <Text className="text-center font-semibold" style={{ color: colors.danger }}>Remove</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  className="flex-1 py-3 rounded-xl"
+                  style={{ backgroundColor: colors.primary }}
+                  onPress={() => {
+                    const key = apiKeyInput.trim();
+                    if (key && !key.startsWith('gsk_')) {
+                      Alert.alert('Invalid Key', 'Groq API keys start with "gsk_". Please check your key.');
+                      return;
+                    }
+                    setCustomApiKey(key || null);
+                    setApiKeyModalVisible(false);
+                    if (key) {
+                      Alert.alert('Saved', 'Your API key has been saved. You now have unlimited AI access.');
+                    }
+                  }}
+                >
+                  <Text className="text-center font-semibold text-white">Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 

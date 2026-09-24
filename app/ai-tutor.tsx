@@ -9,7 +9,7 @@ import { ChatDrawer } from '../src/components/ChatDrawer';
 import { useAuthStore } from '../src/stores/auth';
 import { useChatsStore } from '../src/stores/chats';
 import { useVocabStore } from '../src/data/vocab';
-import { sendMessage, isOffline } from '../src/services/ai';
+import { sendMessage, isOffline, getAiQuota, hasUnlimitedAi } from '../src/services/ai';
 import { saveChatMessage, fetchChatHistory } from '../src/services/db';
 import { awardXp } from '../src/services/xp';
 import { GUEST_ID } from '../src/data/vocab';
@@ -136,7 +136,7 @@ const AITutor = () => {
       : undefined;
     const context = [profileContext, learnedContext].filter(Boolean).join('\n') || undefined;
 
-    const reply = await sendMessage(chatHistory, msg, context);
+    const reply = await sendMessage(chatHistory, msg, context, uid);
 
     const aiMsg = { id: `a-${Date.now()}`, role: 'assistant' as const, text: reply };
     setMessages(prev => [...prev, aiMsg]);
@@ -210,8 +210,18 @@ const AITutor = () => {
           </View>
         </View>
         <View className="flex-row items-center">
+          {!hasUnlimitedAi() && (
+            <View
+              className="flex-row items-center px-3 py-1.5 rounded-full mr-2"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <Text className="text-xs" style={{ color: getAiQuota(uid).remaining <= 5 ? colors.danger : colors.textSecondary }}>
+                {getAiQuota(uid).remaining} left
+              </Text>
+            </View>
+          )}
           <View
-            className="flex-row items-center px-3 py-1.5 rounded-full mr-3"
+            className="flex-row items-center px-3 py-1.5 rounded-full"
             style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
           >
             <Text className="mr-1">🔥</Text>

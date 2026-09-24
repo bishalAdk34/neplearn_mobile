@@ -1,9 +1,15 @@
 import { GROQ_API_KEY } from '../config';
 import { networkManager } from './network';
+import { useAiQuotaStore, DAILY_AI_LIMIT } from '../stores/aiQuota';
 
 const MODEL = 'qwen/qwen3.8-27b';
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const BASE_URL = 'https://api.groq.com/openai/v1';
+
+/** Get the effective API key (custom or default) */
+function getApiKey(): string {
+  return useAiQuotaStore.getState().getEffectiveApiKey(GROQ_API_KEY || '');
+}
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -49,12 +55,15 @@ async function groqChat(
   systemPrompt: string,
   jsonMode = false,
 ): Promise<string | null> {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
   const allMessages = [{ role: 'system', content: systemPrompt }, ...messages];
 
   try {
     const res = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: MODEL,
         messages: allMessages,
@@ -80,17 +89,38 @@ export function isOffline(): boolean {
   return !networkManager.getIsConnected();
 }
 
+/** Get current AI quota for a user */
+export function getAiQuota(userId: string) {
+  return useAiQuotaStore.getState().getQuota(userId);
+}
+
+/** Check if user has custom API key (unlimited) */
+export function hasUnlimitedAi(): boolean {
+  return useAiQuotaStore.getState().hasCustomKey();
+}
+
 export async function sendMessage(
   history: ChatMessage[],
   newMessage: string,
   context?: string,
+  userId?: string,
 ): Promise<string> {
   if (!networkManager.getIsConnected()) {
     return 'You are currently offline. Aama needs an internet connection to respond. Please reconnect and try again. 🙏';
   }
 
-  if (!GROQ_API_KEY) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
     return 'Maaf garnuhos, Aama\'s brain hasn\'t been configured yet. The developer needs to set the GROQ_API_KEY environment variable. 🙏';
+  }
+
+  // Check quota if not using custom key
+  const quotaStore = useAiQuotaStore.getState();
+  if (!quotaStore.hasCustomKey() && userId) {
+    const quota = quotaStore.getQuota(userId);
+    if (quota.remaining <= 0) {
+      return `You've reached your daily limit of ${DAILY_AI_LIMIT} AI messages. Add your own API key in Settings > Advanced for unlimited access, or wait until tomorrow. 🙏`;
+    }
   }
 
   const messages = history.map(msg => ({
@@ -107,6 +137,11 @@ export async function sendMessage(
     return 'Maaf garnuhos, Aama is having trouble thinking right now. Please try again in a moment. 🙏';
   }
 
+  // Consume quota on success
+  if (userId) {
+    quotaStore.consumeQuota(userId);
+  }
+
   return reply;
 }
 
@@ -120,7 +155,15 @@ export interface JournalFeedback {
 export async function getJournalFeedback(
   prompt: string,
   userText: string,
+  userId?: string,
 ): Promise<JournalFeedback | null> {
+  // Check quota if not using custom key
+  const quotaStore = useAiQuotaStore.getState();
+  if (!quotaStore.hasCustomKey() && userId) {
+    const quota = quotaStore.getQuota(userId);
+    if (quota.remaining <= 0) return null;
+  }
+
   const content =
     `Journal prompt: ${prompt}\n` +
     `Learner's answer: ${userText}\n\n` +
@@ -139,6 +182,8 @@ export async function getJournalFeedback(
   try {
     const parsed = JSON.parse(result) as JournalFeedback;
     if (typeof parsed.corrected !== 'string' || typeof parsed.explanation !== 'string') return null;
+    // Consume quota on success
+    if (userId) quotaStore.consumeQuota(userId);
     return { corrected: parsed.corrected, roman: parsed.roman || '', explanation: parsed.explanation };
   } catch {
     return null;
@@ -159,8 +204,16 @@ export interface AiQuizQuestion {
  */
 export async function generateMistakeQuiz(
   words: { id: number; english: string; nepali: string; roman: string }[],
+  userId?: string,
 ): Promise<AiQuizQuestion[] | null> {
   if (words.length === 0) return null;
+
+  // Check quota if not using custom key
+  const quotaStore = useAiQuotaStore.getState();
+  if (!quotaStore.hasCustomKey() && userId) {
+    const quota = quotaStore.getQuota(userId);
+    if (quota.remaining <= 0) return null;
+  }
 
   const wordList = words
     .map(w => `id=${w.id}: ${w.english} = ${w.nepali} (${w.roman})`)
@@ -202,6 +255,12 @@ export async function generateMistakeQuiz(
     q.answerIndex >= 0 &&
     q.answerIndex < 4
   );
+
+  // Consume quota on success
+  if (valid.length > 0 && userId) {
+    quotaStore.consumeQuota(userId);
+  }
+
   return valid.length > 0 ? valid : null;
 }
 
@@ -212,8 +271,16 @@ export interface IdentifiedObject {
 }
 
 /** Identify objects in a photo and name them in Nepali. Returns null offline or on failure. */
-export async function identifyObjects(base64: string): Promise<IdentifiedObject[] | null> {
-  if (!networkManager.getIsConnected() || !GROQ_API_KEY) return null;
+export async function identifyObjects(base64: string, userId?: string): Promise<IdentifiedObject[] | null> {
+  const apiKey = getApiKey();
+  if (!networkManager.getIsConnected() || !apiKey) return null;
+
+  // Check quota if not using custom key
+  const quotaStore = useAiQuotaStore.getState();
+  if (!quotaStore.hasCustomKey() && userId) {
+    const quota = quotaStore.getQuota(userId);
+    if (quota.remaining <= 0) return null;
+  }
 
   const content = [
     {
@@ -232,7 +299,7 @@ export async function identifyObjects(base64: string): Promise<IdentifiedObject[
   try {
     const res = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: VISION_MODEL,
         messages: [{ role: 'user', content }],
@@ -255,6 +322,12 @@ export async function identifyObjects(base64: string): Promise<IdentifiedObject[
     const valid = parsed.objects.filter(
       o => o && typeof o.english === 'string' && typeof o.nepali === 'string' && typeof o.roman === 'string',
     );
+
+    // Consume quota on success
+    if (valid.length > 0 && userId) {
+      quotaStore.consumeQuota(userId);
+    }
+
     return valid.length > 0 ? valid : null;
   } catch (e) {
     console.warn('Groq vision fetch failed:', e);

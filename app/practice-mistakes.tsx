@@ -47,7 +47,8 @@ const PracticeMistakes = () => {
     }
     setLoadingAi(true);
     const questions = await generateMistakeQuiz(
-      mistakeWords.slice(0, 10).map(w => ({ id: w.id, english: w.english, nepali: w.nepali, roman: w.roman }))
+      mistakeWords.slice(0, 10).map(w => ({ id: w.id, english: w.english, nepali: w.nepali, roman: w.roman })),
+      uid
     );
     setLoadingAi(false);
     if (!questions) {

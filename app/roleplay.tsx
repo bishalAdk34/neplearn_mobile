@@ -65,7 +65,7 @@ const Roleplay = () => {
     }));
 
     // Ephemeral session: no chat_history writes.
-    const reply = await sendMessage(chatHistory, msg, scenario.contextPrompt);
+    const reply = await sendMessage(chatHistory, msg, scenario.contextPrompt, uid);
     setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: reply }]);
 
     userTurnsRef.current += 1;
