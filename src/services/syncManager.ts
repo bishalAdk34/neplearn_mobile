@@ -1,4 +1,5 @@
 import { AppState, AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import {
   getQueue,
@@ -8,6 +9,35 @@ import {
 } from './offlineQueue';
 import { networkManager } from './network';
 import { mergeStreaks } from './streak';
+
+const AI_CHAT_STORAGE_KEY = 'nepali-ai-chat';
+
+/** Clear one pending chat message from local cache after successful sync */
+async function clearPendingChatMessage(
+  conversationId: string,
+  role: string,
+  content: string
+): Promise<void> {
+  const key = `${AI_CHAT_STORAGE_KEY}-pending-${conversationId}`;
+  const raw = await AsyncStorage.getItem(key);
+  if (!raw) return;
+  try {
+    const msgs: { role: string; content: string; created_at: string }[] = JSON.parse(raw);
+    // Remove first matching message (FIFO order)
+    const idx = msgs.findIndex(m => m.role === role && m.content === content);
+    if (idx !== -1) {
+      msgs.splice(idx, 1);
+      if (msgs.length === 0) {
+        await AsyncStorage.removeItem(key);
+      } else {
+        await AsyncStorage.setItem(key, JSON.stringify(msgs));
+      }
+    }
+  } catch {
+    // Corrupted cache, just clear it
+    await AsyncStorage.removeItem(key);
+  }
+}
 
 const MAX_RETRIES = 3;
 
@@ -179,7 +209,21 @@ class SyncManager {
               content: payload.chatContent,
               conversation_id: payload.conversationId,
             });
-          return classify(error);
+          const result = classify(error);
+          // Clear from local pending cache on sync (success or permanent failure)
+          if (
+            payload.conversationId &&
+            payload.chatRole &&
+            payload.chatContent &&
+            (result.success || ('permanent' in result && result.permanent))
+          ) {
+            await clearPendingChatMessage(
+              payload.conversationId,
+              payload.chatRole,
+              payload.chatContent
+            );
+          }
+          return result;
         }
 
         case 'CREATE_CONVERSATION': {

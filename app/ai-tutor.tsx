@@ -149,7 +149,6 @@ const AITutor = () => {
       awardXp(uid, 5, 'ai_tutor');
     }
 
-    await loadConversations(uid);
     setIsLoading(false);
   }, [messages, isLoading, uid, currentConversationId, learnedIds, learningGoal, learningLevel, flashQueuedNotice]);
 
@@ -294,7 +293,7 @@ const AITutor = () => {
         </ScrollView>
 
         <View
-          className="flex-row items-center px-4 py-3"
+          className="flex-row items-center px-4 py-3 mb-8"
           style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border }}
         >
           <TextInput

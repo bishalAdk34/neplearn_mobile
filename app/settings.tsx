@@ -8,7 +8,8 @@ import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, GUEST_ID } from '../src/data/vocab';
 import { useSettingsStore, TtsSpeed, LearningDirection } from '../src/stores/settings';
 import { useNotifPromptStore } from '../src/stores/notifPrompt';
-import { useAiQuotaStore, DAILY_AI_LIMIT } from '../src/stores/aiQuota';
+import { useAiQuotaStore, DAILY_AI_LIMIT, AI_PROVIDERS, AiProvider } from '../src/stores/aiQuota';
+import { testApiKey } from '../src/services/ai';
 import { DIRECTION_OPTIONS } from '../src/utils/direction';
 import { supabase } from '../src/services/supabase';
 import {
@@ -75,6 +76,8 @@ const Settings = () => {
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [apiKeyModalVisible, setApiKeyModalVisible] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [providerPickerVisible, setProviderPickerVisible] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const ttsSpeed = useSettingsStore(s => s.ttsSpeed);
   const setTtsSpeed = useSettingsStore(s => s.setTtsSpeed);
   const dailyGoalXp = useSettingsStore(s => s.dailyGoalXp);
@@ -83,7 +86,10 @@ const Settings = () => {
   const setLearningDirection = useSettingsStore(s => s.setLearningDirection);
   const customApiKey = useAiQuotaStore(s => s.customApiKey);
   const setCustomApiKey = useAiQuotaStore(s => s.setCustomApiKey);
-  const aiQuota = useAiQuotaStore(s => s.getQuota(uid));
+  const provider = useAiQuotaStore(s => s.provider);
+  const setProvider = useAiQuotaStore(s => s.setProvider);
+  const getQuota = useAiQuotaStore(s => s.getQuota);
+  const aiQuota = getQuota(uid);
 
   const currentStreak = useVocabStore.getState().getLocalStreak(uid).current;
 
@@ -316,6 +322,21 @@ const Settings = () => {
             )}
           </View>
           <TouchableOpacity
+            className="px-4 py-4 flex-row justify-between items-center border-b"
+            style={{ borderColor: '#E5E7EB' }}
+            onPress={() => setProviderPickerVisible(true)}
+          >
+            <View className="flex-1 mr-3">
+              <Text className="text-ink text-base">AI Provider</Text>
+              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                Choose your LLM provider
+              </Text>
+            </View>
+            <Text style={{ color: colors.textSecondary }} className="text-base">
+              {AI_PROVIDERS[provider].label}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             className="px-4 py-4 flex-row justify-between items-center"
             onPress={() => {
               setApiKeyInput(customApiKey || '');
@@ -323,7 +344,7 @@ const Settings = () => {
             }}
           >
             <View className="flex-1 mr-3">
-              <Text className="text-ink text-base">Your Groq API Key</Text>
+              <Text className="text-ink text-base">API Key</Text>
               <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
                 Add your own key for unlimited AI access
               </Text>
@@ -480,15 +501,17 @@ const Settings = () => {
         <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setApiKeyModalVisible(false)}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}}>
             <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
-              <Text className="text-ink text-lg font-bold mb-2 text-center">Groq API Key</Text>
+              <Text className="text-ink text-lg font-bold mb-2 text-center">
+                {AI_PROVIDERS[provider].label} API Key
+              </Text>
               <Text className="text-sm text-center mb-4" style={{ color: colors.textSecondary }}>
-                Add your own free API key for unlimited AI access
+                Add your own API key for unlimited AI access
               </Text>
 
               <TextInput
                 className="border rounded-xl px-4 py-3 text-base mb-3"
                 style={{ borderColor: '#E5E7EB', color: colors.ink }}
-                placeholder="gsk_..."
+                placeholder={AI_PROVIDERS[provider].keyHint}
                 placeholderTextColor={colors.disabled}
                 value={apiKeyInput}
                 onChangeText={setApiKeyInput}
@@ -497,14 +520,27 @@ const Settings = () => {
                 secureTextEntry
               />
 
-              <TouchableOpacity
-                className="mb-4"
-                onPress={() => Linking.openURL('https://console.groq.com/keys')}
-              >
-                <Text className="text-center text-sm" style={{ color: colors.primary }}>
-                  Get a free key at console.groq.com
-                </Text>
-              </TouchableOpacity>
+              <View className="flex-row gap-3 mb-4">
+                <TouchableOpacity
+                  className="flex-1 py-3 rounded-xl border"
+                  style={{ borderColor: colors.primary }}
+                  disabled={isTesting || !apiKeyInput.trim()}
+                  onPress={async () => {
+                    setIsTesting(true);
+                    const result = await testApiKey(apiKeyInput.trim());
+                    setIsTesting(false);
+                    if (result.success) {
+                      Alert.alert('Success', `API key works! Model: ${result.model}`);
+                    } else {
+                      Alert.alert('Failed', result.error || 'Could not connect');
+                    }
+                  }}
+                >
+                  <Text className="text-center font-semibold" style={{ color: colors.primary }}>
+                    {isTesting ? 'Testing...' : 'Test Key'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               <View className="flex-row gap-3">
                 {customApiKey && (
@@ -515,7 +551,7 @@ const Settings = () => {
                       setCustomApiKey(null);
                       setApiKeyInput('');
                       setApiKeyModalVisible(false);
-                      Alert.alert('Removed', 'Your API key has been removed. You will use the daily quota now.');
+                      Alert.alert('Removed', 'Your API key has been removed.');
                     }}
                   >
                     <Text className="text-center font-semibold" style={{ color: colors.danger }}>Remove</Text>
@@ -526,14 +562,22 @@ const Settings = () => {
                   style={{ backgroundColor: colors.primary }}
                   onPress={() => {
                     const key = apiKeyInput.trim();
-                    if (key && !key.startsWith('gsk_')) {
-                      Alert.alert('Invalid Key', 'Groq API keys start with "gsk_". Please check your key.');
+                    const prefix = AI_PROVIDERS[provider].keyPrefix;
+                    if (key && prefix && !key.startsWith(prefix)) {
+                      Alert.alert('Warning', `${AI_PROVIDERS[provider].label} keys usually start with "${prefix}". Save anyway?`, [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Save', onPress: () => {
+                          setCustomApiKey(key);
+                          setApiKeyModalVisible(false);
+                          Alert.alert('Saved', 'API key saved.');
+                        }},
+                      ]);
                       return;
                     }
                     setCustomApiKey(key || null);
                     setApiKeyModalVisible(false);
                     if (key) {
-                      Alert.alert('Saved', 'Your API key has been saved. You now have unlimited AI access.');
+                      Alert.alert('Saved', 'API key saved. You now have unlimited AI access.');
                     }
                   }}
                 >
@@ -542,6 +586,39 @@ const Settings = () => {
               </View>
             </View>
           </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={providerPickerVisible} transparent animationType="slide" onRequestClose={() => setProviderPickerVisible(false)}>
+        <TouchableOpacity className="flex-1 justify-end" activeOpacity={1} onPress={() => setProviderPickerVisible(false)}>
+          <View className="bg-white pt-6 pb-10 px-5" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <Text className="text-ink text-lg font-bold mb-4 text-center">AI Provider</Text>
+            {(Object.keys(AI_PROVIDERS) as AiProvider[]).filter(p => p !== 'custom').map(p => {
+              const config = AI_PROVIDERS[p];
+              const selected = p === provider;
+              return (
+                <TouchableOpacity
+                  key={p}
+                  className="py-4 px-4 flex-row items-center justify-between border-b"
+                  style={{ borderColor: '#E5E7EB' }}
+                  onPress={() => {
+                    setProvider(p);
+                    setProviderPickerVisible(false);
+                  }}
+                >
+                  <View>
+                    <Text className={`text-base ${selected ? 'text-brand font-bold' : 'text-ink'}`}>
+                      {config.label}
+                    </Text>
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                      {config.defaultModel}
+                    </Text>
+                  </View>
+                  {selected && <Text className="text-brand text-lg">✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </TouchableOpacity>
       </Modal>
 

@@ -14,14 +14,71 @@ export interface UserQuota {
   count: number;
 }
 
+export type AiProvider = 'groq' | 'openai' | 'openrouter' | 'together' | 'custom';
+
+export interface ProviderConfig {
+  label: string;
+  baseUrl: string;
+  defaultModel: string;
+  visionModel?: string;
+  keyPrefix?: string;
+  keyHint: string;
+}
+
+export const AI_PROVIDERS: Record<AiProvider, ProviderConfig> = {
+  groq: {
+    label: 'Groq',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    defaultModel: 'llama-3.3-70b-versatile',
+    visionModel: 'llama-3.2-90b-vision-preview',
+    keyPrefix: 'gsk_',
+    keyHint: 'gsk_...',
+  },
+  openai: {
+    label: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-4o-mini',
+    visionModel: 'gpt-4o-mini',
+    keyPrefix: 'sk-',
+    keyHint: 'sk-...',
+  },
+  openrouter: {
+    label: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    defaultModel: 'google/gemini-2.0-flash-001',
+    visionModel: 'google/gemini-2.0-flash-001',
+    keyPrefix: 'sk-or-',
+    keyHint: 'sk-or-...',
+  },
+  together: {
+    label: 'Together AI',
+    baseUrl: 'https://api.together.xyz/v1',
+    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    keyHint: 'API key',
+  },
+  custom: {
+    label: 'Custom',
+    baseUrl: '',
+    defaultModel: '',
+    keyHint: 'API key',
+  },
+};
+
 type AiQuotaState = {
   quotaByUser: Record<string, UserQuota>;
   customApiKey: string | null;
+  provider: AiProvider;
+  customBaseUrl: string | null;
+  customModel: string | null;
   getQuota: (userId: string) => { used: number; remaining: number; limit: number };
   consumeQuota: (userId: string) => boolean;
   hasCustomKey: () => boolean;
   setCustomApiKey: (key: string | null) => void;
+  setProvider: (provider: AiProvider) => void;
+  setCustomBaseUrl: (url: string | null) => void;
+  setCustomModel: (model: string | null) => void;
   getEffectiveApiKey: (defaultKey: string) => string;
+  getProviderConfig: () => { baseUrl: string; model: string; visionModel: string };
 };
 
 const asyncStorage: PersistStorage<AiQuotaState> = {
@@ -47,6 +104,9 @@ export const useAiQuotaStore = create<AiQuotaState>()(
     (set, get) => ({
       quotaByUser: {},
       customApiKey: null,
+      provider: 'groq' as AiProvider,
+      customBaseUrl: null,
+      customModel: null,
 
       getQuota: (userId: string) => {
         const today = getTodayDate();
@@ -96,9 +156,40 @@ export const useAiQuotaStore = create<AiQuotaState>()(
         set({ customApiKey: key?.trim() || null });
       },
 
+      setProvider: (provider: AiProvider) => {
+        set({ provider });
+      },
+
+      setCustomBaseUrl: (url: string | null) => {
+        set({ customBaseUrl: url?.trim() || null });
+      },
+
+      setCustomModel: (model: string | null) => {
+        set({ customModel: model?.trim() || null });
+      },
+
       getEffectiveApiKey: (defaultKey: string) => {
         const customKey = get().customApiKey;
         return customKey && customKey.trim().length > 0 ? customKey : defaultKey;
+      },
+
+      getProviderConfig: () => {
+        const { provider, customBaseUrl, customModel } = get();
+        const config = AI_PROVIDERS[provider];
+
+        if (provider === 'custom') {
+          return {
+            baseUrl: customBaseUrl || '',
+            model: customModel || '',
+            visionModel: customModel || '',
+          };
+        }
+
+        return {
+          baseUrl: config.baseUrl,
+          model: customModel || config.defaultModel,
+          visionModel: config.visionModel || config.defaultModel,
+        };
       },
     }),
     {

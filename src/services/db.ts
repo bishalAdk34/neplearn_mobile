@@ -256,6 +256,11 @@ function guestChatKey(userId: string, conversationId: string): string {
   return `${AI_CHAT_STORAGE_KEY}-${userId}-${conversationId}`;
 }
 
+/** Key for pending (queued but not synced) messages for authenticated users */
+function pendingChatKey(conversationId: string): string {
+  return `${AI_CHAT_STORAGE_KEY}-pending-${conversationId}`;
+}
+
 function sortConversations(list: StoredConversation[]): StoredConversation[] {
   return [...list].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
 }
@@ -479,6 +484,13 @@ export async function saveChatMessage(
     }
   }
 
+  // Save to local pending cache so messages persist during offline/sync
+  const pkey = pendingChatKey(conversationId);
+  const pendingRaw = await AsyncStorage.getItem(pkey);
+  const pending: StoredChatMessage[] = safeParse(pendingRaw, []);
+  pending.push({ role, content, created_at: new Date().toISOString() });
+  await AsyncStorage.setItem(pkey, JSON.stringify(pending));
+
   await enqueue({
     type: 'SAVE_CHAT_MESSAGE',
     payload: { userId, conversationId, chatRole: role, chatContent: content },
@@ -496,17 +508,33 @@ export async function fetchChatHistory(
     const raw = await AsyncStorage.getItem(key);
     return safeParse<StoredChatMessage[]>(raw, []).slice(-limit);
   }
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('ai_chat_history')
-    .select('role, content, created_at')
-    .eq('user_id', userId)
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
-    .limit(limit);
-  if (error) {
-    console.warn('fetchChatHistory failed:', error.message);
-    return [];
+
+  // For auth users: merge cloud data with locally pending (queued) messages
+  let cloudMsgs: StoredChatMessage[] = [];
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('ai_chat_history')
+      .select('role, content, created_at')
+      .eq('user_id', userId)
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+    if (error) {
+      console.warn('fetchChatHistory failed:', error.message);
+    } else {
+      cloudMsgs = data || [];
+    }
   }
-  return data || [];
+
+  // Read pending messages from local cache
+  const pkey = pendingChatKey(conversationId);
+  const pendingRaw = await AsyncStorage.getItem(pkey);
+  const pending: StoredChatMessage[] = safeParse(pendingRaw, []);
+
+  // Merge and sort by created_at
+  const merged = [...cloudMsgs, ...pending].sort(
+    (a, b) => a.created_at.localeCompare(b.created_at)
+  );
+
+  return merged.slice(-limit);
 }

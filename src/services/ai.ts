@@ -2,13 +2,14 @@ import { GROQ_API_KEY } from '../config';
 import { networkManager } from './network';
 import { useAiQuotaStore, DAILY_AI_LIMIT } from '../stores/aiQuota';
 
-const MODEL = 'qwen/qwen3.8-27b';
-const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
-const BASE_URL = 'https://api.groq.com/openai/v1';
-
 /** Get the effective API key (custom or default) */
 function getApiKey(): string {
   return useAiQuotaStore.getState().getEffectiveApiKey(GROQ_API_KEY || '');
+}
+
+/** Get current provider config */
+function getProviderConfig() {
+  return useAiQuotaStore.getState().getProviderConfig();
 }
 
 export interface ChatMessage {
@@ -50,7 +51,7 @@ async function fetchWithRetry(
   return res;
 }
 
-async function groqChat(
+async function llmChat(
   messages: { role: string; content: string }[],
   systemPrompt: string,
   jsonMode = false,
@@ -58,14 +59,17 @@ async function groqChat(
   const apiKey = getApiKey();
   if (!apiKey) return null;
 
+  const { baseUrl, model } = getProviderConfig();
+  if (!baseUrl || !model) return null;
+
   const allMessages = [{ role: 'system', content: systemPrompt }, ...messages];
 
   try {
-    const res = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
+    const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         messages: allMessages,
         ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
       }),
@@ -74,13 +78,13 @@ async function groqChat(
     const data = await res.json();
 
     if (!res.ok) {
-      console.warn('Groq API error:', data.error?.message || res.status);
+      console.warn('LLM API error:', data.error?.message || res.status);
       return null;
     }
 
     return data?.choices?.[0]?.message?.content ?? null;
   } catch (e) {
-    console.warn('Groq API fetch failed:', e);
+    console.warn('LLM API fetch failed:', e);
     return null;
   }
 }
@@ -97,6 +101,60 @@ export function getAiQuota(userId: string) {
 /** Check if user has custom API key (unlimited) */
 export function hasUnlimitedAi(): boolean {
   return useAiQuotaStore.getState().hasCustomKey();
+}
+
+export interface TestApiKeyResult {
+  success: boolean;
+  error?: string;
+  model?: string;
+}
+
+/** Test an API key with the current provider config */
+export async function testApiKey(apiKey: string, baseUrl?: string, model?: string): Promise<TestApiKeyResult> {
+  if (!networkManager.getIsConnected()) {
+    return { success: false, error: 'No internet connection' };
+  }
+
+  const config = getProviderConfig();
+  const url = baseUrl || config.baseUrl;
+  const testModel = model || config.model;
+
+  if (!url || !testModel) {
+    return { success: false, error: 'Missing base URL or model' };
+  }
+
+  try {
+    const res = await fetch(`${url}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: testModel,
+        messages: [{ role: 'user', content: 'Say "ok" and nothing else.' }],
+        max_tokens: 5,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data.error?.message || `HTTP ${res.status}`,
+      };
+    }
+
+    const reply = data?.choices?.[0]?.message?.content;
+    if (reply) {
+      return { success: true, model: testModel };
+    }
+
+    return { success: false, error: 'No response from model' };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Connection failed' };
+  }
 }
 
 export async function sendMessage(
@@ -131,7 +189,7 @@ export async function sendMessage(
   messages.push({ role: 'user', content: newMessage });
 
   const systemPrompt = context ? `${SYSTEM_PROMPT}\n\n${context}` : SYSTEM_PROMPT;
-  const reply = await groqChat(messages, systemPrompt);
+  const reply = await llmChat(messages, systemPrompt);
 
   if (!reply) {
     return 'Maaf garnuhos, Aama is having trouble thinking right now. Please try again in a moment. 🙏';
@@ -172,7 +230,7 @@ export async function getJournalFeedback(
     '"roman" (romanization of the corrected text), ' +
     '"explanation" (1-4 short English sentences: first check if the answer logically responds to the prompt. If it\'s off-topic or doesn\'t make sense, gently point that out. Then note any language corrections, or praise if both content and grammar are good).';
 
-  const result = await groqChat(
+  const result = await llmChat(
     [{ role: 'user', content }],
     'You are a Nepali language teacher correcting a beginner\'s journal entry. First evaluate whether the answer logically responds to the journal prompt. If it is unrelated or nonsensical, gently explain that. Then correct any Nepali grammar/spelling. Be gentle and concise. Output only valid JSON.',
     true,
@@ -227,7 +285,7 @@ export async function generateMistakeQuiz(
     '"question": string (English, may embed Nepali in Devanagari), ' +
     '"options": [4 strings], "answerIndex": number (0-3)}]}';
 
-  const result = await groqChat(
+  const result = await llmChat(
     [{ role: 'user', content }],
     'You create short Nepali vocabulary quiz questions for a beginner. Output only valid JSON.',
     true,
@@ -275,6 +333,9 @@ export async function identifyObjects(base64: string, userId?: string): Promise<
   const apiKey = getApiKey();
   if (!networkManager.getIsConnected() || !apiKey) return null;
 
+  const { baseUrl, visionModel } = getProviderConfig();
+  if (!baseUrl || !visionModel) return null;
+
   // Check quota if not using custom key
   const quotaStore = useAiQuotaStore.getState();
   if (!quotaStore.hasCustomKey() && userId) {
@@ -297,11 +358,11 @@ export async function identifyObjects(base64: string, userId?: string): Promise<
   ];
 
   try {
-    const res = await fetchWithRetry(`${BASE_URL}/chat/completions`, {
+    const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model: visionModel,
         messages: [{ role: 'user', content }],
         response_format: { type: 'json_object' },
       }),
@@ -309,7 +370,7 @@ export async function identifyObjects(base64: string, userId?: string): Promise<
 
     const data = await res.json();
     if (!res.ok) {
-      console.warn('Groq vision API error:', data.error?.message || res.status);
+      console.warn('Vision API error:', data.error?.message || res.status);
       return null;
     }
 
@@ -330,7 +391,7 @@ export async function identifyObjects(base64: string, userId?: string): Promise<
 
     return valid.length > 0 ? valid : null;
   } catch (e) {
-    console.warn('Groq vision fetch failed:', e);
+    console.warn('Vision API fetch failed:', e);
     return null;
   }
 }
