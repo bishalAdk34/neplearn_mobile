@@ -3,7 +3,7 @@ name: Supabase Heartbeat
 on:
   schedule:
     - cron: '0 0 */5 * *'
-  workflow_dispatch:
+  workflow_dispatch: # manual trigger
 
 jobs:
   ping:
