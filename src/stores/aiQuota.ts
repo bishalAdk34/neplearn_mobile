@@ -14,7 +14,7 @@ export interface UserQuota {
   count: number;
 }
 
-export type AiProvider = 'groq' | 'openai' | 'openrouter' | 'together' | 'custom';
+export type AiProvider = 'groq' | 'google' | 'openai' | 'openrouter' | 'together' | 'custom';
 
 export interface ProviderConfig {
   label: string;
@@ -29,10 +29,18 @@ export const AI_PROVIDERS: Record<AiProvider, ProviderConfig> = {
   groq: {
     label: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1',
-    defaultModel: 'llama-3.3-70b-versatile',
-    visionModel: 'llama-3.2-90b-vision-preview',
+    defaultModel: 'qwen/qwen3.8-27b',
+    visionModel: 'qwen/qwen3.8-27b',
     keyPrefix: 'gsk_',
     keyHint: 'gsk_...',
+  },
+  google: {
+    label: 'Google AI Studio',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    defaultModel: 'gemini-3.5-flash-lite',
+    visionModel: 'gemini-3.5-flash-lite',
+    keyPrefix: 'AIza',
+    keyHint: 'AIza...',
   },
   openai: {
     label: 'OpenAI',

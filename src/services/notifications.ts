@@ -124,6 +124,22 @@ export async function scheduleDailyReminder(hour: number, minute: number, streak
 
     await cancelDailyReminder();
     const content = reminderContent(streakDays);
+
+    // Use DAILY trigger for Android (CALENDAR with timezone not supported)
+    const trigger = Platform.OS === 'android'
+      ? {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+        }
+      : {
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+          hour,
+          minute,
+          repeats: true,
+          timezone: NEPAL_TIMEZONE,
+        };
+
     await Notifications.scheduleNotificationAsync({
       identifier: DAILY_REMINDER_ID,
       content: {
@@ -131,13 +147,7 @@ export async function scheduleDailyReminder(hour: number, minute: number, streak
         body: content.body,
         sound: true,
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        hour,
-        minute,
-        repeats: true,
-        timezone: NEPAL_TIMEZONE,
-      },
+      trigger,
     });
   } catch (e) {
     console.warn('scheduleDailyReminder failed:', e);
@@ -170,6 +180,21 @@ export async function scheduleWordOfDay(hour: number): Promise<void> {
     if (now.getHours() >= hour) target.setDate(target.getDate() + 1);
     const word = wordOfDayFor(target);
 
+    // Use DAILY trigger for Android (CALENDAR with timezone not supported)
+    const trigger = Platform.OS === 'android'
+      ? {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute: 0,
+        }
+      : {
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+          hour,
+          minute: 0,
+          repeats: true,
+          timezone: NEPAL_TIMEZONE,
+        };
+
     await Notifications.scheduleNotificationAsync({
       identifier: WORD_OF_DAY_ID,
       content: {
@@ -177,13 +202,7 @@ export async function scheduleWordOfDay(hour: number): Promise<void> {
         body: `${word.nepali} (${word.roman}) — open NepLearn to practice it!`,
         sound: true,
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        hour,
-        minute: 0,
-        repeats: true,
-        timezone: NEPAL_TIMEZONE,
-      },
+      trigger,
     });
   } catch (e) {
     console.warn('scheduleWordOfDay failed:', e);

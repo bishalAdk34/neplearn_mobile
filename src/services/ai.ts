@@ -31,6 +31,7 @@ RULES:
 - If user speaks Nepali, respond in Nepali then give English translation
 - Use natural conversational examples
 - Encourage practice and celebrate progress
+- NEVER use markdown formatting (no **, *, #, etc.) — plain text only
 - NEVER comment on your own responses or say "I hope this helps"`;
 
 const MAX_RETRIES = 3;
