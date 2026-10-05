@@ -69,8 +69,8 @@ module.exports = {
         : (process.env.GOOGLE_IOS_CLIENT_ID ?? ''),
       supabaseUrl: process.env.SUPABASE_URL ?? '',
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? '',
-      geminiApiKey: process.env.GEMINI_API_KEY ?? '',
-      groqApiKey: process.env.GROQ_API_KEY ?? '',
+      // LLM keys are NOT listed here on purpose: everything in `extra` ships
+      // inside the app bundle. The Groq key lives in the ai-chat Edge Function.
       router: {},
       eas: {
         projectId: '86e6ac25-acce-4ebb-a3b1-568dd84ea3b5',

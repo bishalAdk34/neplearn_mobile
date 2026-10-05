@@ -75,8 +75,6 @@ Open `.env` and provide the following values:
 | `GOOGLE_IOS_CLIENT_ID` | iOS OAuth client ID | Google Cloud Console |
 | `SUPABASE_URL` | Supabase project URL | [Supabase Dashboard](https://supabase.com/dashboard) → Project Settings → API |
 | `SUPABASE_ANON_KEY` | Supabase anon/public key | Supabase Dashboard → Project Settings → API |
-| `GEMINI_API_KEY` | Google Gemini API key | [AI Studio](https://aistudio.google.com/apikey) (optional - for image features) |
-| `GROQ_API_KEY` | Groq API key | [Groq Console](https://console.groq.com/keys) (free, no credit card) |
 
 > **Note:** Google Sign-In will not work without valid OAuth client IDs. All other features work in guest mode without auth.
 
@@ -85,6 +83,12 @@ Open `.env` and provide the following values:
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run the schema from `supabase/migrations/` (or the SQL schema file) in your Supabase SQL editor
 3. Copy your project URL and anon key into `.env`
+4. Deploy the AI proxy (the Groq key stays on the server, never in the app):
+   ```sh
+   supabase secrets set GROQ_API_KEY=gsk_...
+   supabase functions deploy ai-chat
+   ```
+   Built-in AI features require Google sign-in; the function enforces 50 requests/user/day.
 
 ### 5. Start the development server
 

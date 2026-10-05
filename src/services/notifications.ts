@@ -29,8 +29,6 @@ export type NotificationPrefs = {
   wordOfDayHour: number;
 };
 
-const NEPAL_TIMEZONE = 'Asia/Kathmandu';
-
 const defaultPrefs: NotificationPrefs = {
   enabled: false,
   reminderHour: 17,
@@ -125,8 +123,8 @@ export async function scheduleDailyReminder(hour: number, minute: number, streak
     await cancelDailyReminder();
     const content = reminderContent(streakDays);
 
-    // Use DAILY trigger for Android (CALENDAR with timezone not supported)
-    const trigger = Platform.OS === 'android'
+    // Both fire at the device's local time; iOS has no DAILY trigger, so use CALENDAR.
+    const trigger: import('expo-notifications').NotificationTriggerInput = Platform.OS === 'android'
       ? {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour,
@@ -137,7 +135,6 @@ export async function scheduleDailyReminder(hour: number, minute: number, streak
           hour,
           minute,
           repeats: true,
-          timezone: NEPAL_TIMEZONE,
         };
 
     await Notifications.scheduleNotificationAsync({
@@ -180,8 +177,8 @@ export async function scheduleWordOfDay(hour: number): Promise<void> {
     if (now.getHours() >= hour) target.setDate(target.getDate() + 1);
     const word = wordOfDayFor(target);
 
-    // Use DAILY trigger for Android (CALENDAR with timezone not supported)
-    const trigger = Platform.OS === 'android'
+    // Both fire at the device's local time; iOS has no DAILY trigger, so use CALENDAR.
+    const trigger: import('expo-notifications').NotificationTriggerInput = Platform.OS === 'android'
       ? {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour,
@@ -192,7 +189,6 @@ export async function scheduleWordOfDay(hour: number): Promise<void> {
           hour,
           minute: 0,
           repeats: true,
-          timezone: NEPAL_TIMEZONE,
         };
 
     await Notifications.scheduleNotificationAsync({
