@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../services/supabase';
 import { upsertProfile } from '../services/db';
 import { clearQueueForUser } from '../services/offlineQueue';
-import type { Session, Subscription } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
 
 export type User = {
   id: string;
@@ -76,7 +76,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
       authSubscription.unsubscribe();
     }
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       if (session) {
         const name = session.user.user_metadata?.name || 'User';
         const email = session.user.email || '';

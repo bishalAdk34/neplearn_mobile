@@ -14,5 +14,9 @@
     "nativewind.d.ts",
     "nativewind-env.d.ts",
     "typings/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions"
   ]
 }

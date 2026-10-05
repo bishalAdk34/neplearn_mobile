@@ -1,10 +1,28 @@
-import { GROQ_API_KEY } from '../config';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { networkManager } from './network';
+import { supabase } from './supabase';
 import { useAiQuotaStore, DAILY_AI_LIMIT } from '../stores/aiQuota';
+import { useAuthStore } from '../stores/auth';
+import { GUEST_ID } from '../data/vocab';
 
-/** Get the effective API key (custom or default) */
-function getApiKey(): string {
-  return useAiQuotaStore.getState().getEffectiveApiKey(GROQ_API_KEY || '');
+// Two paths:
+//  - User added their own key in Settings → call their provider directly.
+//  - Otherwise → the `ai-chat` Supabase Edge Function, which holds our Groq key
+//    and enforces the daily quota. Requires a signed-in (non-guest) user.
+
+/** The user's own API key from Settings, or '' when they use the built-in AI. */
+function getOwnApiKey(): string {
+  return useAiQuotaStore.getState().getEffectiveApiKey('');
+}
+
+function getSignedInUserId(): string | null {
+  const id = useAuthStore.getState().user?.id;
+  return id && id !== GUEST_ID ? id : null;
+}
+
+/** True when built-in AI is unavailable because the user is a guest with no own key. */
+export function aiNeedsSignIn(): boolean {
+  return !getOwnApiKey() && !getSignedInUserId();
 }
 
 /** Get current provider config */
@@ -52,26 +70,26 @@ async function fetchWithRetry(
   return res;
 }
 
-async function llmChat(
-  messages: { role: string; content: string }[],
-  systemPrompt: string,
-  jsonMode = false,
+type LlmMessage = { role: string; content: unknown };
+type CompletionOpts = { jsonMode?: boolean; vision?: boolean };
+
+/** Call the user's own provider with their own key. */
+async function directCompletion(
+  apiKey: string,
+  messages: LlmMessage[],
+  { jsonMode = false, vision = false }: CompletionOpts,
 ): Promise<string | null> {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-
-  const { baseUrl, model } = getProviderConfig();
-  if (!baseUrl || !model) return null;
-
-  const allMessages = [{ role: 'system', content: systemPrompt }, ...messages];
+  const { baseUrl, model, visionModel } = getProviderConfig();
+  const useModel = vision ? visionModel : model;
+  if (!baseUrl || !useModel) return null;
 
   try {
     const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model,
-        messages: allMessages,
+        model: useModel,
+        messages,
         ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
       }),
     });
@@ -89,6 +107,60 @@ async function llmChat(
     return null;
   }
 }
+
+/** Call the built-in AI through the ai-chat Edge Function. */
+async function proxyCompletion(
+  messages: LlmMessage[],
+  { jsonMode = false, vision = false }: CompletionOpts,
+): Promise<string | null> {
+  const userId = getSignedInUserId();
+  if (!supabase || !userId) return null;
+
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-chat', {
+      body: { messages, jsonMode, vision },
+    });
+
+    if (error) {
+      if (error instanceof FunctionsHttpError && error.context?.status === 429) {
+        useAiQuotaStore.getState().syncQuota(userId, 0);
+      } else {
+        console.warn('ai-chat function error:', error.message);
+      }
+      return null;
+    }
+
+    if (typeof data?.remaining === 'number') {
+      useAiQuotaStore.getState().syncQuota(userId, data.remaining);
+    }
+    return typeof data?.content === 'string' ? data.content : null;
+  } catch (e) {
+    console.warn('ai-chat invoke failed:', e);
+    return null;
+  }
+}
+
+async function completion(messages: LlmMessage[], opts: CompletionOpts = {}): Promise<string | null> {
+  const ownKey = getOwnApiKey();
+  return ownKey ? directCompletion(ownKey, messages, opts) : proxyCompletion(messages, opts);
+}
+
+async function llmChat(
+  messages: { role: string; content: string }[],
+  systemPrompt: string,
+  jsonMode = false,
+): Promise<string | null> {
+  return completion([{ role: 'system', content: systemPrompt }, ...messages], { jsonMode });
+}
+
+/** Local mirror of the server quota; true when the user has none left today. */
+function quotaExhausted(userId?: string): boolean {
+  const quotaStore = useAiQuotaStore.getState();
+  if (quotaStore.hasCustomKey() || !userId) return false;
+  return quotaStore.getQuota(userId).remaining <= 0;
+}
+
+const QUOTA_MESSAGE = `You've reached your daily limit of ${DAILY_AI_LIMIT} AI messages. Add your own API key in Settings > Advanced for unlimited access, or wait until tomorrow. 🙏`;
 
 export function isOffline(): boolean {
   return !networkManager.getIsConnected();
@@ -168,19 +240,11 @@ export async function sendMessage(
     return 'You are currently offline. Aama needs an internet connection to respond. Please reconnect and try again. 🙏';
   }
 
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    return 'Maaf garnuhos, Aama\'s brain hasn\'t been configured yet. The developer needs to set the GROQ_API_KEY environment variable. 🙏';
+  if (aiNeedsSignIn()) {
+    return 'Namaste! Please sign in with Google to chat with Aama — it\'s free. (Or add your own API key in Settings > Advanced.) 🙏';
   }
 
-  // Check quota if not using custom key
-  const quotaStore = useAiQuotaStore.getState();
-  if (!quotaStore.hasCustomKey() && userId) {
-    const quota = quotaStore.getQuota(userId);
-    if (quota.remaining <= 0) {
-      return `You've reached your daily limit of ${DAILY_AI_LIMIT} AI messages. Add your own API key in Settings > Advanced for unlimited access, or wait until tomorrow. 🙏`;
-    }
-  }
+  if (quotaExhausted(userId)) return QUOTA_MESSAGE;
 
   const messages = history.map(msg => ({
     role: msg.role === 'model' ? 'assistant' : 'user',
@@ -193,12 +257,9 @@ export async function sendMessage(
   const reply = await llmChat(messages, systemPrompt);
 
   if (!reply) {
+    // The server may have just told us the quota ran out.
+    if (quotaExhausted(userId)) return QUOTA_MESSAGE;
     return 'Maaf garnuhos, Aama is having trouble thinking right now. Please try again in a moment. 🙏';
-  }
-
-  // Consume quota on success
-  if (userId) {
-    quotaStore.consumeQuota(userId);
   }
 
   return reply;
@@ -216,12 +277,7 @@ export async function getJournalFeedback(
   userText: string,
   userId?: string,
 ): Promise<JournalFeedback | null> {
-  // Check quota if not using custom key
-  const quotaStore = useAiQuotaStore.getState();
-  if (!quotaStore.hasCustomKey() && userId) {
-    const quota = quotaStore.getQuota(userId);
-    if (quota.remaining <= 0) return null;
-  }
+  if (aiNeedsSignIn() || quotaExhausted(userId)) return null;
 
   const content =
     `Journal prompt: ${prompt}\n` +
@@ -241,8 +297,6 @@ export async function getJournalFeedback(
   try {
     const parsed = JSON.parse(result) as JournalFeedback;
     if (typeof parsed.corrected !== 'string' || typeof parsed.explanation !== 'string') return null;
-    // Consume quota on success
-    if (userId) quotaStore.consumeQuota(userId);
     return { corrected: parsed.corrected, roman: parsed.roman || '', explanation: parsed.explanation };
   } catch {
     return null;
@@ -266,13 +320,7 @@ export async function generateMistakeQuiz(
   userId?: string,
 ): Promise<AiQuizQuestion[] | null> {
   if (words.length === 0) return null;
-
-  // Check quota if not using custom key
-  const quotaStore = useAiQuotaStore.getState();
-  if (!quotaStore.hasCustomKey() && userId) {
-    const quota = quotaStore.getQuota(userId);
-    if (quota.remaining <= 0) return null;
-  }
+  if (aiNeedsSignIn() || quotaExhausted(userId)) return null;
 
   const wordList = words
     .map(w => `id=${w.id}: ${w.english} = ${w.nepali} (${w.roman})`)
@@ -315,11 +363,6 @@ export async function generateMistakeQuiz(
     q.answerIndex < 4
   );
 
-  // Consume quota on success
-  if (valid.length > 0 && userId) {
-    quotaStore.consumeQuota(userId);
-  }
-
   return valid.length > 0 ? valid : null;
 }
 
@@ -331,18 +374,8 @@ export interface IdentifiedObject {
 
 /** Identify objects in a photo and name them in Nepali. Returns null offline or on failure. */
 export async function identifyObjects(base64: string, userId?: string): Promise<IdentifiedObject[] | null> {
-  const apiKey = getApiKey();
-  if (!networkManager.getIsConnected() || !apiKey) return null;
-
-  const { baseUrl, visionModel } = getProviderConfig();
-  if (!baseUrl || !visionModel) return null;
-
-  // Check quota if not using custom key
-  const quotaStore = useAiQuotaStore.getState();
-  if (!quotaStore.hasCustomKey() && userId) {
-    const quota = quotaStore.getQuota(userId);
-    if (quota.remaining <= 0) return null;
-  }
+  if (!networkManager.getIsConnected()) return null;
+  if (aiNeedsSignIn() || quotaExhausted(userId)) return null;
 
   const content = [
     {
@@ -358,26 +391,10 @@ export async function identifyObjects(base64: string, userId?: string): Promise<
     },
   ];
 
+  const raw = await completion([{ role: 'user', content }], { jsonMode: true, vision: true });
+  if (!raw) return null;
+
   try {
-    const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: visionModel,
-        messages: [{ role: 'user', content }],
-        response_format: { type: 'json_object' },
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      console.warn('Vision API error:', data.error?.message || res.status);
-      return null;
-    }
-
-    const raw = data?.choices?.[0]?.message?.content;
-    if (!raw) return null;
-
     const parsed = JSON.parse(raw) as { objects?: IdentifiedObject[] };
     if (!Array.isArray(parsed.objects)) return null;
 
@@ -385,14 +402,9 @@ export async function identifyObjects(base64: string, userId?: string): Promise<
       o => o && typeof o.english === 'string' && typeof o.nepali === 'string' && typeof o.roman === 'string',
     );
 
-    // Consume quota on success
-    if (valid.length > 0 && userId) {
-      quotaStore.consumeQuota(userId);
-    }
-
     return valid.length > 0 ? valid : null;
   } catch (e) {
-    console.warn('Vision API fetch failed:', e);
+    console.warn('Vision response parse failed:', e);
     return null;
   }
 }

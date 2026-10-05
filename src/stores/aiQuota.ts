@@ -80,6 +80,7 @@ type AiQuotaState = {
   customModel: string | null;
   getQuota: (userId: string) => { used: number; remaining: number; limit: number };
   consumeQuota: (userId: string) => boolean;
+  syncQuota: (userId: string, remaining: number) => void;
   hasCustomKey: () => boolean;
   setCustomApiKey: (key: string | null) => void;
   setProvider: (provider: AiProvider) => void;
@@ -153,6 +154,16 @@ export const useAiQuotaStore = create<AiQuotaState>()(
           },
         });
         return true;
+      },
+
+      // The ai-chat Edge Function is the source of truth; mirror what it reports.
+      syncQuota: (userId: string, remaining: number) => {
+        set({
+          quotaByUser: {
+            ...get().quotaByUser,
+            [userId]: { date: getTodayDate(), count: Math.max(0, DAILY_LIMIT - remaining) },
+          },
+        });
       },
 
       hasCustomKey: () => {

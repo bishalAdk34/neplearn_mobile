@@ -76,7 +76,7 @@ export async function fetchLearnedWords(userId: string): Promise<number[]> {
     .select('word_id')
     .eq('user_id', userId);
   if (error) throw error;
-  return data.map(r => r.word_id);
+  return data.map((r: { word_id: number }) => r.word_id);
 }
 
 export interface StoredJournalEntry {
@@ -175,7 +175,7 @@ export async function getTotalXp(userId: string): Promise<number> {
       .select('xp_amount')
       .eq('user_id', userId);
     if (fallbackError) return 0;
-    return fallback.reduce((sum, r) => sum + r.xp_amount, 0);
+    return fallback.reduce((sum: number, r: { xp_amount: number }) => sum + r.xp_amount, 0);
   }
   return data || 0;
 }

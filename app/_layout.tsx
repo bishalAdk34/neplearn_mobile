@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AppState, InteractionManager } from 'react-native';
-import { Stack, Redirect } from 'expo-router';
+import { AppState, InteractionManager, View } from 'react-native';
+import { Stack } from 'expo-router';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -28,7 +28,24 @@ import { getMissingConfigKeys } from '../src/config';
 import './global.css';
 
 export default function RootLayout() {
-  const [splashDone] = useState(true);
+  // onboardingDone is persisted in AsyncStorage, which hydrates async.
+  // Until it does, the store reports the default (false), so rendering
+  // routes early makes the wrong screen flash before the real one.
+  const [hydrated, setHydrated] = useState(() =>
+    useVocabStore.persist.hasHydrated()
+  );
+
+  useEffect(() => {
+    if (hydrated) return;
+
+    const unsub = useVocabStore.persist.onFinishHydration(() =>
+      setHydrated(true)
+    );
+
+    if (useVocabStore.persist.hasHydrated()) setHydrated(true);
+
+    return unsub;
+  }, [hydrated]);
 
   const onboardingDone = useVocabStore(
     (s) => s.onboardingDone
@@ -177,83 +194,43 @@ export default function RootLayout() {
   }, [user, syncFromCloud]);
 
   // --------------------------------------------------
-  // ONBOARDING
+  // Wait for persisted state (matches native splash bg)
   // --------------------------------------------------
 
-  if (!onboardingDone) {
+  if (!hydrated) {
     return (
-      <ErrorBoundary>
-        <SafeAreaProvider>
-          <NetworkProvider>
-
-            {/* 
-              SafeAreaView prevents your onboarding
-              screen from going underneath Android's
-              status/navigation bars.
-            */}
-            <SafeAreaView
-              style={{ flex: 1 }}
-              edges={['top', 'bottom']}
-            >
-              <Redirect href="/onboarding" />
-
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                }}
-              >
-                <Stack.Screen
-                  name="onboarding"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-
-                <Stack.Screen
-                  name="signin"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-              </Stack>
-            </SafeAreaView>
-
-          </NetworkProvider>
-        </SafeAreaProvider>
-      </ErrorBoundary>
+      <View style={{ flex: 1, backgroundColor: '#FBF9F4' }} />
     );
   }
 
   // --------------------------------------------------
-  // MAIN APP
+  // ROUTES
   // --------------------------------------------------
 
+  // One Stack for both states: Stack.Protected sends the user to the
+  // first allowed screen, so "/" never renders before onboarding is done.
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
         <NetworkProvider>
 
-          {/* 
+          {/*
             IMPORTANT:
             This is what fixes the Android status bar
             and bottom gesture/navigation area overlap.
+            Onboarding has no BottomNav, so it also
+            needs the bottom inset.
           */}
           <SafeAreaView
             style={{ flex: 1 }}
-            edges={['top']}
+            edges={onboardingDone ? ['top'] : ['top', 'bottom']}
           >
             <Stack
               screenOptions={{
                 headerShown: false,
               }}
             >
-              <Stack.Screen
-                name="signin"
-                options={{
-                  headerShown: false,
-                }}
-              />
-
+              <Stack.Protected guard={onboardingDone}>
               <Stack.Screen
                 name="index"
                 options={{
@@ -480,6 +457,23 @@ export default function RootLayout() {
 
               <Stack.Screen
                 name="support"
+                options={{
+                  headerShown: false,
+                }}
+              />
+              </Stack.Protected>
+
+              <Stack.Protected guard={!onboardingDone}>
+                <Stack.Screen
+                  name="onboarding"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+              </Stack.Protected>
+
+              <Stack.Screen
+                name="signin"
                 options={{
                   headerShown: false,
                 }}

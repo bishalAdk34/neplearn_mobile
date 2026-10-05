@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../src/stores/auth';
 import { useVocabStore, vocab, GUEST_ID } from '../src/data/vocab';
-import { identifyObjects, isOffline, type IdentifiedObject } from '../src/services/ai';
+import { aiNeedsSignIn, identifyObjects, isOffline, type IdentifiedObject } from '../src/services/ai';
 import { speak } from '../src/services/tts';
 import { useNetworkState } from '../src/hooks/useNetworkState';
 import { ScreenHeader } from '../src/components/ui';
@@ -30,6 +30,11 @@ const PhotoVocab = () => {
 
     if (isOffline()) {
       setError('You are offline. Photo vocab needs an internet connection.');
+      return;
+    }
+
+    if (aiNeedsSignIn()) {
+      setError('Please sign in with Google to use Photo Vocab (or add your own API key in Settings > Advanced).');
       return;
     }
 
