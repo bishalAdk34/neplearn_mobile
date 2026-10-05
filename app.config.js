@@ -33,7 +33,7 @@ module.exports = {
       package: isDev ? 'com.neplearn.app.dev' : 'com.neplearn.app',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#D4A76A',
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,

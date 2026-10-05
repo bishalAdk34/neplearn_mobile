@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Adaptive Icon Preview</title>
+  <style>
+    body {
+      font-family: system-ui;
+      background: #1a1a2e;
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    h1 { margin-bottom: 10px; }
+    .info { color: #888; margin-bottom: 30px; }
+    .grid {
+      display: flex;
+      gap: 30px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #2a2a4a;
+      padding: 20px;
+      border-radius: 12px;
+    }
+    .preview img {
+      width: 128px;
+      height: 128px;
+      margin-bottom: 10px;
+    }
+    .preview span {
+      font-size: 14px;
+      color: #aaa;
+    }
+    .note {
+      margin-top: 40px;
+      padding: 20px;
+      background: #2a2a4a;
+      border-radius: 8px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+    }
+    .note h3 { margin-top: 0; color: #6366f1; }
+    code { background: #1a1a2e; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>NepLearn Adaptive Icon Preview</h1>
+  <p class="info">Background: #D4A76A | Foreground: assets/adaptive-icon.png</p>
+
+  <div class="grid">
+    
+    <div class="preview">
+      <img src="preview-circle.png" alt="circle">
+      <span>circle</span>
+    </div>
+    
+    <div class="preview">
+      <img src="preview-squircle.png" alt="squircle">
+      <span>squircle</span>
+    </div>
+    
+    <div class="preview">
+      <img src="preview-roundedSquare.png" alt="roundedSquare">
+      <span>roundedSquare</span>
+    </div>
+    
+    <div class="preview">
+      <img src="preview-teardrop.png" alt="teardrop">
+      <span>teardrop</span>
+    </div>
+    
+  </div>
+
+  <div class="note">
+    <h3>Launcher Shapes</h3>
+    <ul>
+      <li><strong>Circle</strong> — Pixel, stock Android</li>
+      <li><strong>Squircle</strong> — Samsung, OnePlus</li>
+      <li><strong>Rounded Square</strong> — Xiaomi, some custom launchers</li>
+      <li><strong>Teardrop</strong> — Some OEM variants</li>
+    </ul>
+    <p>To adjust: edit <code>scripts/pad-adaptive-icon.js</code> (SAFE_ZONE_RATIO, CROP) or <code>app.config.js</code> (backgroundColor), then run:</p>
+    <pre>node scripts/pad-adaptive-icon.js && node scripts/preview-adaptive-icon.js</pre>
+  </div>
+</body>
+</html>
