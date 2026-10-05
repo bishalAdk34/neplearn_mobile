@@ -162,8 +162,8 @@ async function run() {
       <li><strong>Rounded Square</strong> — Xiaomi, some custom launchers</li>
       <li><strong>Teardrop</strong> — Some OEM variants</li>
     </ul>
-    <p>To adjust: edit <code>scripts/pad-adaptive-icon.js</code> (SAFE_ZONE_RATIO, CROP) or <code>app.config.js</code> (backgroundColor), then run:</p>
-    <pre>node scripts/pad-adaptive-icon.js && node scripts/preview-adaptive-icon.js</pre>
+    <p>To adjust: edit <code>scripts/build-app-icons.js</code> (BG, KITE_BBOX) or <code>app.config.js</code> (backgroundColor), then run:</p>
+    <pre>node scripts/build-app-icons.js && node scripts/preview-adaptive-icon.js</pre>
   </div>
 </body>
 </html>`;
