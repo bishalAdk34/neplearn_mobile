@@ -16,7 +16,7 @@ module.exports = {
     newArchEnabled: true,
     splash: {
       resizeMode: 'contain',
-      backgroundColor: '#585CF5',
+      backgroundColor: '#FBF9F4',
     },
     ios: {
       supportsTablet: true,
@@ -33,7 +33,7 @@ module.exports = {
       package: isDev ? 'com.neplearn.app.dev' : 'com.neplearn.app',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#585CF5',
+        backgroundColor: '#FBF7EF',
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,

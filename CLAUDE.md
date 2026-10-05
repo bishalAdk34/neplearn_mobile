@@ -51,7 +51,12 @@ No lint script exists. Tests live in `__tests__/`; `jest.setup.js` mocks AsyncSt
 - Auth: Google Sign-In (`@react-native-google-signin`) idToken → `supabase.auth.signInWithIdToken`.
 
 ### Styling
-NativeWind (Tailwind for RN) via `className`. Custom colors (`primary` #6366F1, `surface`, `text-primary`, `text-secondary`) in `tailwind.config.js`. `global.css` imported in `app/_layout.tsx`.
+NativeWind (Tailwind for RN) via `className`. Custom colors in `tailwind.config.js`: `cream` #FBF9F4 (screen backgrounds), `brand` #800816 (maroon — titles, buttons), `ink` #4A1942 (plum — body text), `line` #E5D5D0 (borders), `accent` #6366F1 (indigo, rarely used). `global.css` imported in `app/_layout.tsx`.
+
+### App icon & splash
+- Icon is a Nepal-flag kite on cream. Source: `docs/kite-logo.png`; `node scripts/build-app-icons.js` generates `assets/icon.png`, `adaptive-icon.png`, `favicon.png`; `node scripts/preview-adaptive-icon.js` previews launcher masks.
+- `adaptiveIcon.backgroundColor` in `app.config.js` must match the source's background (#FBF7EF).
+- `src/components/SplashScreen.tsx` uses the theme colors above plus the kite's crimson #DC143C.
 
 ### Config
 - Flow: `.env` → `app.config.js` (`process.env` → `expo.extra`) → `src/config.ts` (reads via `expo-constants`).
