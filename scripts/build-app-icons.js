@@ -1,7 +1,7 @@
 // Build all app icons from the kite logo source (docs/kite-logo.png).
 // Run: node scripts/build-app-icons.js && node scripts/preview-adaptive-icon.js
 //
-// The source is a flat kite on a solid indigo background. For the Android
+// The source is a flat kite on a solid cream background. For the Android
 // adaptive foreground the kite is shrunk and re-centered (the source sits it
 // high/right to leave room for the string) and exposed edges are filled with
 // the sampled background color. Android's adaptiveIcon.backgroundColor in
@@ -13,16 +13,16 @@ const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'docs', 'kite-logo.png');
 const SIZE = 1024;
 
-// Sampled from the source corners (#585CF5).
-const BG = { r: 88, g: 92, b: 245, alpha: 1 };
+// Sampled from the source corners (#FBF7EF).
+const BG = { r: 251, g: 247, b: 239, alpha: 1 };
 
 // Kite bbox in source pixels (red fill + blue border), measured once.
-const KITE_BBOX = { x0: 452, y0: 245, x1: 864, y1: 802 };
+const KITE_BBOX = { x0: 453, y0: 245, x1: 865, y1: 803 };
 
-// Source is drawn at this fraction of the canvas. At 0.85 the kite's farthest
-// corner sits ~240px from center, well inside Android's 66dp safe-zone circle
-// (~313px of 1024) with room for the wind lines.
-const KITE_SCALE = 0.85;
+// Source is drawn at this fraction of the canvas. At 0.95 the kite's farthest
+// corner sits ~265px from center and the wind lines ~280px, inside Android's
+// 66dp safe-zone circle (~313px of 1024).
+const KITE_SCALE = 0.95;
 
 async function buildMaster() {
   const meta = await sharp(SRC).metadata();

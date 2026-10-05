@@ -4,8 +4,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
-// Matches the app icon background (assets/icon.png, adaptiveIcon.backgroundColor).
-const INDIGO = '#585CF5';
+// App theme colors (tailwind.config.js: cream, brand, ink) plus the kite's crimson.
+const CREAM = '#FBF9F4';
+const BRAND = '#800816';
+const INK = '#4A1942';
 const CRIMSON = '#DC143C';
 
 type Props = {
@@ -42,8 +44,8 @@ export default function SplashScreen({ onFinish }: Props) {
 
   return (
     <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-      <View style={{ flex: 1, backgroundColor: INDIGO }}>
-        {/* Mountain background - top ~58%, fading into the indigo below */}
+      <View style={{ flex: 1, backgroundColor: CREAM }}>
+        {/* Mountain background - top ~58%, fading into the cream below */}
         <View style={{ width, height: height * 0.58 }}>
           <Image
             source={require('@/assets/splash_image.webp')}
@@ -51,7 +53,7 @@ export default function SplashScreen({ onFinish }: Props) {
             resizeMode="cover"
           />
           <LinearGradient
-            colors={['transparent', INDIGO]}
+            colors={['transparent', CREAM]}
             style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: height * 0.22 }}
           />
         </View>
@@ -67,10 +69,10 @@ export default function SplashScreen({ onFinish }: Props) {
                 borderWidth: 4,
                 borderColor: '#FFFFFF',
                 overflow: 'hidden',
-                backgroundColor: INDIGO,
-                shadowColor: '#000',
+                backgroundColor: CREAM,
+                shadowColor: INK,
                 shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.3,
+                shadowOpacity: 0.25,
                 shadowRadius: 10,
                 elevation: 10,
               }}
@@ -87,7 +89,7 @@ export default function SplashScreen({ onFinish }: Props) {
             style={{
               fontSize: 38,
               fontWeight: '800',
-              color: '#FFFFFF',
+              color: BRAND,
               letterSpacing: 0.5,
             }}
           >
@@ -111,7 +113,8 @@ export default function SplashScreen({ onFinish }: Props) {
             style={{
               fontSize: 14,
               fontWeight: '600',
-              color: 'rgba(255,255,255,0.85)',
+              color: INK,
+              opacity: 0.8,
               letterSpacing: 2.5,
               textAlign: 'center',
               lineHeight: 22,
@@ -124,7 +127,8 @@ export default function SplashScreen({ onFinish }: Props) {
           <Text
             style={{
               fontSize: 15,
-              color: 'rgba(255,255,255,0.7)',
+              color: INK,
+              opacity: 0.6,
               fontStyle: 'italic',
               marginTop: 32,
             }}
@@ -138,7 +142,7 @@ export default function SplashScreen({ onFinish }: Props) {
               width: 10,
               height: 10,
               borderRadius: 5,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: CRIMSON,
               marginTop: 12,
               transform: [{ scale: dotScale }],
             }}
@@ -152,10 +156,10 @@ export default function SplashScreen({ onFinish }: Props) {
               paddingHorizontal: 28,
               paddingVertical: 12,
               borderRadius: 999,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: BRAND,
             }}
           >
-            <Text style={{ color: INDIGO, fontWeight: '800', letterSpacing: 1 }}>CONTINUE</Text>
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', letterSpacing: 1 }}>CONTINUE</Text>
           </TouchableOpacity>
 
           {/* Footer */}
@@ -163,7 +167,8 @@ export default function SplashScreen({ onFinish }: Props) {
             <Text
               style={{
                 fontSize: 11,
-                color: 'rgba(255,255,255,0.55)',
+                color: INK,
+                opacity: 0.45,
                 letterSpacing: 2,
                 textAlign: 'center',
               }}
