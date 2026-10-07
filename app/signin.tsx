@@ -165,6 +165,10 @@ export default function SignIn() {
         <TouchableOpacity onPress={goHome} className="mt-5">
           <Text className="text-sm font-medium text-[#64748B]">Continue without signing in</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/privacy')} className="mt-6">
+          <Text className="text-xs text-[#94A3B8] text-center">Privacy Policy</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );

@@ -378,6 +378,17 @@ const Settings = () => {
             </View>
           </TouchableOpacity>
         )}
+
+        <TouchableOpacity
+          className="bg-white overflow-hidden mb-6"
+          style={{ borderRadius: 16 }}
+          onPress={() => router.push('/privacy')}
+        >
+          <View className="px-4 py-4 flex-row justify-between items-center">
+            <Text className="text-ink text-base">Privacy Policy</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </View>
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={timePickerVisible} transparent animationType="slide" onRequestClose={() => setTimePickerVisible(false)}>

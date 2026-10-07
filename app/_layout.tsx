@@ -478,6 +478,13 @@ export default function RootLayout() {
                   headerShown: false,
                 }}
               />
+
+              <Stack.Screen
+                name="privacy"
+                options={{
+                  headerShown: false,
+                }}
+              />
             </Stack>
           </SafeAreaView>
 
